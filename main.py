@@ -10,12 +10,13 @@ import atexit
 from queue import Queue
 from PyQt4.QtCore import QSettings
 
-import preview_thread, core
+import preview_thread, core, video_thread
 
 class Main(QtCore.QObject):
 
   newTask = QtCore.pyqtSignal(str, str, QFont)
   processTask = QtCore.pyqtSignal()
+  videoTask = QtCore.pyqtSignal(str, str, QFont, str, str)
 
   def __init__(self, window):
 
@@ -108,70 +109,27 @@ class Main(QtCore.QObject):
     self.drawPreview()
 
   def createAudioVisualisation(self):
+    self.videoThread = QtCore.QThread(self)
+    self.videoWorker = video_thread.Worker(self)
 
-    imBackground = self.core.drawBaseImage(
-      self.window.label_background.text(),
-      self.window.lineEdit_title.text(),
-      self.window.fontComboBox.currentFont())
-
-    self.window.progressBar_create.setValue(0)
+    self.videoWorker.moveToThread(self.videoThread)
+    self.videoWorker.videoCreated.connect(self.videoCreated)
+    self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
     
-    completeAudioArray = self.core.readAudioFile(self.window.label_input.text())
+    self.videoThread.start()
+    self.videoTask.emit(self.window.label_background.text(),
+      self.window.lineEdit_title.text(),
+      self.window.fontComboBox.currentFont(),
+      self.window.label_input.text(),
+      self.window.label_output.text())
+    
 
-    out_pipe = sp.Popen([ self.core.FFMPEG_BIN,
-       '-y', # (optional) means overwrite the output file if it already exists.
-       '-f', 'rawvideo',
-       '-vcodec', 'rawvideo',
-       '-s', '1280x720', # size of one frame
-       '-pix_fmt', 'rgb24',
-       '-r', '30', # frames per second
-       '-i', '-', # The input comes from a pipe
-       '-an',
-       '-i', self.window.label_input.text(),
-       '-acodec', "libmp3lame", # output audio codec
-       self.window.label_output.text()],
-        stdin=sp.PIPE,stdout=sp.DEVNULL, stderr=sp.DEVNULL)
+  def progressBarUpdated(self, value):
+    self.window.progressBar_create.setValue(value)
 
-    smoothConstantDown = 0.08
-    smoothConstantUp = 0.8
-    lastSpectrum = None
-    progressBarValue = 0
-    sampleSize = 1470
-
-    numpy.seterr(divide='ignore')
-
-    for i in range(0, len(completeAudioArray), sampleSize):
-      # create video for output
-      lastSpectrum = self.core.transformData(
-        i,
-        completeAudioArray,
-        sampleSize,
-        smoothConstantDown,
-        smoothConstantUp,
-        lastSpectrum)
-      im = self.core.drawBars(lastSpectrum, imBackground)
-
-      # write to out_pipe
-      try:
-        out_pipe.stdin.write(im.tostring())
-      finally:
-        True
-
-      # increase progress bar value
-      if progressBarValue + 1 <= (i / len(completeAudioArray)) * 100:
-        progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100)
-        self.window.progressBar_create.setValue(progressBarValue)
-
-    numpy.seterr(all='print')
-
-    out_pipe.stdin.close()
-    if out_pipe.stderr is not None:
-      print(out_pipe.stderr.read())
-      out_pipe.stderr.close()
-    out_pipe.terminate()
-    out_pipe.wait()
-    print("Video file created")
-    self.window.progressBar_create.setValue(100)
+  def videoCreated(self):
+    self.videoThread.quit()
+    self.videoThread.wait()
 
   def drawPreview(self):
     self.newTask.emit(self.window.label_background.text(),
