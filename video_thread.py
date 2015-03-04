@@ -42,8 +42,10 @@ class Worker(QtCore.QObject):
        '-an',
        '-i', inputFile,
        '-acodec', "libmp3lame", # output audio codec
-       '-vcodec', "h264",
-       '-pix_fmt', "yuv422p",
+       '-vcodec', "libx264",
+       '-pix_fmt', "yuv444p",
+       '-preset', "medium",
+       '-f', "matroska",
        outputFile],
         stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
@@ -83,7 +85,7 @@ class Worker(QtCore.QObject):
     if out_pipe.stderr is not None:
       print(out_pipe.stderr.read())
       out_pipe.stderr.close()
-    out_pipe.terminate()
+    # out_pipe.terminate() # don't terminate ffmpeg too early
     out_pipe.wait()
     print("Video file created")
     self.progressBarUpdate.emit(100)
