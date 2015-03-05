@@ -1,4 +1,4 @@
-import sys, io
+import sys, io, os
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtGui import QPainter, QColor
 from os.path import expanduser
@@ -13,10 +13,18 @@ class Core():
     self.lastBackgroundImage = ""
     self._image = None
 
+    self.FFMPEG_BIN = self.findFfmpeg()
+
+  def findFfmpeg(self):
     if sys.platform == "win32":
-      self.FFMPEG_BIN = "ffmpeg.exe"
+      return "ffmpeg.exe"
     else:
-      self.FFMPEG_BIN = "ffmpeg" # on Linux and Mac OS
+      try:
+        with open(os.devnull, "w") as f:
+          sp.check_call(['ffmpeg', '-version'], stdout=f, stderr=f)
+        return "ffmpeg"
+      except:
+        return "avconv"
 
   def drawBaseImage(self, backgroundImage, titleText, titleFont):
 

@@ -109,6 +109,8 @@ class Main(QtCore.QObject):
     self.drawPreview()
 
   def createAudioVisualisation(self):
+    ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
+
     self.videoThread = QtCore.QThread(self)
     self.videoWorker = video_thread.Worker(self)
 
