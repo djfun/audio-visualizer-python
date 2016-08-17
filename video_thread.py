@@ -70,7 +70,7 @@ class Worker(QtCore.QObject):
 
       # write to out_pipe
       try:
-        out_pipe.stdin.write(im.tostring())
+        out_pipe.stdin.write(im.tobytes())
       finally:
         True
 
