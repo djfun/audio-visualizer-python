@@ -31,7 +31,14 @@ class Worker(QtCore.QObject):
     
     completeAudioArray = self.core.readAudioFile(inputFile)
 
-    out_pipe = sp.Popen([ self.core.FFMPEG_BIN,
+    # test if user has libfdk_aac
+    encoders = sp.check_output(self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
+    if b'libfdk_aac' in encoders:
+      acodec = 'libfdk_aac'
+    else:
+      acodec = 'aac'
+
+    ffmpegCommand = [ self.core.FFMPEG_BIN,
        '-y', # (optional) means overwrite the output file if it already exists.
        '-f', 'rawvideo',
        '-vcodec', 'rawvideo',
@@ -41,13 +48,20 @@ class Worker(QtCore.QObject):
        '-i', '-', # The input comes from a pipe
        '-an',
        '-i', inputFile,
-       '-acodec', "libfdk_aac", # output audio codec
+       '-acodec', acodec, # output audio codec
        '-b:a', "192k",
        '-vcodec', "libx264",
        '-pix_fmt', "yuv420p",
        '-preset', "medium",
-       '-f', "mp4",
-       outputFile],
+       '-f', "mp4"]
+
+    if acodec == 'aac':
+      ffmpegCommand.append('-strict')
+      ffmpegCommand.append('-2')
+
+    ffmpegCommand.append(outputFile)
+    
+    out_pipe = sp.Popen(ffmpegCommand,
         stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
     smoothConstantDown = 0.08
