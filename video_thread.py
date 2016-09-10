@@ -41,11 +41,12 @@ class Worker(QtCore.QObject):
        '-i', '-', # The input comes from a pipe
        '-an',
        '-i', inputFile,
-       '-acodec', "libmp3lame", # output audio codec
+       '-acodec', "libfdk_aac", # output audio codec
+       '-b:a', "192k",
        '-vcodec', "libx264",
-       '-pix_fmt', "yuv444p",
+       '-pix_fmt', "yuv420p",
        '-preset', "medium",
-       '-f', "matroska",
+       '-f', "mp4",
        outputFile],
         stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
