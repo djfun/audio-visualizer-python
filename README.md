@@ -32,6 +32,24 @@ Download audio-visualizer-python from this repository and run it with `python3 m
 
 Download audio-visualizer-python from this repository and run it from the command line with `C:\Python34\python.exe main.py`.
 
+### Manual installation on macOS
+
+* Install [Homebrew](http://brew.sh/)
+* Use the following commands to install the needed dependencies:
+
+```
+brew install python3
+brew install ffmpeg --with-fdk-aac --with-ffplay --with-freetype --with-libass --with-libquvi --with-libvorbis --with-libvpx --with-opus --with-x265
+brew install qt
+brew install sip --with-python3
+brew install pyqt --with-python3
+pip3 install --upgrade pip
+pip3 install pillow
+pip3 install numpy
+```
+
+Download audio-visualizer-python from this repository and run it with `python3 main.py`.
+
 Example
 -------
 You can find an example video here:
