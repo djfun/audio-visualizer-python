@@ -124,7 +124,7 @@ class Core():
     sample_rate = 44100
     frequencies = numpy.fft.fftfreq(len(spectrum), 1./sample_rate)
 
-    y = abs(spectrum[0:paddedSampleSize/2 - 1])
+    y = abs(spectrum[0:int(paddedSampleSize/2) - 1])
 
     # filter the noise away
     # y[y<80] = 0
@@ -138,6 +138,6 @@ class Core():
     else:
       lastSpectrum = y
 
-    x = frequencies[0:paddedSampleSize/2 - 1]
+    x = frequencies[0:int(paddedSampleSize/2) - 1]
 
     return lastSpectrum
