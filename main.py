@@ -57,7 +57,7 @@ class Main(QtCore.QObject):
     window.pushButton_selectOutput.setText("Select Output Video File")
     window.pushButton_selectBackground.setText("Select Background Image")
     window.label_font.setText("Title Font")
-    window.label_alignment.setText("Alignment")
+    window.label_alignment.setText("Title Alignment")
     window.label_title.setText("Title Text")
     window.pushButton_createVideo.setText("Create Video")
     window.groupBox_create.setTitle("Create")
