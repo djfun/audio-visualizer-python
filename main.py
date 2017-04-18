@@ -14,7 +14,7 @@ import preview_thread, core, video_thread
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, str, QFont)
+  newTask = QtCore.pyqtSignal(str, str, QFont, str)
   processTask = QtCore.pyqtSignal()
   videoTask = QtCore.pyqtSignal(str, str, QFont, str, str)
 
@@ -49,6 +49,7 @@ class Main(QtCore.QObject):
 
     window.fontComboBox.currentFontChanged.connect(self.drawPreview)
     window.lineEdit_title.textChanged.connect(self.drawPreview)
+    window.alignmentComboBox.currentIndexChanged.connect(self.drawPreview)
 
     window.progressBar_create.setValue(0)
     window.setWindowTitle("Audio Visualizer")
@@ -56,11 +57,16 @@ class Main(QtCore.QObject):
     window.pushButton_selectOutput.setText("Select Output Video File")
     window.pushButton_selectBackground.setText("Select Background Image")
     window.label_font.setText("Title Font")
+    window.label_alignment.setText("Alignment")
     window.label_title.setText("Title Text")
     window.pushButton_createVideo.setText("Create Video")
     window.groupBox_create.setTitle("Create")
     window.groupBox_settings.setTitle("Settings")
     window.groupBox_preview.setTitle("Preview")
+
+    window.alignmentComboBox.addItem("Left");
+    window.alignmentComboBox.addItem("Middle");
+    window.alignmentComboBox.addItem("Right");
 
     titleFont = self.settings.value("titleFont")
     if not titleFont == None: 
@@ -136,7 +142,8 @@ class Main(QtCore.QObject):
   def drawPreview(self):
     self.newTask.emit(self.window.label_background.text(),
       self.window.lineEdit_title.text(),
-      self.window.fontComboBox.currentFont())
+      self.window.fontComboBox.currentFont(),
+      self.window.alignmentComboBox.currentText())
     # self.processTask.emit()
 
   def showPreviewImage(self, image):
