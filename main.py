@@ -16,7 +16,7 @@ class Main(QtCore.QObject):
 
   newTask = QtCore.pyqtSignal(str, str, QFont, str)
   processTask = QtCore.pyqtSignal()
-  videoTask = QtCore.pyqtSignal(str, str, QFont, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, QFont, str, str, str)
 
   def __init__(self, window):
 
@@ -128,6 +128,7 @@ class Main(QtCore.QObject):
     self.videoTask.emit(self.window.label_background.text(),
       self.window.lineEdit_title.text(),
       self.window.fontComboBox.currentFont(),
+      self.window.alignmentComboBox.currentText(),
       self.window.label_input.text(),
       self.window.label_output.text())
     
