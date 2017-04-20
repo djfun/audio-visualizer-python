@@ -19,14 +19,16 @@ class Worker(QtCore.QObject):
     self.queue = queue
 
 
-  @pyqtSlot(str, str, QtGui.QFont, str)
-  def createPreviewImage(self, backgroundImage, titleText, titleFont, alignment):
+  @pyqtSlot(str, str, QtGui.QFont, str, int, int)
+  def createPreviewImage(self, backgroundImage, titleText, titleFont, alignment, xOffset, yOffset):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     dic = {
       "backgroundImage": backgroundImage,
       "titleText": titleText,
       "titleFont": titleFont,
-      "alignment": alignment
+      "alignment": alignment,
+      "xoffset": xOffset,
+      "yoffset": yOffset
     }
     self.queue.put(dic)
 
@@ -44,7 +46,9 @@ class Worker(QtCore.QObject):
         nextPreviewInformation["backgroundImage"],
         nextPreviewInformation["titleText"],
         nextPreviewInformation["titleFont"],
-        nextPreviewInformation["alignment"])
+        nextPreviewInformation["alignment"],
+        nextPreviewInformation["xoffset"],
+        nextPreviewInformation["yoffset"])
 
       spectrum = numpy.fromfunction(lambda x: 0.008*(x-128)**2, (255,), dtype="int16")
 

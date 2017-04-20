@@ -14,7 +14,7 @@ import preview_thread, core, video_thread
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, str, QFont, str)
+  newTask = QtCore.pyqtSignal(str, str, QFont, str, int, int)
   processTask = QtCore.pyqtSignal()
   videoTask = QtCore.pyqtSignal(str, str, QFont, str, str, str)
 
@@ -50,6 +50,8 @@ class Main(QtCore.QObject):
     window.fontComboBox.currentFontChanged.connect(self.drawPreview)
     window.lineEdit_title.textChanged.connect(self.drawPreview)
     window.alignmentComboBox.currentIndexChanged.connect(self.drawPreview)
+    window.textXSpinBox.valueChanged.connect(self.drawPreview)
+    window.textYSpinBox.valueChanged.connect(self.drawPreview)
 
     window.progressBar_create.setValue(0)
     window.setWindowTitle("Audio Visualizer")
@@ -145,7 +147,9 @@ class Main(QtCore.QObject):
     self.newTask.emit(self.window.label_background.text(),
       self.window.lineEdit_title.text(),
       self.window.fontComboBox.currentFont(),
-      self.window.alignmentComboBox.currentText())
+      self.window.alignmentComboBox.currentText(),
+      self.window.textXSpinBox.value(),
+      self.window.textYSpinBox.value())
     # self.processTask.emit()
 
   def showPreviewImage(self, image):
