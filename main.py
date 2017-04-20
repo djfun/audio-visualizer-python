@@ -69,7 +69,7 @@ class Main(QtCore.QObject):
     window.groupBox_preview.setTitle("Preview")
 
     window.alignmentComboBox.addItem("Left")
-    window.alignmentComboBox.addItem("Middle"
+    window.alignmentComboBox.addItem("Middle")
     window.alignmentComboBox.addItem("Right")
     window.fontsizeSpinBox.setValue(35)
     window.textXSpinBox.setValue(70)
