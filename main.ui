@@ -202,7 +202,74 @@
               </widget>
              </item>
              <item>
-              <widget class="QComboBox" name="alignmentComboBox"/>
+              <layout class="QHBoxLayout" name="horizontalLayout_3">
+               <item>
+                <widget class="QComboBox" name="alignmentComboBox"/>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_fontsize">
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="fontsizeSpinBox">
+                 <property name="maximum">
+                  <number>999</number>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_textX">
+                 <property name="layoutDirection">
+                  <enum>Qt::LeftToRight</enum>
+                 </property>
+                 <property name="text">
+                  <string>X</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="textXSpinBox">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimum">
+                  <number>-99999</number>
+                 </property>
+                 <property name="maximum">
+                  <number>99999</number>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_textY">
+                 <property name="text">
+                  <string>Y</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="textYSpinBox">
+                 <property name="minimum">
+                  <number>-99999</number>
+                 </property>
+                 <property name="maximum">
+                  <number>99999</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
              </item>
             </layout>
            </item>
@@ -244,8 +311,6 @@
           </layout>
          </item>
         </layout>
-        <zorder>verticalLayoutWidget_2</zorder>
-        <zorder>layoutWidget_2</zorder>
        </widget>
       </item>
       <item>
