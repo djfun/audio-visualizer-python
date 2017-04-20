@@ -26,7 +26,7 @@ class Core():
       except:
         return "avconv"
 
-  def drawBaseImage(self, backgroundImage, titleText, titleFont, alignment, xOffset, yOffset):
+  def drawBaseImage(self, backgroundImage, titleText, titleFont, fontSize, alignment, xOffset, yOffset):
 
     if self._image == None or not self.lastBackgroundImage == backgroundImage:
       self.lastBackgroundImage = backgroundImage
@@ -45,19 +45,19 @@ class Core():
     self._image1 = QtGui.QImage(self._image)
     painter = QPainter(self._image1)
     font = titleFont
-    font.setPointSizeF(35)
+    font.setPointSizeF(fontSize)
     painter.setFont(font)
     painter.setPen(QColor(255, 255, 255))
 
-    yPosition = 375 + yOffset
+    yPosition = yOffset
 
     fm = QtGui.QFontMetrics(font)
     if alignment == "Left":
-       xPosition = 70 + xOffset
+       xPosition = xOffset
     if alignment == "Middle":
-       xPosition = xOffset + (1280/2 - fm.width(titleText)/2)
+       xPosition = xOffset - fm.width(titleText)/2
     if alignment == "Right":
-       xPosition = xOffset + (1210 - fm.width(titleText))
+       xPosition = xOffset - fm.width(titleText)
     painter.drawText(xPosition, yPosition, titleText)
     painter.end()
 

@@ -14,7 +14,7 @@ import preview_thread, core, video_thread
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, str, QFont, str, int, int)
+  newTask = QtCore.pyqtSignal(str, str, QFont, int, str, int, int)
   processTask = QtCore.pyqtSignal()
   videoTask = QtCore.pyqtSignal(str, str, QFont, str, str, str)
 
@@ -52,6 +52,7 @@ class Main(QtCore.QObject):
     window.alignmentComboBox.currentIndexChanged.connect(self.drawPreview)
     window.textXSpinBox.valueChanged.connect(self.drawPreview)
     window.textYSpinBox.valueChanged.connect(self.drawPreview)
+    window.fontsizeSpinBox.valueChanged.connect(self.drawPreview)
 
     window.progressBar_create.setValue(0)
     window.setWindowTitle("Audio Visualizer")
@@ -70,6 +71,8 @@ class Main(QtCore.QObject):
     window.alignmentComboBox.addItem("Left");
     window.alignmentComboBox.addItem("Middle");
     window.alignmentComboBox.addItem("Right");
+    window.textXSpinBox.setValue(70);
+    window.textYSpinBox.setValue(375);
 
     titleFont = self.settings.value("titleFont")
     if not titleFont == None: 
@@ -147,6 +150,7 @@ class Main(QtCore.QObject):
     self.newTask.emit(self.window.label_background.text(),
       self.window.lineEdit_title.text(),
       self.window.fontComboBox.currentFont(),
+      self.window.fontsizeSpinBox.value(),
       self.window.alignmentComboBox.currentText(),
       self.window.textXSpinBox.value(),
       self.window.textYSpinBox.value())

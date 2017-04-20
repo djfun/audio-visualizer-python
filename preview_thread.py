@@ -19,13 +19,14 @@ class Worker(QtCore.QObject):
     self.queue = queue
 
 
-  @pyqtSlot(str, str, QtGui.QFont, str, int, int)
-  def createPreviewImage(self, backgroundImage, titleText, titleFont, alignment, xOffset, yOffset):
+  @pyqtSlot(str, str, QtGui.QFont, int, str, int, int)
+  def createPreviewImage(self, backgroundImage, titleText, titleFont, fontSize, alignment, xOffset, yOffset):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     dic = {
       "backgroundImage": backgroundImage,
       "titleText": titleText,
       "titleFont": titleFont,
+      "fontSize": fontSize,
       "alignment": alignment,
       "xoffset": xOffset,
       "yoffset": yOffset
@@ -46,6 +47,7 @@ class Worker(QtCore.QObject):
         nextPreviewInformation["backgroundImage"],
         nextPreviewInformation["titleText"],
         nextPreviewInformation["titleFont"],
+        nextPreviewInformation["fontSize"],
         nextPreviewInformation["alignment"],
         nextPreviewInformation["xoffset"],
         nextPreviewInformation["yoffset"])
