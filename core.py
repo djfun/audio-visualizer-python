@@ -52,11 +52,11 @@ class Core():
     yPosition = yOffset
 
     fm = QtGui.QFontMetrics(font)
-    if alignment == "Left":
+    if alignment == 0:      #Left
        xPosition = xOffset
-    if alignment == "Middle":
+    if alignment == 1:      #Middle
        xPosition = xOffset - fm.width(titleText)/2
-    if alignment == "Right":
+    if alignment == 2:      #Right
        xPosition = xOffset - fm.width(titleText)
     painter.drawText(xPosition, yPosition, titleText)
     painter.end()

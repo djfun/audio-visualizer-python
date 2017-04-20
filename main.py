@@ -14,9 +14,9 @@ import preview_thread, core, video_thread
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, str, QFont, int, str, int, int)
+  newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int)
   processTask = QtCore.pyqtSignal()
-  videoTask = QtCore.pyqtSignal(str, str, QFont, int, str, int, int, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, str, str)
 
   def __init__(self, window):
 
@@ -153,7 +153,7 @@ class Main(QtCore.QObject):
       self.window.lineEdit_title.text(),
       self.window.fontComboBox.currentFont(),
       self.window.fontsizeSpinBox.value(),
-      self.window.alignmentComboBox.currentText(),
+      self.window.alignmentComboBox.currentIndex(),
       self.window.textXSpinBox.value(),
       self.window.textYSpinBox.value(),
       self.window.label_input.text(),
@@ -172,7 +172,7 @@ class Main(QtCore.QObject):
       self.window.lineEdit_title.text(),
       self.window.fontComboBox.currentFont(),
       self.window.fontsizeSpinBox.value(),
-      self.window.alignmentComboBox.currentText(),
+      self.window.alignmentComboBox.currentIndex(),
       self.window.textXSpinBox.value(),
       self.window.textYSpinBox.value())
     # self.processTask.emit()
