@@ -68,15 +68,29 @@ class Main(QtCore.QObject):
     window.groupBox_settings.setTitle("Settings")
     window.groupBox_preview.setTitle("Preview")
 
-    window.alignmentComboBox.addItem("Left");
-    window.alignmentComboBox.addItem("Middle");
-    window.alignmentComboBox.addItem("Right");
-    window.textXSpinBox.setValue(70);
-    window.textYSpinBox.setValue(375);
+    window.alignmentComboBox.addItem("Left")
+    window.alignmentComboBox.addItem("Middle"
+    window.alignmentComboBox.addItem("Right")
+    window.fontsizeSpinBox.setValue(35)
+    window.textXSpinBox.setValue(70)
+    window.textYSpinBox.setValue(375)
 
     titleFont = self.settings.value("titleFont")
     if not titleFont == None: 
       window.fontComboBox.setCurrentFont(QFont(titleFont))
+
+    alignment = self.settings.value("alignment")
+    if not alignment == None:
+      window.alignmentComboBox.setCurrentIndex(int(alignment))
+    fontSize = self.settings.value("fontSize")
+    if not fontSize == None:
+      window.fontsizeSpinBox.setValue(int(fontSize))
+    xPosition = self.settings.value("xPosition")
+    if not xPosition == None:
+      window.textXSpinBox.setValue(int(xPosition))
+    yPosition = self.settings.value("yPosition")
+    if not yPosition == None:
+      window.textYSpinBox.setValue(int(yPosition))
 
     self.drawPreview()
 
@@ -88,6 +102,10 @@ class Main(QtCore.QObject):
     self.previewThread.wait()
 
     self.settings.setValue("titleFont", self.window.fontComboBox.currentFont().toString())
+    self.settings.setValue("alignment", str(self.window.alignmentComboBox.currentIndex()))
+    self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
+    self.settings.setValue("xPosition", str(self.window.textXSpinBox.value()))
+    self.settings.setValue("yPosition", str(self.window.textYSpinBox.value()))
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
