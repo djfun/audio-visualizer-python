@@ -18,14 +18,18 @@ class Worker(QtCore.QObject):
     self.core = core.Core()
 
 
-  @pyqtSlot(str, str, QtGui.QFont, str, str)
-  def createVideo(self, backgroundImage, titleText, titleFont, inputFile, outputFile):
+  @pyqtSlot(str, str, QtGui.QFont, int, int, int, int, str, str)
+  def createVideo(self, backgroundImage, titleText, titleFont, fontSize, alignment, xOffset, yOffset,  inputFile, outputFile):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     
     imBackground = self.core.drawBaseImage(
       backgroundImage,
       titleText,
-      titleFont)
+      titleFont,
+      fontSize,
+      alignment,
+      xOffset,
+      yOffset)
 
     self.progressBarUpdate.emit(0)
     
