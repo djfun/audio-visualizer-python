@@ -14,9 +14,9 @@ import preview_thread, core, video_thread
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, str, QFont)
+  newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int)
   processTask = QtCore.pyqtSignal()
-  videoTask = QtCore.pyqtSignal(str, str, QFont, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, str, str)
 
   def __init__(self, window):
 
@@ -49,6 +49,10 @@ class Main(QtCore.QObject):
 
     window.fontComboBox.currentFontChanged.connect(self.drawPreview)
     window.lineEdit_title.textChanged.connect(self.drawPreview)
+    window.alignmentComboBox.currentIndexChanged.connect(self.drawPreview)
+    window.textXSpinBox.valueChanged.connect(self.drawPreview)
+    window.textYSpinBox.valueChanged.connect(self.drawPreview)
+    window.fontsizeSpinBox.valueChanged.connect(self.drawPreview)
 
     window.progressBar_create.setValue(0)
     window.setWindowTitle("Audio Visualizer")
@@ -56,15 +60,37 @@ class Main(QtCore.QObject):
     window.pushButton_selectOutput.setText("Select Output Video File")
     window.pushButton_selectBackground.setText("Select Background Image")
     window.label_font.setText("Title Font")
+    window.label_alignment.setText("Title Options")
+    window.label_fontsize.setText("Fontsize")
     window.label_title.setText("Title Text")
     window.pushButton_createVideo.setText("Create Video")
     window.groupBox_create.setTitle("Create")
     window.groupBox_settings.setTitle("Settings")
     window.groupBox_preview.setTitle("Preview")
 
+    window.alignmentComboBox.addItem("Left")
+    window.alignmentComboBox.addItem("Middle")
+    window.alignmentComboBox.addItem("Right")
+    window.fontsizeSpinBox.setValue(35)
+    window.textXSpinBox.setValue(70)
+    window.textYSpinBox.setValue(375)
+
     titleFont = self.settings.value("titleFont")
     if not titleFont == None: 
       window.fontComboBox.setCurrentFont(QFont(titleFont))
+
+    alignment = self.settings.value("alignment")
+    if not alignment == None:
+      window.alignmentComboBox.setCurrentIndex(int(alignment))
+    fontSize = self.settings.value("fontSize")
+    if not fontSize == None:
+      window.fontsizeSpinBox.setValue(int(fontSize))
+    xPosition = self.settings.value("xPosition")
+    if not xPosition == None:
+      window.textXSpinBox.setValue(int(xPosition))
+    yPosition = self.settings.value("yPosition")
+    if not yPosition == None:
+      window.textYSpinBox.setValue(int(yPosition))
 
     self.drawPreview()
 
@@ -76,6 +102,10 @@ class Main(QtCore.QObject):
     self.previewThread.wait()
 
     self.settings.setValue("titleFont", self.window.fontComboBox.currentFont().toString())
+    self.settings.setValue("alignment", str(self.window.alignmentComboBox.currentIndex()))
+    self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
+    self.settings.setValue("xPosition", str(self.window.textXSpinBox.value()))
+    self.settings.setValue("yPosition", str(self.window.textYSpinBox.value()))
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -122,6 +152,10 @@ class Main(QtCore.QObject):
     self.videoTask.emit(self.window.label_background.text(),
       self.window.lineEdit_title.text(),
       self.window.fontComboBox.currentFont(),
+      self.window.fontsizeSpinBox.value(),
+      self.window.alignmentComboBox.currentIndex(),
+      self.window.textXSpinBox.value(),
+      self.window.textYSpinBox.value(),
       self.window.label_input.text(),
       self.window.label_output.text())
     
@@ -136,7 +170,11 @@ class Main(QtCore.QObject):
   def drawPreview(self):
     self.newTask.emit(self.window.label_background.text(),
       self.window.lineEdit_title.text(),
-      self.window.fontComboBox.currentFont())
+      self.window.fontComboBox.currentFont(),
+      self.window.fontsizeSpinBox.value(),
+      self.window.alignmentComboBox.currentIndex(),
+      self.window.textXSpinBox.value(),
+      self.window.textYSpinBox.value())
     # self.processTask.emit()
 
   def showPreviewImage(self, image):
