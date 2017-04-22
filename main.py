@@ -47,13 +47,6 @@ class Main(QtCore.QObject):
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
     window.pushButton_selectBackground.clicked.connect(self.openBackgroundFileDialog)
 
-    window.fontComboBox.currentFontChanged.connect(self.drawPreview)
-    window.lineEdit_title.textChanged.connect(self.drawPreview)
-    window.alignmentComboBox.currentIndexChanged.connect(self.drawPreview)
-    window.textXSpinBox.valueChanged.connect(self.drawPreview)
-    window.textYSpinBox.valueChanged.connect(self.drawPreview)
-    window.fontsizeSpinBox.valueChanged.connect(self.drawPreview)
-
     window.progressBar_create.setValue(0)
     window.setWindowTitle("Audio Visualizer")
     window.pushButton_selectInput.setText("Select Input Music File")
@@ -91,6 +84,13 @@ class Main(QtCore.QObject):
     yPosition = self.settings.value("yPosition")
     if not yPosition == None:
       window.textYSpinBox.setValue(int(yPosition))
+
+    window.fontComboBox.currentFontChanged.connect(self.drawPreview)
+    window.lineEdit_title.textChanged.connect(self.drawPreview)
+    window.alignmentComboBox.currentIndexChanged.connect(self.drawPreview)
+    window.textXSpinBox.valueChanged.connect(self.drawPreview)
+    window.textYSpinBox.valueChanged.connect(self.drawPreview)
+    window.fontsizeSpinBox.valueChanged.connect(self.drawPreview)
 
     self.drawPreview()
 
