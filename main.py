@@ -9,8 +9,58 @@ from PIL.ImageQt import ImageQt
 import atexit
 from queue import Queue
 from PyQt4.QtCore import QSettings
+import signal
 
 import preview_thread, core, video_thread
+
+class Command(QtCore.QObject):
+  
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, str, str)
+  
+  def __init__(self):
+    QtCore.QObject.__init__(self)
+
+    import argparse
+    self.parser = argparse.ArgumentParser(description='Create a visualization for an audio file')
+    self.parser.add_argument('-i', '--input', dest='input', help='input audio file', required=True)
+    self.parser.add_argument('-o', '--output', dest='output', help='output video file', required=True)
+    self.parser.add_argument('-bg', '--background', dest='bg', help='background image file', required=True)
+    self.parser.add_argument('-t', '--text', dest='text', help='title text', required=True)
+    self.args = self.parser.parse_args()
+
+    self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    self.font = QFont(self.settings.value("titleFont"))
+    self.fontsize = int(self.settings.value("fontSize"))
+    self.alignment = int(self.settings.value("alignment"))
+    self.textX = int(self.settings.value("xPosition"))
+    self.textY = int(self.settings.value("yPosition"))
+
+    ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
+
+    self.videoThread = QtCore.QThread(self)
+    self.videoWorker = video_thread.Worker(self)
+
+    self.videoWorker.moveToThread(self.videoThread)
+    self.videoWorker.videoCreated.connect(self.videoCreated)
+    
+    self.videoThread.start()
+    self.videoTask.emit(self.args.bg,
+      self.args.text,
+      self.font,
+      self.fontsize,
+      self.alignment,
+      self.textX,
+      self.textY,
+      self.args.input,
+      self.args.output)
+
+  def videoCreated(self):
+    self.videoThread.quit()
+    self.videoThread.wait()
+    self.cleanUp()
+
+  def cleanUp(self):
+    sys.exit(0)
 
 class Main(QtCore.QObject):
 
@@ -106,6 +156,7 @@ class Main(QtCore.QObject):
     self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
     self.settings.setValue("xPosition", str(self.window.textXSpinBox.value()))
     self.settings.setValue("yPosition", str(self.window.textYSpinBox.value()))
+    sys.exit(0)
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -183,12 +234,21 @@ class Main(QtCore.QObject):
 
     self.window.label_preview.setPixmap(self._previewPixmap)
 
-if __name__ == "__main__":
+if len(sys.argv) > 1:
+  # command line mode
   app = QtGui.QApplication(sys.argv)
-  window = uic.loadUi("main.ui")
-  
-  main = Main(window)
-
-  atexit.register(main.cleanUp)
-
+  command = Command()
+  signal.signal(signal.SIGINT, command.cleanUp)
   sys.exit(app.exec_())
+else:
+  # gui mode
+  if __name__ == "__main__":
+    app = QtGui.QApplication(sys.argv)
+    window = uic.loadUi("main.ui")
+  
+    main = Main(window)
+
+    signal.signal(signal.SIGINT, main.cleanUp)
+    atexit.register(main.cleanUp)
+
+    sys.exit(app.exec_())
