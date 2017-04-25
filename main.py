@@ -24,16 +24,20 @@ class Command(QtCore.QObject):
     self.parser = argparse.ArgumentParser(description='Create a visualization for an audio file')
     self.parser.add_argument('-i', '--input', dest='input', help='input audio file', required=True)
     self.parser.add_argument('-o', '--output', dest='output', help='output video file', required=True)
-    self.parser.add_argument('-bg', '--background', dest='bg', help='background image file', required=True)
+    self.parser.add_argument('-b', '--background', dest='bgimage', help='background image file', required=True)
     self.parser.add_argument('-t', '--text', dest='text', help='title text', required=True)
+    self.parser.add_argument('-f', '--font', dest='font', help='title font', required=False)
     self.args = self.parser.parse_args()
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
-    self.font = QFont(self.settings.value("titleFont"))
-    self.fontsize = int(self.settings.value("fontSize"))
-    self.alignment = int(self.settings.value("alignment"))
-    self.textX = int(self.settings.value("xPosition"))
-    self.textY = int(self.settings.value("yPosition"))
+    if self.args.font:
+      self.font = QFont(self.args.font)
+    else:
+      self.font = QFont(self.settings.value("titleFont", QFont()))
+    self.fontsize = int(self.settings.value("fontSize", 35))
+    self.alignment = int(self.settings.value("alignment", 0))
+    self.textX = int(self.settings.value("xPosition", 70))
+    self.textY = int(self.settings.value("yPosition", 375))
 
     ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
 
@@ -44,7 +48,7 @@ class Command(QtCore.QObject):
     self.videoWorker.videoCreated.connect(self.videoCreated)
     
     self.videoThread.start()
-    self.videoTask.emit(self.args.bg,
+    self.videoTask.emit(self.args.bgimage,
       self.args.text,
       self.font,
       self.fontsize,
@@ -60,6 +64,11 @@ class Command(QtCore.QObject):
     self.cleanUp()
 
   def cleanUp(self):
+    self.settings.setValue("titleFont", self.font.toString())
+    self.settings.setValue("alignment", str(self.alignment))
+    self.settings.setValue("fontSize", str(self.fontsize))
+    self.settings.setValue("xPosition", str(self.textX))
+    self.settings.setValue("yPosition", str(self.textY))
     sys.exit(0)
 
 class Main(QtCore.QObject):
