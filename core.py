@@ -56,9 +56,8 @@ class Core():
         im = im.resize((1280, 720), Image.ANTIALIAS)
 
       self._image = ImageQt(im)
-
+   
     self._image1 = QtGui.QImage(self._image)
-
     painter = QPainter(self._image1)
     font = titleFont
     font.setPointSizeF(fontSize)
@@ -97,7 +96,7 @@ class Core():
 
 
     imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
-
+    
     im = Image.new("RGB", (1280, 720), "black")
     im.paste(image, (0, 0))
     im.paste(imTop, (0, 0), mask=imTop)
@@ -114,7 +113,7 @@ class Core():
           '-ac', '1', # mono (set to '2' for stereo)
           '-']
     in_pipe = sp.Popen(command, stdout=sp.PIPE, stderr=sp.DEVNULL, bufsize=10**8)
-
+    
     completeAudioArray = numpy.empty(0, dtype="int16")
 
     while True:

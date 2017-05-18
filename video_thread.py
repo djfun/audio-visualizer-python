@@ -40,7 +40,7 @@ class Worker(QtCore.QObject):
         imBackground = None
 
     self.progressBarUpdate.emit(0)
-
+    
     completeAudioArray = self.core.readAudioFile(inputFile)
 
     # test if user has libfdk_aac
@@ -72,7 +72,7 @@ class Worker(QtCore.QObject):
       ffmpegCommand.append('-2')
 
     ffmpegCommand.append(outputFile)
-
+    
     out_pipe = sp.Popen(ffmpegCommand,
         stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
