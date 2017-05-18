@@ -43,8 +43,17 @@ class Worker(QtCore.QObject):
         except Empty:
           continue
 
+      bgImage = self.core.parseBaseImage(\
+                   nextPreviewInformation["backgroundImage"],
+                   preview=True
+                )
+      if bgImage == []:
+        bgImage = ''
+      else:
+        bgImage = bgImage[0]
+
       im = self.core.drawBaseImage(
-        nextPreviewInformation["backgroundImage"],
+        bgImage,
         nextPreviewInformation["titleText"],
         nextPreviewInformation["titleFont"],
         nextPreviewInformation["fontSize"],

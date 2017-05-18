@@ -35,13 +35,13 @@ class Main(QtCore.QObject):
 
     self.previewWorker.moveToThread(self.previewThread)
     self.previewWorker.imageCreated.connect(self.showPreviewImage)
-    
+
     self.previewThread.start()
 
     self.timer = QtCore.QTimer(self)
     self.timer.timeout.connect(self.processTask.emit)
     self.timer.start(500)
-    
+
     window.pushButton_selectInput.clicked.connect(self.openInputFileDialog)
     window.pushButton_selectOutput.clicked.connect(self.openOutputFileDialog)
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
@@ -69,7 +69,7 @@ class Main(QtCore.QObject):
     window.textYSpinBox.setValue(375)
 
     titleFont = self.settings.value("titleFont")
-    if not titleFont == None: 
+    if not titleFont == None:
       window.fontComboBox.setCurrentFont(QFont(titleFont))
 
     alignment = self.settings.value("alignment")
@@ -113,7 +113,7 @@ class Main(QtCore.QObject):
     fileName = QtGui.QFileDialog.getOpenFileName(self.window,
        "Open Music File", inputDir, "Music Files (*.mp3 *.wav *.ogg *.flac)");
 
-    if not fileName == "": 
+    if not fileName == "":
       self.settings.setValue("inputDir", os.path.dirname(fileName))
       self.window.label_input.setText(fileName)
 
@@ -123,7 +123,7 @@ class Main(QtCore.QObject):
     fileName = QtGui.QFileDialog.getSaveFileName(self.window,
        "Set Output Video File", outputDir, "Video Files (*.mkv)");
 
-    if not fileName == "": 
+    if not fileName == "":
       self.settings.setValue("outputDir", os.path.dirname(fileName))
       self.window.label_output.setText(fileName)
 
@@ -131,9 +131,9 @@ class Main(QtCore.QObject):
     backgroundDir = self.settings.value("backgroundDir", expanduser("~"))
 
     fileName = QtGui.QFileDialog.getOpenFileName(self.window,
-       "Open Background Image", backgroundDir, "Image Files (*.jpg *.png)");
+       "Open Background Image", backgroundDir, "Image Files (*.jpg *.png);; Videos (*.mp4)");
 
-    if not fileName == "": 
+    if not fileName == "":
       self.settings.setValue("backgroundDir", os.path.dirname(fileName))
       self.window.label_background.setText(fileName)
     self.drawPreview()
@@ -147,7 +147,7 @@ class Main(QtCore.QObject):
     self.videoWorker.moveToThread(self.videoThread)
     self.videoWorker.videoCreated.connect(self.videoCreated)
     self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
-    
+
     self.videoThread.start()
     self.videoTask.emit(self.window.label_background.text(),
       self.window.lineEdit_title.text(),
@@ -158,7 +158,7 @@ class Main(QtCore.QObject):
       self.window.textYSpinBox.value(),
       self.window.label_input.text(),
       self.window.label_output.text())
-    
+
 
   def progressBarUpdated(self, value):
     self.window.progressBar_create.setValue(value)
@@ -186,7 +186,7 @@ class Main(QtCore.QObject):
 if __name__ == "__main__":
   app = QtGui.QApplication(sys.argv)
   window = uic.loadUi("main.ui")
-  
+
   main = Main(window)
 
   atexit.register(main.cleanUp)

@@ -21,18 +21,26 @@ class Worker(QtCore.QObject):
   @pyqtSlot(str, str, QtGui.QFont, int, int, int, int, str, str)
   def createVideo(self, backgroundImage, titleText, titleFont, fontSize, alignment, xOffset, yOffset,  inputFile, outputFile):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
-    
-    imBackground = self.core.drawBaseImage(
-      backgroundImage,
-      titleText,
-      titleFont,
-      fontSize,
-      alignment,
-      xOffset,
-      yOffset)
+    def getBackgroundAtIndex(i):
+        return self.core.drawBaseImage(
+            backgroundFrames[i],
+            titleText,
+            titleFont,
+            fontSize,
+            alignment,
+            xOffset,
+            yOffset)
+
+    backgroundFrames = self.core.parseBaseImage(backgroundImage)
+    if len(backgroundFrames) < 2:
+        # the base image is not a video so we can draw it now
+        imBackground = getBackgroundAtIndex(0)
+    else:
+        # base images will be drawn while drawing the audio bars
+        imBackground = None
 
     self.progressBarUpdate.emit(0)
-    
+
     completeAudioArray = self.core.readAudioFile(inputFile)
 
     # test if user has libfdk_aac
@@ -64,7 +72,7 @@ class Worker(QtCore.QObject):
       ffmpegCommand.append('-2')
 
     ffmpegCommand.append(outputFile)
-    
+
     out_pipe = sp.Popen(ffmpegCommand,
         stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
@@ -75,7 +83,7 @@ class Worker(QtCore.QObject):
     sampleSize = 1470
 
     numpy.seterr(divide='ignore')
-
+    bgI = 0
     for i in range(0, len(completeAudioArray), sampleSize):
       # create video for output
       lastSpectrum = self.core.transformData(
@@ -85,7 +93,12 @@ class Worker(QtCore.QObject):
         smoothConstantDown,
         smoothConstantUp,
         lastSpectrum)
-      im = self.core.drawBars(lastSpectrum, imBackground)
+      if imBackground != None:
+        im = self.core.drawBars(lastSpectrum, imBackground)
+      else:
+        im = self.core.drawBars(lastSpectrum, getBackgroundAtIndex(bgI))
+        if bgI < len(backgroundFrames)-1:
+            bgI += 1
 
       # write to out_pipe
       try:
