@@ -19,8 +19,9 @@ class Worker(QtCore.QObject):
     self.queue = queue
 
 
-  @pyqtSlot(str, str, QtGui.QFont, int, int, int, int)
-  def createPreviewImage(self, backgroundImage, titleText, titleFont, fontSize, alignment, xOffset, yOffset):
+  @pyqtSlot(str, str, QtGui.QFont, int, int, int, int, tuple, tuple)
+  def createPreviewImage(self, backgroundImage, titleText, titleFont, fontSize,\
+                            alignment, xOffset, yOffset, textColor, visColor):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     dic = {
       "backgroundImage": backgroundImage,
@@ -29,7 +30,9 @@ class Worker(QtCore.QObject):
       "fontSize": fontSize,
       "alignment": alignment,
       "xoffset": xOffset,
-      "yoffset": yOffset
+      "yoffset": yOffset,
+      "textColor" : textColor,
+      "visColor" : visColor
     }
     self.queue.put(dic)
 
@@ -59,11 +62,12 @@ class Worker(QtCore.QObject):
         nextPreviewInformation["fontSize"],
         nextPreviewInformation["alignment"],
         nextPreviewInformation["xoffset"],
-        nextPreviewInformation["yoffset"])
-
+        nextPreviewInformation["yoffset"],
+        nextPreviewInformation["textColor"],
+        nextPreviewInformation["visColor"])
       spectrum = numpy.fromfunction(lambda x: 0.008*(x-128)**2, (255,), dtype="int16")
 
-      im = self.core.drawBars(spectrum, im)
+      im = self.core.drawBars(spectrum, im, nextPreviewInformation["visColor"])
 
       self._image = ImageQt(im)
       self._previewImage = QtGui.QImage(self._image)

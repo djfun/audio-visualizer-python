@@ -15,7 +15,7 @@ import preview_thread, core, video_thread
 
 class Command(QtCore.QObject):
   
-  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str)
   
   def __init__(self):
     QtCore.QObject.__init__(self)
@@ -28,12 +28,36 @@ class Command(QtCore.QObject):
     self.parser.add_argument('-t', '--text', dest='text', help='title text', required=True)
     self.parser.add_argument('-f', '--font', dest='font', help='title font', required=False)
     self.parser.add_argument('-s', '--fontsize', dest='fontsize', help='title font size', required=False)
+    self.parser.add_argument('-c', '--textcolor', dest='textcolor', help='title text color', required=False)
+    self.parser.add_argument('-C', '--viscolor', dest='viscolor', help='visualization color', required=False)
     self.parser.add_argument('-x', '--xposition', dest='xposition', help='x position', required=False)
     self.parser.add_argument('-y', '--yposition', dest='yposition', help='y position', required=False)
     self.parser.add_argument('-a', '--alignment', dest='alignment', help='title alignment', required=False, type=int, choices=[0, 1, 2])
     self.args = self.parser.parse_args()
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    
+    # colour settings
+    RGBError = 'Bad RGB input (use two commas)'
+    self.textcolor = (255, 255, 255)
+    self.viscolor = (255, 255, 255)
+    if self.args.textcolor:
+      try:
+         r, g, b = self.args.textcolor.split(',')
+      except:
+         print(RGBError)
+      else:
+         self.textcolor = (int(r), int(g), int(b))
+
+    if self.args.viscolor:
+      try:
+         r, g, b = self.args.viscolor.split(',')
+      except:
+         print(RGBError)
+      else:
+         self.viscolor = (int(r), int(g), int(b))
+
+    # font settings
     if self.args.font:
       self.font = QFont(self.args.font)
     else:
@@ -43,7 +67,6 @@ class Command(QtCore.QObject):
       self.fontsize = int(self.args.fontsize)
     else:
       self.fontsize = int(self.settings.value("fontSize", 35))
-    
     if self.args.alignment:
       self.alignment = int(self.args.alignment)
     else:
@@ -75,6 +98,8 @@ class Command(QtCore.QObject):
       self.alignment,
       self.textX,
       self.textY,
+      self.textcolor,
+      self.viscolor,
       self.args.input,
       self.args.output)
 
@@ -93,9 +118,9 @@ class Command(QtCore.QObject):
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int)
+  newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple)
   processTask = QtCore.pyqtSignal()
-  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str)
 
   def __init__(self, window):
 
@@ -106,6 +131,8 @@ class Main(QtCore.QObject):
     self.core = core.Core()
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    self.textcolor = (255, 255, 255)
+    self.viscolor = (255, 255, 255)
 
     self.previewQueue = Queue()
 
@@ -236,6 +263,8 @@ class Main(QtCore.QObject):
       self.window.alignmentComboBox.currentIndex(),
       self.window.textXSpinBox.value(),
       self.window.textYSpinBox.value(),
+      self.textcolor,
+      self.viscolor,
       self.window.label_input.text(),
       self.window.label_output.text())
     
@@ -257,7 +286,9 @@ class Main(QtCore.QObject):
       self.window.fontsizeSpinBox.value(),
       self.window.alignmentComboBox.currentIndex(),
       self.window.textXSpinBox.value(),
-      self.window.textYSpinBox.value())
+      self.window.textYSpinBox.value(),
+      self.textcolor,
+      self.viscolor)
     # self.processTask.emit()
 
   def showPreviewImage(self, image):
