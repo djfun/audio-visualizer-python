@@ -9,8 +9,87 @@ from PIL.ImageQt import ImageQt
 import atexit
 from queue import Queue
 from PyQt4.QtCore import QSettings
+import signal
 
 import preview_thread, core, video_thread
+
+class Command(QtCore.QObject):
+  
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, str, str)
+  
+  def __init__(self):
+    QtCore.QObject.__init__(self)
+
+    import argparse
+    self.parser = argparse.ArgumentParser(description='Create a visualization for an audio file')
+    self.parser.add_argument('-i', '--input', dest='input', help='input audio file', required=True)
+    self.parser.add_argument('-o', '--output', dest='output', help='output video file', required=True)
+    self.parser.add_argument('-b', '--background', dest='bgimage', help='background image file', required=True)
+    self.parser.add_argument('-t', '--text', dest='text', help='title text', required=True)
+    self.parser.add_argument('-f', '--font', dest='font', help='title font', required=False)
+    self.parser.add_argument('-s', '--fontsize', dest='fontsize', help='title font size', required=False)
+    self.parser.add_argument('-x', '--xposition', dest='xposition', help='x position', required=False)
+    self.parser.add_argument('-y', '--yposition', dest='yposition', help='y position', required=False)
+    self.parser.add_argument('-a', '--alignment', dest='alignment', help='title alignment', required=False, type=int, choices=[0, 1, 2])
+    self.args = self.parser.parse_args()
+
+    self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    if self.args.font:
+      self.font = QFont(self.args.font)
+    else:
+      self.font = QFont(self.settings.value("titleFont", QFont()))
+    
+    if self.args.fontsize:
+      self.fontsize = int(self.args.fontsize)
+    else:
+      self.fontsize = int(self.settings.value("fontSize", 35))
+    
+    if self.args.alignment:
+      self.alignment = int(self.args.alignment)
+    else:
+      self.alignment = int(self.settings.value("alignment", 0))
+
+    if self.args.xposition:
+      self.textX = int(self.args.xposition)
+    else:
+      self.textX = int(self.settings.value("xPosition", 70))
+
+    if self.args.yposition:
+      self.textY = int(self.args.yposition)
+    else:
+      self.textY = int(self.settings.value("yPosition", 375))
+
+    ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
+
+    self.videoThread = QtCore.QThread(self)
+    self.videoWorker = video_thread.Worker(self)
+
+    self.videoWorker.moveToThread(self.videoThread)
+    self.videoWorker.videoCreated.connect(self.videoCreated)
+    
+    self.videoThread.start()
+    self.videoTask.emit(self.args.bgimage,
+      self.args.text,
+      self.font,
+      self.fontsize,
+      self.alignment,
+      self.textX,
+      self.textY,
+      self.args.input,
+      self.args.output)
+
+  def videoCreated(self):
+    self.videoThread.quit()
+    self.videoThread.wait()
+    self.cleanUp()
+
+  def cleanUp(self):
+    self.settings.setValue("titleFont", self.font.toString())
+    self.settings.setValue("alignment", str(self.alignment))
+    self.settings.setValue("fontSize", str(self.fontsize))
+    self.settings.setValue("xPosition", str(self.textX))
+    self.settings.setValue("yPosition", str(self.textY))
+    sys.exit(0)
 
 class Main(QtCore.QObject):
 
@@ -106,6 +185,7 @@ class Main(QtCore.QObject):
     self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
     self.settings.setValue("xPosition", str(self.window.textXSpinBox.value()))
     self.settings.setValue("yPosition", str(self.window.textYSpinBox.value()))
+    sys.exit(0)
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -187,12 +267,21 @@ class Main(QtCore.QObject):
 
     self.window.label_preview.setPixmap(self._previewPixmap)
 
-if __name__ == "__main__":
-  app = QtGui.QApplication(sys.argv)
-  window = uic.loadUi("main.ui")
-  
-  main = Main(window)
-
-  atexit.register(main.cleanUp)
-
+if len(sys.argv) > 1:
+  # command line mode
+  app = QtGui.QApplication(sys.argv, False)
+  command = Command()
+  signal.signal(signal.SIGINT, command.cleanUp)
   sys.exit(app.exec_())
+else:
+  # gui mode
+  if __name__ == "__main__":
+    app = QtGui.QApplication(sys.argv)
+    window = uic.loadUi("main.ui")
+  
+    main = Main(window)
+
+    signal.signal(signal.SIGINT, main.cleanUp)
+    atexit.register(main.cleanUp)
+
+    sys.exit(app.exec_())
