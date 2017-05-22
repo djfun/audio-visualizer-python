@@ -386,7 +386,10 @@
               <number>24</number>
              </property>
              <property name="textVisible">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="alignment">
+                <enum>Qt::AlignCenter</enum>
              </property>
             </widget>
            </item>
