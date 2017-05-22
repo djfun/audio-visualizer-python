@@ -176,7 +176,7 @@ class Core():
       self.deleteTempDir()
       os.mkdir(self.tempDir)
       if firstOnly:
-         filename = 'preview.jpg'
+         filename = 'preview%s.jpg' % os.path.basename(videoPath).split('.', 1)[0]
          options = '-ss 10 -vframes 1'
       else:
          filename = '$frame%05d.jpg'
