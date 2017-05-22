@@ -11,6 +11,7 @@ class Worker(QtCore.QObject):
 
   videoCreated = pyqtSignal()
   progressBarUpdate = pyqtSignal(int)
+  progressBarSetText = pyqtSignal(str)
 
   def __init__(self, parent=None):
     QtCore.QObject.__init__(self)
@@ -31,6 +32,10 @@ class Worker(QtCore.QObject):
             xOffset,
             yOffset)
 
+    progressBarValue = 0
+    self.progressBarUpdate.emit(progressBarValue)
+    self.progressBarSetText.emit('Loading background image…')
+
     backgroundFrames = self.core.parseBaseImage(backgroundImage)
     if len(backgroundFrames) < 2:
         # the base image is not a video so we can draw it now
@@ -38,9 +43,8 @@ class Worker(QtCore.QObject):
     else:
         # base images will be drawn while drawing the audio bars
         imBackground = None
-
-    self.progressBarUpdate.emit(0)
-    
+        
+    self.progressBarSetText.emit('Loading audio file…')
     completeAudioArray = self.core.readAudioFile(inputFile)
 
     # test if user has libfdk_aac
@@ -79,9 +83,8 @@ class Worker(QtCore.QObject):
     smoothConstantDown = 0.08
     smoothConstantUp = 0.8
     lastSpectrum = None
-    progressBarValue = 0
     sampleSize = 1470
-
+    
     numpy.seterr(divide='ignore')
     bgI = 0
     for i in range(0, len(completeAudioArray), sampleSize):
@@ -110,6 +113,7 @@ class Worker(QtCore.QObject):
       if progressBarValue + 1 <= (i / len(completeAudioArray)) * 100:
         progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100)
         self.progressBarUpdate.emit(progressBarValue)
+        self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
 
     numpy.seterr(all='print')
 
@@ -121,4 +125,5 @@ class Worker(QtCore.QObject):
     out_pipe.wait()
     print("Video file created")
     self.progressBarUpdate.emit(100)
+    self.progressBarSetText.emit('100%')
     self.videoCreated.emit()

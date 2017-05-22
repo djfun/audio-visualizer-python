@@ -147,6 +147,7 @@ class Main(QtCore.QObject):
     self.videoWorker.moveToThread(self.videoThread)
     self.videoWorker.videoCreated.connect(self.videoCreated)
     self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
+    self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
     
     self.videoThread.start()
     self.videoTask.emit(self.window.label_background.text(),
@@ -162,6 +163,9 @@ class Main(QtCore.QObject):
 
   def progressBarUpdated(self, value):
     self.window.progressBar_create.setValue(value)
+
+  def progressBarSetText(self, value):
+    self.window.progressBar_create.setFormat(value)
 
   def videoCreated(self):
     self.videoThread.quit()
