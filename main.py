@@ -185,7 +185,6 @@ class Main(QtCore.QObject):
     self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
     self.settings.setValue("xPosition", str(self.window.textXSpinBox.value()))
     self.settings.setValue("yPosition", str(self.window.textYSpinBox.value()))
-    sys.exit(0)
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
