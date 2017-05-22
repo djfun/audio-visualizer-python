@@ -27,6 +27,10 @@ class Command(QtCore.QObject):
     self.parser.add_argument('-b', '--background', dest='bgimage', help='background image file', required=True)
     self.parser.add_argument('-t', '--text', dest='text', help='title text', required=True)
     self.parser.add_argument('-f', '--font', dest='font', help='title font', required=False)
+    self.parser.add_argument('-s', '--fontsize', dest='fontsize', help='title font size', required=False)
+    self.parser.add_argument('-x', '--xposition', dest='xposition', help='x position', required=False)
+    self.parser.add_argument('-y', '--yposition', dest='yposition', help='y position', required=False)
+    self.parser.add_argument('-a', '--alignment', dest='alignment', help='title alignment', required=False, type=int, choices=[0, 1, 2])
     self.args = self.parser.parse_args()
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
@@ -34,10 +38,26 @@ class Command(QtCore.QObject):
       self.font = QFont(self.args.font)
     else:
       self.font = QFont(self.settings.value("titleFont", QFont()))
-    self.fontsize = int(self.settings.value("fontSize", 35))
-    self.alignment = int(self.settings.value("alignment", 0))
-    self.textX = int(self.settings.value("xPosition", 70))
-    self.textY = int(self.settings.value("yPosition", 375))
+    
+    if self.args.fontsize:
+      self.fontsize = int(self.args.fontsize)
+    else:
+      self.fontsize = int(self.settings.value("fontSize", 35))
+    
+    if self.args.alignment:
+      self.alignment = int(self.args.alignment)
+    else:
+      self.alignment = int(self.settings.value("alignment", 0))
+
+    if self.args.xposition:
+      self.textX = int(self.args.xposition)
+    else:
+      self.textX = int(self.settings.value("xPosition", 70))
+
+    if self.args.yposition:
+      self.textY = int(self.args.yposition)
+    else:
+      self.textY = int(self.settings.value("yPosition", 375))
 
     ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
 
