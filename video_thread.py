@@ -124,6 +124,7 @@ class Worker(QtCore.QObject):
     # out_pipe.terminate() # don't terminate ffmpeg too early
     out_pipe.wait()
     print("Video file created")
+    self.core.deleteTempDir()
     self.progressBarUpdate.emit(100)
     self.progressBarSetText.emit('100%')
     self.videoCreated.emit()
