@@ -6,6 +6,9 @@ import subprocess as sp
 import numpy
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
+import tempfile
+from shutil import rmtree
+import atexit
 
 class Core():
 
@@ -14,6 +17,8 @@ class Core():
     self._image = None
 
     self.FFMPEG_BIN = self.findFfmpeg()
+    self.tempDir = None
+    atexit.register(self.deleteTempDir)
 
   def findFfmpeg(self):
     if sys.platform == "win32":
@@ -26,22 +31,32 @@ class Core():
       except:
         return "avconv"
 
-  def drawBaseImage(self, backgroundImage, titleText, titleFont, fontSize, alignment, xOffset, yOffset):
-
-    if self._image == None or not self.lastBackgroundImage == backgroundImage:
-      self.lastBackgroundImage = backgroundImage
-
+  def parseBaseImage(self, backgroundImage, preview=False):
+      ''' determines if the base image is a single frame or list of frames '''
       if backgroundImage == "":
-        im = Image.new("RGB", (1280, 720), "black")
+         return []
       else:
-        im = Image.open(backgroundImage)
+         _, bgExt = os.path.splitext(backgroundImage)
+         if not bgExt == '.mp4':
+            return [backgroundImage]
+         else:
+            return self.getVideoFrames(backgroundImage, preview)
+
+  def drawBaseImage(self, backgroundFile, titleText, titleFont, fontSize, alignment, xOffset, yOffset):
+    if backgroundFile == '':
+       im = Image.new("RGB", (1280, 720), "black")
+    else:
+       im = Image.open(backgroundFile)
+
+    if self._image == None or not self.lastBackgroundImage == backgroundFile:
+      self.lastBackgroundImage = backgroundFile
 
       # resize if necessary
       if not im.size == (1280, 720):
         im = im.resize((1280, 720), Image.ANTIALIAS)
 
       self._image = ImageQt(im)
-    
+   
     self._image1 = QtGui.QImage(self._image)
     painter = QPainter(self._image1)
     font = titleFont
@@ -81,9 +96,8 @@ class Core():
 
 
     imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
-
+    
     im = Image.new("RGB", (1280, 720), "black")
-
     im.paste(image, (0, 0))
     im.paste(imTop, (0, 0), mask=imTop)
     im.paste(imBottom, (0, 360), mask=imBottom)
@@ -150,3 +164,30 @@ class Core():
     x = frequencies[0:int(paddedSampleSize/2) - 1]
 
     return lastSpectrum
+
+  def deleteTempDir(self):
+     if self.tempDir and os.path.exists(self.tempDir):
+         rmtree(self.tempDir)
+
+
+  def getVideoFrames(self, videoPath, firstOnly=False):
+      self.tempDir = os.path.join(tempfile.gettempdir(), 'audio-visualizer-python-data')
+      # recreate the temporary directory so it is empty
+      self.deleteTempDir()
+      os.mkdir(self.tempDir)
+      if firstOnly:
+         filename = 'preview%s.jpg' % os.path.basename(videoPath).split('.', 1)[0]
+         options = '-ss 10 -vframes 1'
+      else:
+         filename = '$frame%05d.jpg'
+         options = ''
+      sp.call( \
+         '%s -i "%s" -y %s "%s"' % ( \
+            self.FFMPEG_BIN,
+            videoPath,
+            options,
+            os.path.join(self.tempDir, filename)
+         ),
+         shell=True
+      )
+      return sorted([os.path.join(self.tempDir, f) for f in os.listdir(self.tempDir)])
