@@ -40,23 +40,13 @@ class Command(QtCore.QObject):
     # colour settings
     RGBError = 'Bad RGB input (use two commas)'
     # load colors as tuples from a comma-separated string
-    self.textColor = tuple([int(i) for i in self.settings.value("textColor", '255, 255, 255').split(',')])
-    self.visColor = tuple([int(i) for i in self.settings.value("visColor", '255, 255, 255').split(',')])
+    self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
+    self.visColor = core.Core.RGBFromString(self.settings.value("visColor", '255, 255, 255'))
     if self.args.textcolor:
-      try:
-         r, g, b = self.args.textcolor.split(',')
-      except:
-         print(RGBError)
-      else:
-         self.textColor = (int(r), int(g), int(b))
+      self.textColor = core.Core.RGBFromString(self.args.textcolor)
     if self.args.viscolor:
-      try:
-         r, g, b = self.args.viscolor.split(',')
-      except:
-         print(RGBError)
-      else:
-         self.visColor = (int(r), int(g), int(b))
-
+      self.visColor = core.Core.RGBFromString(self.args.viscolor)
+    
     # font settings
     if self.args.font:
       self.font = QFont(self.args.font)
