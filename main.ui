@@ -276,6 +276,66 @@
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_6">
              <item>
+              <widget class="QLabel" name="label_colorOptions">
+               <property name="minimumSize">
+                <size>
+                 <width>200</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>200</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="baseSize">
+                <size>
+                 <width>200</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="frameShape">
+                <enum>QFrame::NoFrame</enum>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+              <item>
+                <widget class="QLabel" name="label_textColor">
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                 </property>
+                </widget>
+               </item>
+             <item>
+              <widget class="QLineEdit" name="lineEdit_textColor"/>
+             </item>
+              <item>
+                <widget class="QLabel" name="label_visColor">
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                 </property>
+                </widget>
+               </item>
+             <item>
+              <widget class="QLineEdit" name="lineEdit_visColor"/>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </item>
+          <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_7">
+             <item>
               <widget class="QLabel" name="label_title">
                <property name="minimumSize">
                 <size>
@@ -308,8 +368,6 @@
              </item>
             </layout>
            </item>
-          </layout>
-         </item>
         </layout>
        </widget>
       </item>

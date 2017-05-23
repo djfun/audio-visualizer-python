@@ -194,3 +194,17 @@ class Core():
          shell=True
       )
       return sorted([os.path.join(self.tempDir, f) for f in os.listdir(self.tempDir)])
+
+  @staticmethod
+  def RGBFromString(string):
+   ''' turns an RGB string like "255, 255, 255" into a tuple '''
+   try:
+     tup = tuple([int(i) for i in string.split(',')])
+     if len(tup) != 3:
+        raise ValueError
+     for i in tup:
+        if i > 255 or i < 0:
+           raise ValueError
+     return tup
+   except:
+     return (255, 255, 255)

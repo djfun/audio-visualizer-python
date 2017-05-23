@@ -39,23 +39,23 @@ class Command(QtCore.QObject):
     
     # colour settings
     RGBError = 'Bad RGB input (use two commas)'
-    self.textcolor = (255, 255, 255)
-    self.viscolor = (255, 255, 255)
+    # load colors as tuples from a comma-separated string
+    self.textColor = tuple([int(i) for i in self.settings.value("textColor", '255, 255, 255').split(',')])
+    self.visColor = tuple([int(i) for i in self.settings.value("visColor", '255, 255, 255').split(',')])
     if self.args.textcolor:
       try:
          r, g, b = self.args.textcolor.split(',')
       except:
          print(RGBError)
       else:
-         self.textcolor = (int(r), int(g), int(b))
-
+         self.textColor = (int(r), int(g), int(b))
     if self.args.viscolor:
       try:
          r, g, b = self.args.viscolor.split(',')
       except:
          print(RGBError)
       else:
-         self.viscolor = (int(r), int(g), int(b))
+         self.visColor = (int(r), int(g), int(b))
 
     # font settings
     if self.args.font:
@@ -98,8 +98,8 @@ class Command(QtCore.QObject):
       self.alignment,
       self.textX,
       self.textY,
-      self.textcolor,
-      self.viscolor,
+      self.textColor,
+      self.visColor,
       self.args.input,
       self.args.output)
 
@@ -114,6 +114,8 @@ class Command(QtCore.QObject):
     self.settings.setValue("fontSize", str(self.fontsize))
     self.settings.setValue("xPosition", str(self.textX))
     self.settings.setValue("yPosition", str(self.textY))
+    self.settings.setValue("visColor", '%s,%s,%s' % self.visColor)
+    self.settings.setValue("textColor", '%s,%s,%s' % self.textColor)
     sys.exit(0)
 
 class Main(QtCore.QObject):
@@ -123,16 +125,16 @@ class Main(QtCore.QObject):
   videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str)
 
   def __init__(self, window):
-
     QtCore.QObject.__init__(self)
 
     # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
     self.window = window
     self.core = core.Core()
-
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
-    self.textcolor = (255, 255, 255)
-    self.viscolor = (255, 255, 255)
+    
+    # load colors as tuples from a comma-separated string
+    self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
+    self.visColor = core.Core.RGBFromString(self.settings.value("visColor", '255, 255, 255'))
 
     self.previewQueue = Queue()
 
@@ -162,6 +164,8 @@ class Main(QtCore.QObject):
     window.label_alignment.setText("Title Options")
     window.label_fontsize.setText("Fontsize")
     window.label_title.setText("Title Text")
+    window.label_textColor.setText("Text color:")
+    window.label_visColor.setText("Visualizer color:")
     window.pushButton_createVideo.setText("Create Video")
     window.groupBox_create.setTitle("Create")
     window.groupBox_settings.setTitle("Settings")
@@ -173,6 +177,8 @@ class Main(QtCore.QObject):
     window.fontsizeSpinBox.setValue(35)
     window.textXSpinBox.setValue(70)
     window.textYSpinBox.setValue(375)
+    window.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
+    window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
 
     titleFont = self.settings.value("titleFont")
     if not titleFont == None: 
@@ -197,6 +203,8 @@ class Main(QtCore.QObject):
     window.textXSpinBox.valueChanged.connect(self.drawPreview)
     window.textYSpinBox.valueChanged.connect(self.drawPreview)
     window.fontsizeSpinBox.valueChanged.connect(self.drawPreview)
+    window.lineEdit_textColor.textChanged.connect(self.drawPreview)
+    window.lineEdit_visColor.textChanged.connect(self.drawPreview)
 
     self.drawPreview()
 
@@ -206,12 +214,14 @@ class Main(QtCore.QObject):
     self.timer.stop()
     self.previewThread.quit()
     self.previewThread.wait()
-
+       
     self.settings.setValue("titleFont", self.window.fontComboBox.currentFont().toString())
     self.settings.setValue("alignment", str(self.window.alignmentComboBox.currentIndex()))
     self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
     self.settings.setValue("xPosition", str(self.window.textXSpinBox.value()))
     self.settings.setValue("yPosition", str(self.window.textYSpinBox.value()))
+    self.settings.setValue("visColor", self.window.lineEdit_visColor.text())
+    self.settings.setValue("textColor", self.window.lineEdit_textColor.text())
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -263,8 +273,8 @@ class Main(QtCore.QObject):
       self.window.alignmentComboBox.currentIndex(),
       self.window.textXSpinBox.value(),
       self.window.textYSpinBox.value(),
-      self.textcolor,
-      self.viscolor,
+      core.Core.RGBFromString(self.window.lineEdit_textColor.text()),
+      core.Core.RGBFromString(self.window.lineEdit_visColor.text()),
       self.window.label_input.text(),
       self.window.label_output.text())
     
@@ -287,8 +297,8 @@ class Main(QtCore.QObject):
       self.window.alignmentComboBox.currentIndex(),
       self.window.textXSpinBox.value(),
       self.window.textYSpinBox.value(),
-      self.textcolor,
-      self.viscolor)
+      core.Core.RGBFromString(self.window.lineEdit_textColor.text()),
+      core.Core.RGBFromString(self.window.lineEdit_visColor.text()))
     # self.processTask.emit()
 
   def showPreviewImage(self, image):
