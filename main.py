@@ -278,6 +278,13 @@ else:
   if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     window = uic.loadUi("main.ui")
+    # window.adjustSize()
+    desc = QtGui.QDesktopWidget()
+    dpi = desc.physicalDpiX()
+    topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
+
+    window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
+    window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
   
     main = Main(window)
 
