@@ -313,6 +313,19 @@
                  </property>
                 </widget>
                </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_textColor">
+              <property name="MaximumSize">
+                <size>
+                  <height>32</height>
+                  <width>32</width>
+                </size>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
              <item>
               <widget class="QLineEdit" name="lineEdit_textColor"/>
              </item>
@@ -326,6 +339,19 @@
                  </property>
                 </widget>
                </item>
+                <item>
+                 <widget class="QPushButton" name="pushButton_visColor">
+                  <property name="MaximumSize">
+                    <size>
+                      <height>32</height>
+                      <width>32</width>
+                    </size>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                 </widget>
+                </item>
              <item>
               <widget class="QLineEdit" name="lineEdit_visColor"/>
              </item>

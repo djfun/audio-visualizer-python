@@ -162,10 +162,11 @@ class Main(QtCore.QObject):
     window.pushButton_selectBackground.setText("Select Background Image")
     window.label_font.setText("Title Font")
     window.label_alignment.setText("Title Options")
+    window.label_colorOptions.setText("Colors")
     window.label_fontsize.setText("Fontsize")
     window.label_title.setText("Title Text")
-    window.label_textColor.setText("Text color:")
-    window.label_visColor.setText("Visualizer color:")
+    window.label_textColor.setText("Text:")
+    window.label_visColor.setText("Visualizer:")
     window.pushButton_createVideo.setText("Create Video")
     window.groupBox_create.setTitle("Create")
     window.groupBox_settings.setTitle("Settings")
@@ -179,6 +180,12 @@ class Main(QtCore.QObject):
     window.textYSpinBox.setValue(375)
     window.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
     window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
+    window.pushButton_textColor.clicked.connect(lambda: self.pickColor('text'))
+    window.pushButton_visColor.clicked.connect(lambda: self.pickColor('vis'))
+    btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.textColor).name()
+    window.pushButton_textColor.setStyleSheet(btnStyle)
+    btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.visColor).name()
+    window.pushButton_visColor.setStyleSheet(btnStyle)
 
     titleFont = self.settings.value("titleFont")
     if not titleFont == None: 
@@ -306,6 +313,18 @@ class Main(QtCore.QObject):
     self._previewPixmap = QtGui.QPixmap.fromImage(self._scaledPreviewImage)
 
     self.window.label_preview.setPixmap(self._previewPixmap)
+
+  def pickColor(self, colorTarget):
+    color = QtGui.QColorDialog.getColor()
+    if color.isValid():
+       RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
+       btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
+       if colorTarget == 'text':
+         self.window.lineEdit_textColor.setText(RGBstring)
+         window.pushButton_textColor.setStyleSheet(btnStyle)
+       elif colorTarget == 'vis':
+         self.window.lineEdit_visColor.setText(RGBstring)
+         window.pushButton_visColor.setStyleSheet(btnStyle)
 
 if len(sys.argv) > 1:
   # command line mode
