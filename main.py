@@ -28,8 +28,8 @@ class Command(QtCore.QObject):
     self.parser.add_argument('-t', '--text', dest='text', help='title text', required=True)
     self.parser.add_argument('-f', '--font', dest='font', help='title font', required=False)
     self.parser.add_argument('-s', '--fontsize', dest='fontsize', help='title font size', required=False)
-    self.parser.add_argument('-c', '--textcolor', dest='textcolor', help='title text color', required=False)
-    self.parser.add_argument('-C', '--viscolor', dest='viscolor', help='visualization color', required=False)
+    self.parser.add_argument('-c', '--textcolor', dest='textcolor', help='title text color in r,g,b format', required=False)
+    self.parser.add_argument('-C', '--viscolor', dest='viscolor', help='visualization color in r,g,b format', required=False)
     self.parser.add_argument('-x', '--xposition', dest='xposition', help='x position', required=False)
     self.parser.add_argument('-y', '--yposition', dest='yposition', help='y position', required=False)
     self.parser.add_argument('-a', '--alignment', dest='alignment', help='title alignment', required=False, type=int, choices=[0, 1, 2])
@@ -37,9 +37,7 @@ class Command(QtCore.QObject):
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
     
-    # colour settings
-    RGBError = 'Bad RGB input (use two commas)'
-    # load colors as tuples from a comma-separated string
+    # load colours as tuples from comma-separated strings
     self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
     self.visColor = core.Core.RGBFromString(self.settings.value("visColor", '255, 255, 255'))
     if self.args.textcolor:
