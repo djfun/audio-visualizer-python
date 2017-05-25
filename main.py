@@ -15,7 +15,7 @@ import preview_thread, core, video_thread
 
 class Command(QtCore.QObject):
   
-  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str)
   
   def __init__(self):
     QtCore.QObject.__init__(self)
@@ -28,12 +28,24 @@ class Command(QtCore.QObject):
     self.parser.add_argument('-t', '--text', dest='text', help='title text', required=True)
     self.parser.add_argument('-f', '--font', dest='font', help='title font', required=False)
     self.parser.add_argument('-s', '--fontsize', dest='fontsize', help='title font size', required=False)
+    self.parser.add_argument('-c', '--textcolor', dest='textcolor', help='title text color in r,g,b format', required=False)
+    self.parser.add_argument('-C', '--viscolor', dest='viscolor', help='visualization color in r,g,b format', required=False)
     self.parser.add_argument('-x', '--xposition', dest='xposition', help='x position', required=False)
     self.parser.add_argument('-y', '--yposition', dest='yposition', help='y position', required=False)
     self.parser.add_argument('-a', '--alignment', dest='alignment', help='title alignment', required=False, type=int, choices=[0, 1, 2])
     self.args = self.parser.parse_args()
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    
+    # load colours as tuples from comma-separated strings
+    self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
+    self.visColor = core.Core.RGBFromString(self.settings.value("visColor", '255, 255, 255'))
+    if self.args.textcolor:
+      self.textColor = core.Core.RGBFromString(self.args.textcolor)
+    if self.args.viscolor:
+      self.visColor = core.Core.RGBFromString(self.args.viscolor)
+    
+    # font settings
     if self.args.font:
       self.font = QFont(self.args.font)
     else:
@@ -43,7 +55,6 @@ class Command(QtCore.QObject):
       self.fontsize = int(self.args.fontsize)
     else:
       self.fontsize = int(self.settings.value("fontSize", 35))
-    
     if self.args.alignment:
       self.alignment = int(self.args.alignment)
     else:
@@ -75,6 +86,8 @@ class Command(QtCore.QObject):
       self.alignment,
       self.textX,
       self.textY,
+      self.textColor,
+      self.visColor,
       self.args.input,
       self.args.output)
 
@@ -89,23 +102,27 @@ class Command(QtCore.QObject):
     self.settings.setValue("fontSize", str(self.fontsize))
     self.settings.setValue("xPosition", str(self.textX))
     self.settings.setValue("yPosition", str(self.textY))
+    self.settings.setValue("visColor", '%s,%s,%s' % self.visColor)
+    self.settings.setValue("textColor", '%s,%s,%s' % self.textColor)
     sys.exit(0)
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int)
+  newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple)
   processTask = QtCore.pyqtSignal()
-  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str)
 
   def __init__(self, window):
-
     QtCore.QObject.__init__(self)
 
     # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
     self.window = window
     self.core = core.Core()
-
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    
+    # load colors as tuples from a comma-separated string
+    self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
+    self.visColor = core.Core.RGBFromString(self.settings.value("visColor", '255, 255, 255'))
 
     self.previewQueue = Queue()
 
@@ -133,8 +150,11 @@ class Main(QtCore.QObject):
     window.pushButton_selectBackground.setText("Select Background Image")
     window.label_font.setText("Title Font")
     window.label_alignment.setText("Title Options")
+    window.label_colorOptions.setText("Colors")
     window.label_fontsize.setText("Fontsize")
     window.label_title.setText("Title Text")
+    window.label_textColor.setText("Text:")
+    window.label_visColor.setText("Visualizer:")
     window.pushButton_createVideo.setText("Create Video")
     window.groupBox_create.setTitle("Create")
     window.groupBox_settings.setTitle("Settings")
@@ -146,6 +166,14 @@ class Main(QtCore.QObject):
     window.fontsizeSpinBox.setValue(35)
     window.textXSpinBox.setValue(70)
     window.textYSpinBox.setValue(375)
+    window.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
+    window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
+    window.pushButton_textColor.clicked.connect(lambda: self.pickColor('text'))
+    window.pushButton_visColor.clicked.connect(lambda: self.pickColor('vis'))
+    btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.textColor).name()
+    window.pushButton_textColor.setStyleSheet(btnStyle)
+    btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.visColor).name()
+    window.pushButton_visColor.setStyleSheet(btnStyle)
 
     titleFont = self.settings.value("titleFont")
     if not titleFont == None: 
@@ -170,6 +198,8 @@ class Main(QtCore.QObject):
     window.textXSpinBox.valueChanged.connect(self.drawPreview)
     window.textYSpinBox.valueChanged.connect(self.drawPreview)
     window.fontsizeSpinBox.valueChanged.connect(self.drawPreview)
+    window.lineEdit_textColor.textChanged.connect(self.drawPreview)
+    window.lineEdit_visColor.textChanged.connect(self.drawPreview)
 
     self.drawPreview()
 
@@ -179,13 +209,14 @@ class Main(QtCore.QObject):
     self.timer.stop()
     self.previewThread.quit()
     self.previewThread.wait()
-
+       
     self.settings.setValue("titleFont", self.window.fontComboBox.currentFont().toString())
     self.settings.setValue("alignment", str(self.window.alignmentComboBox.currentIndex()))
     self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
     self.settings.setValue("xPosition", str(self.window.textXSpinBox.value()))
     self.settings.setValue("yPosition", str(self.window.textYSpinBox.value()))
-    sys.exit(0)
+    self.settings.setValue("visColor", self.window.lineEdit_visColor.text())
+    self.settings.setValue("textColor", self.window.lineEdit_textColor.text())
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -237,6 +268,8 @@ class Main(QtCore.QObject):
       self.window.alignmentComboBox.currentIndex(),
       self.window.textXSpinBox.value(),
       self.window.textYSpinBox.value(),
+      core.Core.RGBFromString(self.window.lineEdit_textColor.text()),
+      core.Core.RGBFromString(self.window.lineEdit_visColor.text()),
       self.window.label_input.text(),
       self.window.label_output.text())
     
@@ -258,7 +291,9 @@ class Main(QtCore.QObject):
       self.window.fontsizeSpinBox.value(),
       self.window.alignmentComboBox.currentIndex(),
       self.window.textXSpinBox.value(),
-      self.window.textYSpinBox.value())
+      self.window.textYSpinBox.value(),
+      core.Core.RGBFromString(self.window.lineEdit_textColor.text()),
+      core.Core.RGBFromString(self.window.lineEdit_visColor.text()))
     # self.processTask.emit()
 
   def showPreviewImage(self, image):
@@ -266,6 +301,18 @@ class Main(QtCore.QObject):
     self._previewPixmap = QtGui.QPixmap.fromImage(self._scaledPreviewImage)
 
     self.window.label_preview.setPixmap(self._previewPixmap)
+
+  def pickColor(self, colorTarget):
+    color = QtGui.QColorDialog.getColor()
+    if color.isValid():
+       RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
+       btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
+       if colorTarget == 'text':
+         self.window.lineEdit_textColor.setText(RGBstring)
+         window.pushButton_textColor.setStyleSheet(btnStyle)
+       elif colorTarget == 'vis':
+         self.window.lineEdit_visColor.setText(RGBstring)
+         window.pushButton_visColor.setStyleSheet(btnStyle)
 
 if len(sys.argv) > 1:
   # command line mode

@@ -42,7 +42,8 @@ class Core():
          else:
             return self.getVideoFrames(backgroundImage, preview)
 
-  def drawBaseImage(self, backgroundFile, titleText, titleFont, fontSize, alignment, xOffset, yOffset):
+  def drawBaseImage(self, backgroundFile, titleText, titleFont, fontSize, alignment,\
+                     xOffset, yOffset, textColor, visColor):
     if backgroundFile == '':
        im = Image.new("RGB", (1280, 720), "black")
     else:
@@ -62,7 +63,7 @@ class Core():
     font = titleFont
     font.setPixelSize(fontSize)
     painter.setFont(font)
-    painter.setPen(QColor(255, 255, 255))
+    painter.setPen(QColor(*textColor))
 
     yPosition = yOffset
 
@@ -86,13 +87,15 @@ class Core():
     strio.seek(0)
     return Image.open(strio)
 
-  def drawBars(self, spectrum, image):
+  def drawBars(self, spectrum, image, color):
 
     imTop = Image.new("RGBA", (1280, 360))
     draw = ImageDraw.Draw(imTop)
+    r, g, b = color
+    color2 = (r, g, b, 50)
     for j in range(0, 63):
-      draw.rectangle((10 + j * 20, 325, 10 + j * 20 + 20, 325 - spectrum[j * 4] * 1 - 10), fill=(255, 255, 255, 50))
-      draw.rectangle((15 + j * 20, 320, 15 + j * 20 + 10, 320 - spectrum[j * 4] * 1), fill="white")
+      draw.rectangle((10 + j * 20, 325, 10 + j * 20 + 20, 325 - spectrum[j * 4] * 1 - 10), fill=color2)
+      draw.rectangle((15 + j * 20, 320, 15 + j * 20 + 10, 320 - spectrum[j * 4] * 1), fill=color)
 
 
     imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
@@ -191,3 +194,17 @@ class Core():
          shell=True
       )
       return sorted([os.path.join(self.tempDir, f) for f in os.listdir(self.tempDir)])
+
+  @staticmethod
+  def RGBFromString(string):
+   ''' turns an RGB string like "255, 255, 255" into a tuple '''
+   try:
+     tup = tuple([int(i) for i in string.split(',')])
+     if len(tup) != 3:
+        raise ValueError
+     for i in tup:
+        if i > 255 or i < 0:
+           raise ValueError
+     return tup
+   except:
+     return (255, 255, 255)

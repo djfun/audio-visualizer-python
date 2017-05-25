@@ -19,8 +19,9 @@ class Worker(QtCore.QObject):
     self.core = core.Core()
 
 
-  @pyqtSlot(str, str, QtGui.QFont, int, int, int, int, str, str)
-  def createVideo(self, backgroundImage, titleText, titleFont, fontSize, alignment, xOffset, yOffset,  inputFile, outputFile):
+  @pyqtSlot(str, str, QtGui.QFont, int, int, int, int, tuple, tuple, str, str)
+  def createVideo(self, backgroundImage, titleText, titleFont, fontSize, alignment,\
+                    xOffset, yOffset,  textColor, visColor, inputFile, outputFile):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     def getBackgroundAtIndex(i):
         return self.core.drawBaseImage(
@@ -30,7 +31,9 @@ class Worker(QtCore.QObject):
             fontSize,
             alignment,
             xOffset,
-            yOffset)
+            yOffset,
+            textColor,
+            visColor)
 
     progressBarValue = 0
     self.progressBarUpdate.emit(progressBarValue)
@@ -97,9 +100,9 @@ class Worker(QtCore.QObject):
         smoothConstantUp,
         lastSpectrum)
       if imBackground != None:
-        im = self.core.drawBars(lastSpectrum, imBackground)
+        im = self.core.drawBars(lastSpectrum, imBackground, visColor)
       else:
-        im = self.core.drawBars(lastSpectrum, getBackgroundAtIndex(bgI))
+        im = self.core.drawBars(lastSpectrum, getBackgroundAtIndex(bgI), visColor)
         if bgI < len(backgroundFrames)-1:
             bgI += 1
 
@@ -124,6 +127,7 @@ class Worker(QtCore.QObject):
     # out_pipe.terminate() # don't terminate ffmpeg too early
     out_pipe.wait()
     print("Video file created")
+    self.core.deleteTempDir()
     self.progressBarUpdate.emit(100)
     self.progressBarSetText.emit('100%')
     self.videoCreated.emit()
