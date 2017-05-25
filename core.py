@@ -60,7 +60,7 @@ class Core():
     self._image1 = QtGui.QImage(self._image)
     painter = QPainter(self._image1)
     font = titleFont
-    font.setPointSizeF(fontSize)
+    font.setPixelSize(fontSize)
     painter.setFont(font)
     painter.setPen(QColor(255, 255, 255))
 
