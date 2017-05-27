@@ -36,6 +36,7 @@ class Command(QtCore.QObject):
     self.args = self.parser.parse_args()
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    LoadDefaultSettings(self)
     
     # load colours as tuples from comma-separated strings
     self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
@@ -106,6 +107,8 @@ class Command(QtCore.QObject):
     self.settings.setValue("textColor", '%s,%s,%s' % self.textColor)
     sys.exit(0)
 
+  
+
 class Main(QtCore.QObject):
 
   newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple)
@@ -119,6 +122,8 @@ class Main(QtCore.QObject):
     self.window = window
     self.core = core.Core()
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
+
+    LoadDefaultSettings(self)
     
     # load colors as tuples from a comma-separated string
     self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
@@ -313,6 +318,23 @@ class Main(QtCore.QObject):
        elif colorTarget == 'vis':
          self.window.lineEdit_visColor.setText(RGBstring)
          window.pushButton_visColor.setStyleSheet(btnStyle)
+
+def LoadDefaultSettings(self):
+  default = {
+    "outputWidth": 1280,
+    "outputHeight": 720,
+    "outputFrameRate": 30,
+    "outputAudioCodec": "aac",
+    "outputAudioBitrate": "192k",
+    "outputVideoCodec": "libx264",
+    "outputVideoFormat": "yuv420p",
+    "outputPreset": "medium",
+    "outputFormat": "mp4" 
+  }
+  
+  for parm, value in default.items():
+    if self.settings.value(parm) == None:
+      self.settings.setValue(parm,value)
 
 if len(sys.argv) > 1:
   # command line mode

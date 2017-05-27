@@ -15,6 +15,7 @@ class Worker(QtCore.QObject):
 
   def __init__(self, parent=None):
     QtCore.QObject.__init__(self)
+    self.settings = parent.settings
     parent.videoTask.connect(self.createVideo)
     self.core = core.Core()
 
@@ -52,27 +53,27 @@ class Worker(QtCore.QObject):
 
     # test if user has libfdk_aac
     encoders = sp.check_output(self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
-    if b'libfdk_aac' in encoders:
+    acodec = self.settings.value('outputAudioCodec')
+
+    if b'libfdk_aac' in encoders and acodec == 'aac':
       acodec = 'libfdk_aac'
-    else:
-      acodec = 'aac'
 
     ffmpegCommand = [ self.core.FFMPEG_BIN,
        '-y', # (optional) means overwrite the output file if it already exists.
        '-f', 'rawvideo',
        '-vcodec', 'rawvideo',
-       '-s', '1280x720', # size of one frame
+       '-s', self.settings.value('outputWidth')+'x'+self.settings.value('outputHeight'), # size of one frame
        '-pix_fmt', 'rgb24',
-       '-r', '30', # frames per second
+       '-r', self.settings.value('outputFrameRate'), # frames per second
        '-i', '-', # The input comes from a pipe
        '-an',
        '-i', inputFile,
        '-acodec', acodec, # output audio codec
-       '-b:a', "192k",
-       '-vcodec', "libx264",
-       '-pix_fmt', "yuv420p",
-       '-preset', "medium",
-       '-f', "mp4"]
+       '-b:a', self.settings.value('outputAudioBitrate'),
+       '-vcodec', self.settings.value('outputVideoCodec'),
+       '-pix_fmt', self.settings.value('outputVideoFormat'),
+       '-preset', self.settings.value('outputPreset'),
+       '-f', self.settings.value('outputFormat')]
 
     if acodec == 'aac':
       ffmpegCommand.append('-strict')
