@@ -71,10 +71,7 @@ class Worker(QtCore.QObject):
       im = self.core.drawBars(spectrum, im, nextPreviewInformation["visColor"])
 
       self._image = ImageQt(im)
-      self._previewImage = QtGui.QImage(self._image)
-
-      self._scaledPreviewImage = self._previewImage.scaled(320, 180, QtCore.Qt.IgnoreAspectRatio, QtCore.Qt.SmoothTransformation)
-
-      self.imageCreated.emit(self._scaledPreviewImage)
+      self.imageCreated.emit(QtGui.QImage(self._image))
+      
     except Empty:
       True

@@ -139,36 +139,37 @@ class Main(QtCore.QObject):
     self.timer = QtCore.QTimer(self)
     self.timer.timeout.connect(self.processTask.emit)
     self.timer.start(500)
-    
-    window.pushButton_selectInput.clicked.connect(self.openInputFileDialog)
-    window.pushButton_selectOutput.clicked.connect(self.openOutputFileDialog)
+
+    window.toolButton_selectAudioFile.clicked.connect(self.openInputFileDialog)
+    window.toolButton_selectBackground.clicked.connect(self.openBackgroundFileDialog)
+    window.toolButton_selectOutputFile.clicked.connect(self.openOutputFileDialog)
+    window.progressBar_createVideo.setValue(0)
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
-    window.pushButton_selectBackground.clicked.connect(self.openBackgroundFileDialog)
-
-    window.progressBar_create.setValue(0)
     window.setWindowTitle("Audio Visualizer")
-    window.pushButton_selectInput.setText("Select Input Music File")
-    window.pushButton_selectOutput.setText("Select Output Video File")
-    window.pushButton_selectBackground.setText("Select Background Image")
-    window.label_font.setText("Title Font")
-    window.label_alignment.setText("Title Options")
-    window.label_colorOptions.setText("Colors")
-    window.label_fontsize.setText("Fontsize")
-    window.label_title.setText("Title Text")
-    window.label_textColor.setText("Text:")
-    window.label_visColor.setText("Visualizer:")
-    window.pushButton_createVideo.setText("Create Video")
-    window.groupBox_create.setTitle("Create")
-    window.groupBox_settings.setTitle("Settings")
-    window.groupBox_preview.setTitle("Preview")
+    window.comboBox_textAlign.addItem("Left")
+    window.comboBox_textAlign.addItem("Middle")
+    window.comboBox_textAlign.addItem("Right")
+    window.comboBox_textAlign.setCurrentIndex(1)
 
-    window.alignmentComboBox.addItem("Left")
-    window.alignmentComboBox.addItem("Middle")
-    window.alignmentComboBox.addItem("Right")
-    window.alignmentComboBox.setCurrentIndex(1)
-    window.fontsizeSpinBox.setValue(int(int(self.settings.value("outputHeight")) / 14 ))
-    window.textXSpinBox.setValue(int(int(self.settings.value('outputWidth'))/2))
-    window.textYSpinBox.setValue(int(int(self.settings.value('outputHeight'))/2))
+    window.comboBox_visLayout.addItem("Classic")
+    window.comboBox_visLayout.addItem("Split")
+    window.comboBox_visLayout.addItem("Bottom")
+    visLayoutValue = int(self.settings.value('visLayout'))
+    window.comboBox_visLayout.setCurrentIndex(visLayoutValue)
+
+    currentRes = self.settings.value('outputWidth')+'x'+self.settings.value('outputHeight')
+    for i, res in enumerate(self.resolutions):
+      window.comboBox_resolution.addItem(res)
+      if res == currentRes:
+        currentRes = i
+    window.comboBox_resolution.setCurrentIndex(currentRes)
+    window.comboBox_resolution.currentIndexChanged.connect(self.updateResolution)
+
+    # FIXME This needs to be changed in a future commit.
+    # We should be setting these values somewhere else.
+    window.spinBox_fontSize.setValue(int(int(self.settings.value("outputHeight")) / 14 ))
+    window.spinBox_xTextAlign.setValue(int(int(self.settings.value('outputWidth'))/2))
+    window.spinBox_yTextAlign.setValue(int(int(self.settings.value('outputHeight'))/2))
 
     window.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
     window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
@@ -181,30 +182,31 @@ class Main(QtCore.QObject):
 
     titleFont = self.settings.value("titleFont")
     if not titleFont == None: 
-      window.fontComboBox.setCurrentFont(QFont(titleFont))
+      window.fontComboBox_titleFont.setCurrentFont(QFont(titleFont))
 
     alignment = self.settings.value("alignment")
     if not alignment == None:
-      window.alignmentComboBox.setCurrentIndex(int(alignment))
+      window.comboBox_textAlign.setCurrentIndex(int(alignment))
     fontSize = self.settings.value("fontSize")
     if not fontSize == None:
-      window.fontsizeSpinBox.setValue(int(fontSize))
+      window.spinBox_fontSize.setValue(int(fontSize))
     xPosition = self.settings.value("xPosition")
     if not xPosition == None:
-      window.textXSpinBox.setValue(int(xPosition))
+      window.spinBox_xTextAlign.setValue(int(xPosition))
     yPosition = self.settings.value("yPosition")
     if not yPosition == None:
-      window.textYSpinBox.setValue(int(yPosition))
+      window.spinBox_yTextAlign.setValue(int(yPosition))
 
-    window.fontComboBox.currentFontChanged.connect(self.drawPreview)
+    window.fontComboBox_titleFont.currentFontChanged.connect(self.drawPreview)
     window.lineEdit_title.textChanged.connect(self.drawPreview)
-    window.alignmentComboBox.currentIndexChanged.connect(self.drawPreview)
-    window.textXSpinBox.valueChanged.connect(self.drawPreview)
-    window.textYSpinBox.valueChanged.connect(self.drawPreview)
-    window.fontsizeSpinBox.valueChanged.connect(self.drawPreview)
+    window.comboBox_textAlign.currentIndexChanged.connect(self.drawPreview)
+    window.comboBox_visLayout.currentIndexChanged.connect(self.drawPreview)
+    window.spinBox_xTextAlign.valueChanged.connect(self.drawPreview)
+    window.spinBox_yTextAlign.valueChanged.connect(self.drawPreview)
+    window.spinBox_fontSize.valueChanged.connect(self.drawPreview)
     window.lineEdit_textColor.textChanged.connect(self.drawPreview)
     window.lineEdit_visColor.textChanged.connect(self.drawPreview)
-
+    
     self.drawPreview()
 
     window.show()
@@ -214,11 +216,11 @@ class Main(QtCore.QObject):
     self.previewThread.quit()
     self.previewThread.wait()
        
-    self.settings.setValue("titleFont", self.window.fontComboBox.currentFont().toString())
-    self.settings.setValue("alignment", str(self.window.alignmentComboBox.currentIndex()))
-    self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
-    self.settings.setValue("xPosition", str(self.window.textXSpinBox.value()))
-    self.settings.setValue("yPosition", str(self.window.textYSpinBox.value()))
+    self.settings.setValue("titleFont", self.window.fontComboBox_titleFont.currentFont().toString())
+    self.settings.setValue("alignment", str(self.window.comboBox_textAlign.currentIndex()))
+    self.settings.setValue("fontSize", str(self.window.spinBox_fontSize.value()))
+    self.settings.setValue("xPosition", str(self.window.spinBox_xTextAlign.value()))
+    self.settings.setValue("yPosition", str(self.window.spinBox_yTextAlign.value()))
     self.settings.setValue("visColor", self.window.lineEdit_visColor.text())
     self.settings.setValue("textColor", self.window.lineEdit_textColor.text())
 
@@ -230,7 +232,7 @@ class Main(QtCore.QObject):
 
     if not fileName == "": 
       self.settings.setValue("inputDir", os.path.dirname(fileName))
-      self.window.label_input.setText(fileName)
+      self.window.lineEdit_audioFile.setText(fileName)
 
   def openOutputFileDialog(self):
     outputDir = self.settings.value("outputDir", expanduser("~"))
@@ -240,7 +242,7 @@ class Main(QtCore.QObject):
 
     if not fileName == "": 
       self.settings.setValue("outputDir", os.path.dirname(fileName))
-      self.window.label_output.setText(fileName)
+      self.window.lineEdit_outputFile.setText(fileName)
 
   def openBackgroundFileDialog(self):
     backgroundDir = self.settings.value("backgroundDir", expanduser("~"))
@@ -250,7 +252,7 @@ class Main(QtCore.QObject):
 
     if not fileName == "": 
       self.settings.setValue("backgroundDir", os.path.dirname(fileName))
-      self.window.label_background.setText(fileName)
+      self.window.lineEdit_background.setText(fileName)
     self.drawPreview()
 
   def createAudioVisualisation(self):
@@ -265,37 +267,45 @@ class Main(QtCore.QObject):
     self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
     
     self.videoThread.start()
-    self.videoTask.emit(self.window.label_background.text(),
+    self.videoTask.emit(self.window.lineEdit_background.text(),
       self.window.lineEdit_title.text(),
-      self.window.fontComboBox.currentFont(),
-      self.window.fontsizeSpinBox.value(),
-      self.window.alignmentComboBox.currentIndex(),
-      self.window.textXSpinBox.value(),
-      self.window.textYSpinBox.value(),
+      self.window.fontComboBox_titleFont.currentFont(),
+      self.window.spinBox_fontSize.value(),
+      self.window.comboBox_textAlign.currentIndex(),
+      self.window.spinBox_xTextAlign.value(),
+      self.window.spinBox_yTextAlign.value(),
       core.Core.RGBFromString(self.window.lineEdit_textColor.text()),
       core.Core.RGBFromString(self.window.lineEdit_visColor.text()),
-      self.window.label_input.text(),
-      self.window.label_output.text())
+      self.window.lineEdit_audioFile.text(),
+      self.window.lineEdit_outputFile.text())
     
 
   def progressBarUpdated(self, value):
-    self.window.progressBar_create.setValue(value)
+    self.window.progressBar_createVideo.setValue(value)
 
   def progressBarSetText(self, value):
-    self.window.progressBar_create.setFormat(value)
+    self.window.progressBar_createVideo.setFormat(value)
 
   def videoCreated(self):
     self.videoThread.quit()
     self.videoThread.wait()
 
+  def updateResolution(self):
+    resIndex = int(window.comboBox_resolution.currentIndex())
+    res = self.resolutions[resIndex].split('x')
+    self.settings.setValue('outputWidth',res[0])
+    self.settings.setValue('outputHeight',res[1])
+    self.drawPreview
+
   def drawPreview(self):
-    self.newTask.emit(self.window.label_background.text(),
+    self.settings.setValue('visLayout', self.window.comboBox_visLayout.currentIndex())
+    self.newTask.emit(self.window.lineEdit_background.text(),
       self.window.lineEdit_title.text(),
-      self.window.fontComboBox.currentFont(),
-      self.window.fontsizeSpinBox.value(),
-      self.window.alignmentComboBox.currentIndex(),
-      self.window.textXSpinBox.value(),
-      self.window.textYSpinBox.value(),
+      self.window.fontComboBox_titleFont.currentFont(),
+      self.window.spinBox_fontSize.value(),
+      self.window.comboBox_textAlign.currentIndex(),
+      self.window.spinBox_xTextAlign.value(),
+      self.window.spinBox_yTextAlign.value(),
       core.Core.RGBFromString(self.window.lineEdit_textColor.text()),
       core.Core.RGBFromString(self.window.lineEdit_visColor.text()))
     # self.processTask.emit()
@@ -304,7 +314,7 @@ class Main(QtCore.QObject):
     self._scaledPreviewImage = image
     self._previewPixmap = QtGui.QPixmap.fromImage(self._scaledPreviewImage)
 
-    self.window.label_preview.setPixmap(self._previewPixmap)
+    self.window.label_previewContainer.setPixmap(self._previewPixmap)
 
   def pickColor(self, colorTarget):
     color = QtGui.QColorDialog.getColor()
@@ -319,6 +329,12 @@ class Main(QtCore.QObject):
          window.pushButton_visColor.setStyleSheet(btnStyle)
 
 def LoadDefaultSettings(self):
+  self.resolutions = [
+      '1920x1080',
+      '1280x720',
+      '854x480'
+    ]
+
   default = {
     "outputWidth": 1280,
     "outputHeight": 720,
@@ -328,7 +344,8 @@ def LoadDefaultSettings(self):
     "outputVideoCodec": "libx264",
     "outputVideoFormat": "yuv420p",
     "outputPreset": "medium",
-    "outputFormat": "mp4" 
+    "outputFormat": "mp4",
+    "visLayout": 0 
   }
   
   for parm, value in default.items():
@@ -345,12 +362,12 @@ else:
   # gui mode
   if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
-    window = uic.loadUi("main.ui")
+    window = uic.loadUi("mainwindow.ui")
     # window.adjustSize()
     desc = QtGui.QDesktopWidget()
     dpi = desc.physicalDpiX()
+    
     topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
-
     window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
     window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
   

@@ -112,8 +112,19 @@ class Core():
     
     im = Image.new("RGB", (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), "black")
     im.paste(image, (0, 0))
-    im.paste(imTop, (0, 0), mask=imTop)
-    im.paste(imBottom, (0, int(vH+bF*1.8)), mask=imBottom)
+
+    layout = int(self.settings.value('visLayout'))
+
+    if layout == 0:
+      im.paste(imTop, (0, 0), mask=imTop)
+      im.paste(imBottom, (0, int(vH+bF*1.8)), mask=imBottom)
+
+    if layout == 1:
+      im.paste(imTop, (0, int(height+bF*1.5)), mask=imTop)
+      im.paste(imBottom, (0, int(0-bF*1.5)), mask=imBottom)
+
+    if layout == 2:
+      im.paste(imTop, (0, int(height+bF*1.5)), mask=imTop)
 
     return im
 
