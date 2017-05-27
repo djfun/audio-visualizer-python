@@ -65,9 +65,9 @@ class Core():
     painter.setFont(font)
     painter.setPen(QColor(*textColor))
 
-    yPosition = yOffset
-
     fm = QtGui.QFontMetrics(font)
+    yPosition = yOffset + fm.height()/6
+
     if alignment == 0:      #Left
        xPosition = xOffset
     if alignment == 1:      #Middle
@@ -92,21 +92,20 @@ class Core():
     width = int(self.settings.value('outputWidth'))
     height = int(int(self.settings.value('outputHeight'))/2)
 
+    vH = height-height/8
+    bF = int(self.settings.value('outputWidth')) / 64
+    bH = bF / 2
+    bQ = bF / 4
     imTop = Image.new("RGBA", (width, height))
     draw = ImageDraw.Draw(imTop)
     r, g, b = color
     color2 = (r, g, b, 50)
 
-    vH = height-height/8
-    bF = int(self.settings.value('outputWidth')) / 64
-    bH = bF / 2
-    bQ = bF / 4
-
     bP = int(self.settings.value('outputHeight')) / 800
 
     for j in range(0, 63):
-      draw.rectangle((bH + j * bF, vH, bH + j * bF + bF, vH + bQ - spectrum[j * 4] * bP - bH), fill=color2)
-      draw.rectangle((bH + bQ + j * bF, vH - bQ , bH + bQ + j * bF + bH, vH - spectrum[j * 4] * bP), fill=color)
+      draw.rectangle((bH + j * bF, vH+bQ, bH + j * bF + bF, vH + bQ - spectrum[j * 4] * bP - bH), fill=color2)
+      draw.rectangle((bH + bQ + j * bF, vH , bH + bQ + j * bF + bH, vH - spectrum[j * 4] * bP), fill=color)
 
 
     imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
@@ -114,7 +113,7 @@ class Core():
     im = Image.new("RGB", (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), "black")
     im.paste(image, (0, 0))
     im.paste(imTop, (0, 0), mask=imTop)
-    im.paste(imBottom, (0, int(vH+bF*.7)), mask=imBottom)
+    im.paste(imBottom, (0, int(vH+bF*1.8)), mask=imBottom)
 
     return im
 

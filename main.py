@@ -166,9 +166,10 @@ class Main(QtCore.QObject):
     window.alignmentComboBox.addItem("Middle")
     window.alignmentComboBox.addItem("Right")
     window.alignmentComboBox.setCurrentIndex(1)
-    window.fontsizeSpinBox.setValue(int(int(self.settings.value("outputHeight")) / 16 ))
+    window.fontsizeSpinBox.setValue(int(int(self.settings.value("outputHeight")) / 14 ))
     window.textXSpinBox.setValue(int(int(self.settings.value('outputWidth'))/2))
     window.textYSpinBox.setValue(int(int(self.settings.value('outputHeight'))/2))
+
     window.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
     window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
     window.pushButton_textColor.clicked.connect(lambda: self.pickColor('text'))
