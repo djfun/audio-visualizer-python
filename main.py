@@ -107,8 +107,6 @@ class Command(QtCore.QObject):
     self.settings.setValue("textColor", '%s,%s,%s' % self.textColor)
     sys.exit(0)
 
-  
-
 class Main(QtCore.QObject):
 
   newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple)
@@ -122,7 +120,6 @@ class Main(QtCore.QObject):
     self.window = window
     self.core = core.Core()
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
-
     LoadDefaultSettings(self)
     
     # load colors as tuples from a comma-separated string
@@ -168,9 +165,10 @@ class Main(QtCore.QObject):
     window.alignmentComboBox.addItem("Left")
     window.alignmentComboBox.addItem("Middle")
     window.alignmentComboBox.addItem("Right")
-    window.fontsizeSpinBox.setValue(35)
-    window.textXSpinBox.setValue(70)
-    window.textYSpinBox.setValue(375)
+    window.alignmentComboBox.setCurrentIndex(1)
+    window.fontsizeSpinBox.setValue(int(int(self.settings.value("outputHeight")) / 16 ))
+    window.textXSpinBox.setValue(int(int(self.settings.value('outputWidth'))/2))
+    window.textYSpinBox.setValue(int(int(self.settings.value('outputHeight'))/2))
     window.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
     window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
     window.pushButton_textColor.clicked.connect(lambda: self.pickColor('text'))

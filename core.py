@@ -45,7 +45,7 @@ class Core():
   def drawBaseImage(self, backgroundFile, titleText, titleFont, fontSize, alignment,\
                      xOffset, yOffset, textColor, visColor):
     if backgroundFile == '':
-       im = Image.new("RGB", (1280, 720), "black")
+       im = Image.new("RGB", (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), "black")
     else:
        im = Image.open(backgroundFile)
 
@@ -53,8 +53,8 @@ class Core():
       self.lastBackgroundImage = backgroundFile
 
       # resize if necessary
-      if not im.size == (1280, 720):
-        im = im.resize((1280, 720), Image.ANTIALIAS)
+      if not im.size == (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))):
+        im = im.resize((int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), Image.ANTIALIAS)
 
       self._image = ImageQt(im)
    
@@ -89,21 +89,32 @@ class Core():
 
   def drawBars(self, spectrum, image, color):
 
-    imTop = Image.new("RGBA", (1280, 360))
+    width = int(self.settings.value('outputWidth'))
+    height = int(int(self.settings.value('outputHeight'))/2)
+
+    imTop = Image.new("RGBA", (width, height))
     draw = ImageDraw.Draw(imTop)
     r, g, b = color
     color2 = (r, g, b, 50)
+
+    vH = height-height/8
+    bF = int(self.settings.value('outputWidth')) / 64
+    bH = bF / 2
+    bQ = bF / 4
+
+    bP = int(self.settings.value('outputHeight')) / 800
+
     for j in range(0, 63):
-      draw.rectangle((10 + j * 20, 325, 10 + j * 20 + 20, 325 - spectrum[j * 4] * 1 - 10), fill=color2)
-      draw.rectangle((15 + j * 20, 320, 15 + j * 20 + 10, 320 - spectrum[j * 4] * 1), fill=color)
+      draw.rectangle((bH + j * bF, vH, bH + j * bF + bF, vH + bQ - spectrum[j * 4] * bP - bH), fill=color2)
+      draw.rectangle((bH + bQ + j * bF, vH - bQ , bH + bQ + j * bF + bH, vH - spectrum[j * 4] * bP), fill=color)
 
 
     imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
     
-    im = Image.new("RGB", (1280, 720), "black")
+    im = Image.new("RGB", (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), "black")
     im.paste(image, (0, 0))
     im.paste(imTop, (0, 0), mask=imTop)
-    im.paste(imBottom, (0, 360), mask=imBottom)
+    im.paste(imBottom, (0, int(vH+bF*.7)), mask=imBottom)
 
     return im
 
