@@ -299,7 +299,7 @@ class Main(QtCore.QObject):
     res = self.resolutions[resIndex].split('x')
     self.settings.setValue('outputWidth',res[0])
     self.settings.setValue('outputHeight',res[1])
-    self.drawPreview
+    self.drawPreview()
 
   def drawPreview(self):
     #self.settings.setValue('visLayout', self.window.comboBox_visLayout.currentIndex())
@@ -350,7 +350,6 @@ class Main(QtCore.QObject):
         self.window.stackedWidget.removeWidget(self.pages[index])
         self.window.listWidget_componentList.takeItem(index)
         self.selectedComponents.pop(index)
-        print(self.selectedComponents)
     self.drawPreview()
 
   def changeComponentWidget(self):

@@ -28,7 +28,6 @@ class Worker(QtCore.QObject):
       "backgroundImage": backgroundImage,
       "components": components,
     }
-    print(components)
     self.queue.put(dic)
 
   @pyqtSlot()
@@ -51,16 +50,15 @@ class Worker(QtCore.QObject):
         bgImage = bgImage[0]
 
       im = self.core.drawBaseImage(bgImage)
-      frame = Image.new("RGBA", (1280, 720),(0,0,0,255))
+      width = int(self.core.settings.value('outputWidth'))
+      height = int(self.core.settings.value('outputHeight'))
+      frame = Image.new("RGBA", (width, height),(0,0,0,255))
       frame.paste(im)
 
 
       componentWidgets = [self.stackedWidget.widget(i) for i in range(self.stackedWidget.count())]
       components = nextPreviewInformation["components"]
-      print(components)
-      print(componentWidgets)
       for component, componentWidget in zip(components, componentWidgets):
-        print('drawing')
         newFrame = Image.alpha_composite(frame,component.previewRender(self, componentWidget))
         frame = Image.alpha_composite(frame,newFrame)
 
