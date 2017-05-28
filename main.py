@@ -292,6 +292,7 @@ class Main(QtCore.QObject):
     self.pages.append(self.selectedComponents[-1].widget(self))
     self.window.listWidget_componentList.setCurrentRow(index)
     self.window.stackedWidget.addWidget(self.pages[-1])
+    self.window.stackedWidget.setCurrentWidget(self.pages[-1])
     self.selectedComponents[-1].update()
 
   def removeComponent(self):
