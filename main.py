@@ -315,11 +315,14 @@ class Main(QtCore.QObject):
   def moveComponentUp(self):
     row = self.window.listWidget_componentList.currentRow()
     if row > 0:
-      item = self.window.listWidget_componentList.takeItem(row)
-      self.window.listWidget_componentList.insertItem(row - 1, item)
+      module = self.selectedComponents[row]
+      self.selectedComponents.pop(row)
+      self.selectedComponents.insert(row - 1,module)
       page = self.pages[row]
       self.pages.pop(row)
       self.pages.insert(row - 1, page)
+      item = self.window.listWidget_componentList.takeItem(row)
+      self.window.listWidget_componentList.insertItem(row - 1, item)
       widget = self.window.stackedWidget.removeWidget(page)
       self.window.stackedWidget.insertWidget(row - 1, page)
       self.window.listWidget_componentList.setCurrentRow(row - 1)
@@ -327,12 +330,15 @@ class Main(QtCore.QObject):
 
   def moveComponentDown(self):
     row = self.window.listWidget_componentList.currentRow()
-    if row < len(self.pages):
-      item = self.window.listWidget_componentList.takeItem(row)
-      self.window.listWidget_componentList.insertItem(row + 1, item)
+    if row < len(self.pages) + 1:
+      module = self.selectedComponents[row]
+      self.selectedComponents.pop(row)
+      self.selectedComponents.insert(row + 1,module)
       page = self.pages[row]
       self.pages.pop(row)
       self.pages.insert(row + 1, page)
+      item = self.window.listWidget_componentList.takeItem(row)
+      self.window.listWidget_componentList.insertItem(row + 1, item)
       widget = self.window.stackedWidget.removeWidget(page)
       self.window.stackedWidget.insertWidget(row + 1, page)
       self.window.listWidget_componentList.setCurrentRow(row + 1)
