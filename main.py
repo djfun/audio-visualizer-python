@@ -1,11 +1,12 @@
 import sys, io, os
-from PyQt4 import QtCore, QtGui, uic
 from os.path import expanduser
 import atexit
 from queue import Queue
-from PyQt4.QtCore import QSettings, QModelIndex
 import signal
 from importlib import import_module
+from PyQt4 import QtCore, QtGui, uic
+from PyQt4.QtCore import QSettings, QModelIndex
+from PyQt4.QtGui import QDesktopServices
 
 import preview_thread, core, video_thread
 
@@ -122,6 +123,14 @@ class Main(QtCore.QObject):
     self.core = core.Core()
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
     LoadDefaultSettings(self)
+
+    # create data directory structure if needed
+    dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
+    if not os.path.exists(dataDir):
+        os.makedirs(dataDir)
+    for neededDirectory in ('projects', 'presets'):
+        if not os.path.exists(os.path.join(dataDir, neededDirectory)):
+            os.mkdir(os.path.join(dataDir, neededDirectory))
 
     self.pages = []
 
@@ -382,6 +391,8 @@ else:
 # gui mode
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
+    app.setApplicationName("audio-visualizer")
+    app.setOrganizationName("audio-visualizer")
     window = uic.loadUi("mainwindow.ui")
     # window.adjustSize()
     desc = QtGui.QDesktopWidget()
