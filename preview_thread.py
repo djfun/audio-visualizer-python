@@ -18,23 +18,17 @@ class Worker(QtCore.QObject):
     self.core = core.Core()
     self.queue = queue
     self.core.settings = parent.settings
+    self.stackedWidget = parent.window.stackedWidget
 
 
-  @pyqtSlot(str, str, QtGui.QFont, int, int, int, int, tuple, tuple)
-  def createPreviewImage(self, backgroundImage, titleText, titleFont, fontSize,\
-                            alignment, xOffset, yOffset, textColor, visColor):
+  @pyqtSlot(str, list)
+  def createPreviewImage(self, backgroundImage, components):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     dic = {
       "backgroundImage": backgroundImage,
-      "titleText": titleText,
-      "titleFont": titleFont,
-      "fontSize": fontSize,
-      "alignment": alignment,
-      "xoffset": xOffset,
-      "yoffset": yOffset,
-      "textColor" : textColor,
-      "visColor" : visColor
+      "components": components,
     }
+    print(components)
     self.queue.put(dic)
 
   @pyqtSlot()
@@ -56,21 +50,21 @@ class Worker(QtCore.QObject):
       else:
         bgImage = bgImage[0]
 
-      im = self.core.drawBaseImage(
-        bgImage,
-        nextPreviewInformation["titleText"],
-        nextPreviewInformation["titleFont"],
-        nextPreviewInformation["fontSize"],
-        nextPreviewInformation["alignment"],
-        nextPreviewInformation["xoffset"],
-        nextPreviewInformation["yoffset"],
-        nextPreviewInformation["textColor"],
-        nextPreviewInformation["visColor"])
-      spectrum = numpy.fromfunction(lambda x: 0.008*(x-128)**2, (255,), dtype="int16")
+      im = self.core.drawBaseImage(bgImage)
+      frame = Image.new("RGBA", (1280, 720),(0,0,0,255))
+      frame.paste(im)
 
-      im = self.core.drawBars(spectrum, im, nextPreviewInformation["visColor"])
 
-      self._image = ImageQt(im)
+      componentWidgets = [self.stackedWidget.widget(i) for i in range(self.stackedWidget.count())]
+      components = nextPreviewInformation["components"]
+      print(components)
+      print(componentWidgets)
+      for component, componentWidget in zip(components, componentWidgets):
+        print('drawing')
+        newFrame = Image.alpha_composite(frame,component.previewRender(self, componentWidget))
+        frame = Image.alpha_composite(frame,newFrame)
+
+      self._image = ImageQt(frame)
       self.imageCreated.emit(QtGui.QImage(self._image))
       
     except Empty:

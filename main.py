@@ -10,15 +10,18 @@ import atexit
 from queue import Queue
 from PyQt4.QtCore import QSettings
 import signal
+from importlib import import_module
 
 import preview_thread, core, video_thread
 
 class Command(QtCore.QObject):
   
-  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str, list)
   
   def __init__(self):
     QtCore.QObject.__init__(self)
+    self.modules = []
+    self.selectedComponents = []
 
     import argparse
     self.parser = argparse.ArgumentParser(description='Create a visualization for an audio file')
@@ -90,7 +93,8 @@ class Command(QtCore.QObject):
       self.textColor,
       self.visColor,
       self.args.input,
-      self.args.output)
+      self.args.output,
+      self.selectedComponents)
 
   def videoCreated(self):
     self.videoThread.quit()
@@ -109,9 +113,9 @@ class Command(QtCore.QObject):
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple)
+  newTask = QtCore.pyqtSignal(str, list)
   processTask = QtCore.pyqtSignal()
-  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str)
+  videoTask = QtCore.pyqtSignal(str, str, str, list)
 
   def __init__(self, window):
     QtCore.QObject.__init__(self)
@@ -121,6 +125,8 @@ class Main(QtCore.QObject):
     self.core = core.Core()
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
     LoadDefaultSettings(self)
+
+    self.pages = []
     
     # load colors as tuples from a comma-separated string
     self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
@@ -140,24 +146,26 @@ class Main(QtCore.QObject):
     self.timer.timeout.connect(self.processTask.emit)
     self.timer.start(500)
 
+    # begin decorating the window and connecting events
     window.toolButton_selectAudioFile.clicked.connect(self.openInputFileDialog)
     window.toolButton_selectBackground.clicked.connect(self.openBackgroundFileDialog)
     window.toolButton_selectOutputFile.clicked.connect(self.openOutputFileDialog)
     window.progressBar_createVideo.setValue(0)
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
     window.setWindowTitle("Audio Visualizer")
-    window.comboBox_textAlign.addItem("Left")
-    window.comboBox_textAlign.addItem("Middle")
-    window.comboBox_textAlign.addItem("Right")
-    window.comboBox_textAlign.setCurrentIndex(1)
 
-    window.comboBox_visLayout.addItem("Classic")
-    window.comboBox_visLayout.addItem("Split")
-    window.comboBox_visLayout.addItem("Bottom")
-    visLayoutValue = int(self.settings.value('visLayout'))
-    window.comboBox_visLayout.setCurrentIndex(visLayoutValue)
+    self.modules = self.findComponents()
+    for component in self.modules:
+        window.comboBox_componentSelection.addItem(component.__doc__)
+    window.listWidget_componentList.clicked.connect(lambda _: self.changeComponentWidget())
+    self.selectedComponents = []
 
-    currentRes = self.settings.value('outputWidth')+'x'+self.settings.value('outputHeight')
+    self.window.pushButton_addComponent.clicked.connect( \
+        lambda _: self.addComponent(self.window.comboBox_componentSelection.currentIndex())
+    )
+    self.window.pushButton_removeComponent.clicked.connect(lambda _: self.removeComponent())
+
+    currentRes = str(self.settings.value('outputWidth'))+'x'+str(self.settings.value('outputHeight'))
     for i, res in enumerate(self.resolutions):
       window.comboBox_resolution.addItem(res)
       if res == currentRes:
@@ -165,8 +173,12 @@ class Main(QtCore.QObject):
     window.comboBox_resolution.setCurrentIndex(currentRes)
     window.comboBox_resolution.currentIndexChanged.connect(self.updateResolution)
 
-    # FIXME This needs to be changed in a future commit.
-    # We should be setting these values somewhere else.
+    '''
+    window.comboBox_textAlign.addItem("Left")
+    window.comboBox_textAlign.addItem("Middle")
+    window.comboBox_textAlign.addItem("Right")
+    window.comboBox_textAlign.setCurrentIndex(1)
+
     window.spinBox_fontSize.setValue(int(int(self.settings.value("outputHeight")) / 14 ))
     window.spinBox_xTextAlign.setValue(int(int(self.settings.value('outputWidth'))/2))
     window.spinBox_yTextAlign.setValue(int(int(self.settings.value('outputHeight'))/2))
@@ -206,7 +218,7 @@ class Main(QtCore.QObject):
     window.spinBox_fontSize.valueChanged.connect(self.drawPreview)
     window.lineEdit_textColor.textChanged.connect(self.drawPreview)
     window.lineEdit_visColor.textChanged.connect(self.drawPreview)
-    
+    '''
     self.drawPreview()
 
     window.show()
@@ -268,18 +280,10 @@ class Main(QtCore.QObject):
     
     self.videoThread.start()
     self.videoTask.emit(self.window.lineEdit_background.text(),
-      self.window.lineEdit_title.text(),
-      self.window.fontComboBox_titleFont.currentFont(),
-      self.window.spinBox_fontSize.value(),
-      self.window.comboBox_textAlign.currentIndex(),
-      self.window.spinBox_xTextAlign.value(),
-      self.window.spinBox_yTextAlign.value(),
-      core.Core.RGBFromString(self.window.lineEdit_textColor.text()),
-      core.Core.RGBFromString(self.window.lineEdit_visColor.text()),
       self.window.lineEdit_audioFile.text(),
-      self.window.lineEdit_outputFile.text())
+      self.window.lineEdit_outputFile.text(),
+      self.selectedComponents)
     
-
   def progressBarUpdated(self, value):
     self.window.progressBar_createVideo.setValue(value)
 
@@ -298,16 +302,8 @@ class Main(QtCore.QObject):
     self.drawPreview
 
   def drawPreview(self):
-    self.settings.setValue('visLayout', self.window.comboBox_visLayout.currentIndex())
-    self.newTask.emit(self.window.lineEdit_background.text(),
-      self.window.lineEdit_title.text(),
-      self.window.fontComboBox_titleFont.currentFont(),
-      self.window.spinBox_fontSize.value(),
-      self.window.comboBox_textAlign.currentIndex(),
-      self.window.spinBox_xTextAlign.value(),
-      self.window.spinBox_yTextAlign.value(),
-      core.Core.RGBFromString(self.window.lineEdit_textColor.text()),
-      core.Core.RGBFromString(self.window.lineEdit_visColor.text()))
+    #self.settings.setValue('visLayout', self.window.comboBox_visLayout.currentIndex())
+    self.newTask.emit(self.window.lineEdit_background.text(), self.selectedComponents)
     # self.processTask.emit()
 
   def showPreviewImage(self, image):
@@ -327,6 +323,40 @@ class Main(QtCore.QObject):
        elif colorTarget == 'vis':
          self.window.lineEdit_visColor.setText(RGBstring)
          window.pushButton_visColor.setStyleSheet(btnStyle)
+
+  def findComponents(self):
+    def findComponents():
+        srcPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'components')
+        if os.path.exists(srcPath):
+            for f in os.listdir(srcPath):
+                name, ext = os.path.splitext(f)
+                if name.startswith("__"):
+                    continue
+                elif ext == '.py':
+                    yield name
+    return [import_module('components.%s' % name) for name in findComponents()]
+
+  def addComponent(self, moduleIndex):
+    self.window.listWidget_componentList.addItem(self.modules[moduleIndex].__doc__)
+    self.selectedComponents.append(self.modules[moduleIndex].Component())
+    self.selectedComponents[-1].page = self.selectedComponents[-1].widget(self)
+    self.pages.append(self.selectedComponents[-1].page)
+    self.window.stackedWidget.addWidget(self.pages[-1])
+    self.selectedComponents[-1].update()
+
+  def removeComponent(self):
+    for selected in self.window.listWidget_componentList.selectedItems():
+        index = self.window.listWidget_componentList.row(selected)
+        self.window.stackedWidget.removeWidget(self.pages[index])
+        self.window.listWidget_componentList.takeItem(index)
+        self.selectedComponents.pop(index)
+        print(self.selectedComponents)
+    self.drawPreview()
+
+  def changeComponentWidget(self):
+    selected = self.window.listWidget_componentList.selectedItems()
+    index = self.window.listWidget_componentList.row(selected[0])
+    self.window.stackedWidget.setCurrentIndex(index)
 
 def LoadDefaultSettings(self):
   self.resolutions = [

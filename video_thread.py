@@ -17,24 +17,15 @@ class Worker(QtCore.QObject):
     QtCore.QObject.__init__(self)
     self.core = core.Core()
     self.core.settings = parent.settings
+    self.modules = parent.modules
+    self.stackedWidget = parent.window.stackedWidget
     parent.videoTask.connect(self.createVideo)
-    
 
-  @pyqtSlot(str, str, QtGui.QFont, int, int, int, int, tuple, tuple, str, str)
-  def createVideo(self, backgroundImage, titleText, titleFont, fontSize, alignment,\
-                    xOffset, yOffset,  textColor, visColor, inputFile, outputFile):
+  @pyqtSlot(str, str, str, list)
+  def createVideo(self, backgroundImage, inputFile, outputFile, components):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     def getBackgroundAtIndex(i):
-        return self.core.drawBaseImage(
-            backgroundFrames[i],
-            titleText,
-            titleFont,
-            fontSize,
-            alignment,
-            xOffset,
-            yOffset,
-            textColor,
-            visColor)
+        return self.core.drawBaseImage(backgroundFrames[i])
 
     progressBarValue = 0
     self.progressBarUpdate.emit(progressBarValue)
@@ -84,40 +75,47 @@ class Worker(QtCore.QObject):
     out_pipe = sp.Popen(ffmpegCommand,
         stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
-    smoothConstantDown = 0.08
-    smoothConstantUp = 0.8
-    lastSpectrum = None
+    # initialize components
+    componentWidgets = [self.stackedWidget.widget(i) for i in range(self.stackedWidget.count())]
+
+    print('######################## Data')
+    print(components)
+    print(componentWidgets)
     sampleSize = 1470
-    
+    for component, widget in zip(components, componentWidgets):
+        component.preFrameRender(worker=self, widget=widget, completeAudioArray=completeAudioArray, sampleSize=sampleSize)
+
     numpy.seterr(divide='ignore')
+    frame = getBackgroundAtIndex(0)
     bgI = 0
+    # create video for output
     for i in range(0, len(completeAudioArray), sampleSize):
-      # create video for output
-      lastSpectrum = self.core.transformData(
-        i,
-        completeAudioArray,
-        sampleSize,
-        smoothConstantDown,
-        smoothConstantUp,
-        lastSpectrum)
-      if imBackground != None:
-        im = self.core.drawBars(lastSpectrum, imBackground, visColor)
-      else:
-        im = self.core.drawBars(lastSpectrum, getBackgroundAtIndex(bgI), visColor)
-        if bgI < len(backgroundFrames)-1:
-            bgI += 1
+        newFrame = Image.new("RGBA", (int(self.core.settings.value('outputWidth')), int(self.core.settings.value('outputHeight'))),(0,0,0,255))
 
+        if imBackground:
+            newFrame.paste(imBackground)
+        else:
+            newFrame.paste(getBackgroundAtIndex(bgI))
+
+        for compNo, comp in enumerate(components):
+            newFrame = Image.alpha_composite(newFrame,comp.frameRender(compNo, i))
+
+        if not imBackground:
+            if bgI < len(backgroundFrames)-1:
+                bgI += 1
       # write to out_pipe
-      try:
-        out_pipe.stdin.write(im.tobytes())
-      finally:
-        True
+        try:
+            frame = Image.new("RGB", (int(self.core.settings.value('outputWidth')), int(self.core.settings.value('outputHeight'))),(0,0,0))
+            frame.paste(newFrame)
+            out_pipe.stdin.write(frame.tobytes())
+        finally:
+            True
 
-      # increase progress bar value
-      if progressBarValue + 1 <= (i / len(completeAudioArray)) * 100:
-        progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100)
-        self.progressBarUpdate.emit(progressBarValue)
-        self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
+        # increase progress bar value
+        if progressBarValue + 1 <= (i / len(completeAudioArray)) * 100:
+            progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100)
+            self.progressBarUpdate.emit(progressBarValue)
+            self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
 
     numpy.seterr(all='print')
 

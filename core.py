@@ -42,8 +42,7 @@ class Core():
          else:
             return self.getVideoFrames(backgroundImage, preview)
 
-  def drawBaseImage(self, backgroundFile, titleText, titleFont, fontSize, alignment,\
-                     xOffset, yOffset, textColor, visColor):
+  def drawBaseImage(self, backgroundFile):
     if backgroundFile == '':
        im = Image.new("RGB", (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), "black")
     else:
@@ -51,81 +50,10 @@ class Core():
 
     if self._image == None or not self.lastBackgroundImage == backgroundFile:
       self.lastBackgroundImage = backgroundFile
-
       # resize if necessary
       if not im.size == (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))):
         im = im.resize((int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), Image.ANTIALIAS)
-
-      self._image = ImageQt(im)
-   
-    self._image1 = QtGui.QImage(self._image)
-    painter = QPainter(self._image1)
-    font = titleFont
-    font.setPixelSize(fontSize)
-    painter.setFont(font)
-    painter.setPen(QColor(*textColor))
-
-    fm = QtGui.QFontMetrics(font)
-    yPosition = yOffset + fm.height()/6
-
-    if alignment == 0:      #Left
-       xPosition = xOffset
-    if alignment == 1:      #Middle
-       xPosition = xOffset - fm.width(titleText)/2
-    if alignment == 2:      #Right
-       xPosition = xOffset - fm.width(titleText)
-    painter.drawText(xPosition, yPosition, titleText)
-    painter.end()
-
-    buffer = QtCore.QBuffer()
-    buffer.open(QtCore.QIODevice.ReadWrite)
-    self._image1.save(buffer, "PNG")
-
-    strio = io.BytesIO()
-    strio.write(buffer.data())
-    buffer.close()
-    strio.seek(0)
-    return Image.open(strio)
-
-  def drawBars(self, spectrum, image, color):
-
-    width = int(self.settings.value('outputWidth'))
-    height = int(int(self.settings.value('outputHeight'))/2)
-
-    vH = height-height/8
-    bF = int(self.settings.value('outputWidth')) / 64
-    bH = bF / 2
-    bQ = bF / 4
-    imTop = Image.new("RGBA", (width, height))
-    draw = ImageDraw.Draw(imTop)
-    r, g, b = color
-    color2 = (r, g, b, 50)
-
-    bP = int(self.settings.value('outputHeight')) / 800
-
-    for j in range(0, 63):
-      draw.rectangle((bH + j * bF, vH+bQ, bH + j * bF + bF, vH + bQ - spectrum[j * 4] * bP - bH), fill=color2)
-      draw.rectangle((bH + bQ + j * bF, vH , bH + bQ + j * bF + bH, vH - spectrum[j * 4] * bP), fill=color)
-
-
-    imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
-    
-    im = Image.new("RGB", (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), "black")
-    im.paste(image, (0, 0))
-
-    layout = int(self.settings.value('visLayout'))
-
-    if layout == 0:
-      im.paste(imTop, (0, 0), mask=imTop)
-      im.paste(imBottom, (0, int(vH+bF*1.8)), mask=imBottom)
-
-    if layout == 1:
-      im.paste(imTop, (0, int(height+bF*1.5)), mask=imTop)
-      im.paste(imBottom, (0, int(0-bF*1.5)), mask=imBottom)
-
-    if layout == 2:
-      im.paste(imTop, (0, int(height+bF*1.5)), mask=imTop)
-
+        
     return im
 
   def readAudioFile(self, filename):
@@ -159,40 +87,9 @@ class Core():
 
     return completeAudioArray
 
-  def transformData(self, i, completeAudioArray, sampleSize, smoothConstantDown, smoothConstantUp, lastSpectrum):
-    if len(completeAudioArray) < (i + sampleSize):
-      sampleSize = len(completeAudioArray) - i
-
-    window = numpy.hanning(sampleSize)
-    data = completeAudioArray[i:i+sampleSize][::1] * window
-    paddedSampleSize = 2048
-    paddedData = numpy.pad(data, (0, paddedSampleSize - sampleSize), 'constant')
-    spectrum = numpy.fft.fft(paddedData)
-    sample_rate = 44100
-    frequencies = numpy.fft.fftfreq(len(spectrum), 1./sample_rate)
-
-    y = abs(spectrum[0:int(paddedSampleSize/2) - 1])
-
-    # filter the noise away
-    # y[y<80] = 0
-
-    y = 20 * numpy.log10(y)
-    y[numpy.isinf(y)] = 0
-
-    if lastSpectrum is not None:
-      lastSpectrum[y < lastSpectrum] = y[y < lastSpectrum] * smoothConstantDown + lastSpectrum[y < lastSpectrum] * (1 - smoothConstantDown)
-      lastSpectrum[y >= lastSpectrum] = y[y >= lastSpectrum] * smoothConstantUp + lastSpectrum[y >= lastSpectrum] * (1 - smoothConstantUp)
-    else:
-      lastSpectrum = y
-
-    x = frequencies[0:int(paddedSampleSize/2) - 1]
-
-    return lastSpectrum
-
   def deleteTempDir(self):
      if self.tempDir and os.path.exists(self.tempDir):
          rmtree(self.tempDir)
-
 
   def getVideoFrames(self, videoPath, firstOnly=False):
       self.tempDir = os.path.join(tempfile.gettempdir(), 'audio-visualizer-python-data')
