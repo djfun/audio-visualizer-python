@@ -178,13 +178,11 @@ class Main(QtCore.QObject):
     self.window.pushButton_listMoveUp.clicked.connect(self.moveComponentUp)
     self.window.pushButton_listMoveDown.clicked.connect(self.moveComponentDown)
 
-    '''
-    window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
-    window.pushButton_visColor.clicked.connect(lambda: self.pickColor('vis'))
-    btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.visColor).name()
-    window.pushButton_visColor.setStyleSheet(btnStyle)
-    window.lineEdit_visColor.textChanged.connect(self.drawPreview)
-    '''
+    self.window.pushButton_savePreset.clicked.connect(self.openSavePresetDialog)
+    self.window.comboBox_openPreset.currentIndexChanged.connect( \
+        lambda _: self.openPreset(self.window.comboBox_openPreset.currentIndex())
+    )
+    
     self.drawPreview()
 
     window.show()
@@ -352,6 +350,12 @@ class Main(QtCore.QObject):
       self.window.stackedWidget.insertWidget(row + 1, page)
       self.window.listWidget_componentList.setCurrentRow(row + 1)
       self.window.stackedWidget.setCurrentIndex(row + 1)
+
+  def openSavePresetDialog(self):
+      pass
+
+  def openPreset(self, comboBoxIndex):
+      pass
 
 
 def LoadDefaultSettings(self):
