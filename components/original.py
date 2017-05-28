@@ -1,13 +1,18 @@
 ''' Original Audio Visualization '''
 import numpy
 from PIL import Image, ImageDraw
-from PyQt4 import uic
+from PyQt4 import uic, QtGui
+from PyQt4.QtGui import QColor
 import os, random
 
 
 class Component:
-    def widget(self,parent):
+    def __str__(self):
+        return __doc__
+        
+    def widget(self, parent):
         self.parent = parent
+        self.visColor = (255,255,255)
 
         page = uic.loadUi(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'original.ui'))
         page.comboBox_visLayout.addItem("Classic")
@@ -16,18 +21,24 @@ class Component:
         #visLayoutValue = int(self.settings.value('visLayout'))
         page.comboBox_visLayout.setCurrentIndex(0)
         page.comboBox_visLayout.currentIndexChanged.connect(self.update)
-
+        page.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
+        page.pushButton_visColor.clicked.connect(lambda: self.pickColor())
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.visColor).name()
+        page.pushButton_visColor.setStyleSheet(btnStyle)
+        page.lineEdit_visColor.textChanged.connect(self.update)
+        self.page = page
         return page
+    
     def update(self):
         self.layout = self.page.comboBox_visLayout.currentIndex()
-        print(self.layout)
+        self.visColor = RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
 
-    def previewRender(self, previewWorker, widget):
+    def previewRender(self, previewWorker):
         spectrum = numpy.fromfunction(lambda x: 0.008*(x-128)**2, (255,), dtype="int16")
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
-        return drawBars(width, height, spectrum, (255, 255, 255), self.layout)
+        return drawBars(width, height, spectrum, self.visColor, self.layout)
     
     def preFrameRender(self, **kwargs):
         for kwarg, value in kwargs.items():
@@ -41,7 +52,15 @@ class Component:
                     self.smoothConstantDown, self.smoothConstantUp, self.lastSpectrum)
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
-        return drawBars(width, height, self.lastSpectrum, (255,255,255), self.layout)
+        return drawBars(width, height, self.lastSpectrum, self.visColor, self.layout)
+
+    def pickColor(self):
+        color = QtGui.QColorDialog.getColor()
+        if color.isValid():
+           RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
+           btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
+           self.page.lineEdit_visColor.setText(RGBstring)
+           self.page.pushButton_visColor.setStyleSheet(btnStyle)
 
 def transformData(i, completeAudioArray, sampleSize, smoothConstantDown, smoothConstantUp, lastSpectrum):
     if len(completeAudioArray) < (i + sampleSize):
@@ -111,3 +130,16 @@ def drawBars(width, height, spectrum, color, layout):
       im.paste(imTop, (0, y), mask=imTop)
 
     return im
+
+def RGBFromString(string):
+   ''' turns an RGB string like "255, 255, 255" into a tuple '''
+   try:
+     tup = tuple([int(i) for i in string.split(',')])
+     if len(tup) != 3:
+        raise ValueError
+     for i in tup:
+        if i > 255 or i < 0:
+           raise ValueError
+     return tup
+   except:
+     return (255, 255, 255)

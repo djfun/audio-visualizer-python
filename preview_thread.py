@@ -55,11 +55,9 @@ class Worker(QtCore.QObject):
       frame = Image.new("RGBA", (width, height),(0,0,0,255))
       frame.paste(im)
 
-
-      componentWidgets = [self.stackedWidget.widget(i) for i in range(self.stackedWidget.count())]
       components = nextPreviewInformation["components"]
-      for component, componentWidget in zip(components, componentWidgets):
-        newFrame = Image.alpha_composite(frame,component.previewRender(self, componentWidget))
+      for component in components:
+        newFrame = Image.alpha_composite(frame,component.previewRender(self))
         frame = Image.alpha_composite(frame,newFrame)
 
       self._image = ImageQt(frame)

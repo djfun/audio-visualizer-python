@@ -76,19 +76,16 @@ class Worker(QtCore.QObject):
         stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
     # initialize components
-    componentWidgets = [self.stackedWidget.widget(i) for i in range(self.stackedWidget.count())]
-
     print('######################## Data')
-    print(components)
-    print(componentWidgets)
+    print('loaded components: ', [str(component) for component in components])
     sampleSize = 1470
-    for component, widget in zip(components, componentWidgets):
-        component.preFrameRender(worker=self, widget=widget, completeAudioArray=completeAudioArray, sampleSize=sampleSize)
+    for component in components:
+        component.preFrameRender(worker=self, completeAudioArray=completeAudioArray, sampleSize=sampleSize)
 
+    # create video for output
     numpy.seterr(divide='ignore')
     frame = getBackgroundAtIndex(0)
     bgI = 0
-    # create video for output
     for i in range(0, len(completeAudioArray), sampleSize):
         newFrame = Image.new("RGBA", (int(self.core.settings.value('outputWidth')), int(self.core.settings.value('outputHeight'))),(0,0,0,255))
 

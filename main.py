@@ -1,11 +1,6 @@
 import sys, io, os
 from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtGui import QPainter, QColor, QFont
 from os.path import expanduser
-import subprocess as sp
-import numpy
-from PIL import Image, ImageDraw, ImageFont
-from PIL.ImageQt import ImageQt
 import atexit
 from queue import Queue
 from PyQt4.QtCore import QSettings
@@ -14,9 +9,11 @@ from importlib import import_module
 
 import preview_thread, core, video_thread
 
+# FIXME: commandline functionality broken until we decide how to implement it
+'''
 class Command(QtCore.QObject):
   
-  videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str, list)
+  videoTask = QtCore.pyqtSignal(str, str, str, list)
   
   def __init__(self):
     QtCore.QObject.__init__(self)
@@ -110,7 +107,7 @@ class Command(QtCore.QObject):
     self.settings.setValue("visColor", '%s,%s,%s' % self.visColor)
     self.settings.setValue("textColor", '%s,%s,%s' % self.textColor)
     sys.exit(0)
-
+'''
 class Main(QtCore.QObject):
 
   newTask = QtCore.pyqtSignal(str, list)
@@ -127,10 +124,6 @@ class Main(QtCore.QObject):
     LoadDefaultSettings(self)
 
     self.pages = []
-    
-    # load colors as tuples from a comma-separated string
-    self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
-    self.visColor = core.Core.RGBFromString(self.settings.value("visColor", '255, 255, 255'))
 
     self.previewQueue = Queue()
 
@@ -174,49 +167,10 @@ class Main(QtCore.QObject):
     window.comboBox_resolution.currentIndexChanged.connect(self.updateResolution)
 
     '''
-    window.comboBox_textAlign.addItem("Left")
-    window.comboBox_textAlign.addItem("Middle")
-    window.comboBox_textAlign.addItem("Right")
-    window.comboBox_textAlign.setCurrentIndex(1)
-
-    window.spinBox_fontSize.setValue(int(int(self.settings.value("outputHeight")) / 14 ))
-    window.spinBox_xTextAlign.setValue(int(int(self.settings.value('outputWidth'))/2))
-    window.spinBox_yTextAlign.setValue(int(int(self.settings.value('outputHeight'))/2))
-
-    window.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
     window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
-    window.pushButton_textColor.clicked.connect(lambda: self.pickColor('text'))
     window.pushButton_visColor.clicked.connect(lambda: self.pickColor('vis'))
-    btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.textColor).name()
-    window.pushButton_textColor.setStyleSheet(btnStyle)
     btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.visColor).name()
     window.pushButton_visColor.setStyleSheet(btnStyle)
-
-    titleFont = self.settings.value("titleFont")
-    if not titleFont == None: 
-      window.fontComboBox_titleFont.setCurrentFont(QFont(titleFont))
-
-    alignment = self.settings.value("alignment")
-    if not alignment == None:
-      window.comboBox_textAlign.setCurrentIndex(int(alignment))
-    fontSize = self.settings.value("fontSize")
-    if not fontSize == None:
-      window.spinBox_fontSize.setValue(int(fontSize))
-    xPosition = self.settings.value("xPosition")
-    if not xPosition == None:
-      window.spinBox_xTextAlign.setValue(int(xPosition))
-    yPosition = self.settings.value("yPosition")
-    if not yPosition == None:
-      window.spinBox_yTextAlign.setValue(int(yPosition))
-
-    window.fontComboBox_titleFont.currentFontChanged.connect(self.drawPreview)
-    window.lineEdit_title.textChanged.connect(self.drawPreview)
-    window.comboBox_textAlign.currentIndexChanged.connect(self.drawPreview)
-    window.comboBox_visLayout.currentIndexChanged.connect(self.drawPreview)
-    window.spinBox_xTextAlign.valueChanged.connect(self.drawPreview)
-    window.spinBox_yTextAlign.valueChanged.connect(self.drawPreview)
-    window.spinBox_fontSize.valueChanged.connect(self.drawPreview)
-    window.lineEdit_textColor.textChanged.connect(self.drawPreview)
     window.lineEdit_visColor.textChanged.connect(self.drawPreview)
     '''
     self.drawPreview()
@@ -227,7 +181,8 @@ class Main(QtCore.QObject):
     self.timer.stop()
     self.previewThread.quit()
     self.previewThread.wait()
-       
+    # TODO: replace remembered settings with presets/projects
+    '''
     self.settings.setValue("titleFont", self.window.fontComboBox_titleFont.currentFont().toString())
     self.settings.setValue("alignment", str(self.window.comboBox_textAlign.currentIndex()))
     self.settings.setValue("fontSize", str(self.window.spinBox_fontSize.value()))
@@ -235,6 +190,7 @@ class Main(QtCore.QObject):
     self.settings.setValue("yPosition", str(self.window.spinBox_yTextAlign.value()))
     self.settings.setValue("visColor", self.window.lineEdit_visColor.text())
     self.settings.setValue("textColor", self.window.lineEdit_textColor.text())
+    '''
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -268,21 +224,26 @@ class Main(QtCore.QObject):
     self.drawPreview()
 
   def createAudioVisualisation(self):
-    ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
+    # create output video if mandatory settings are filled in
+    if self.window.lineEdit_audioFile.text() and self.window.lineEdit_outputFile.text():
+        ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
 
-    self.videoThread = QtCore.QThread(self)
-    self.videoWorker = video_thread.Worker(self)
+        self.videoThread = QtCore.QThread(self)
+        self.videoWorker = video_thread.Worker(self)
 
-    self.videoWorker.moveToThread(self.videoThread)
-    self.videoWorker.videoCreated.connect(self.videoCreated)
-    self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
-    self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
-    
-    self.videoThread.start()
-    self.videoTask.emit(self.window.lineEdit_background.text(),
-      self.window.lineEdit_audioFile.text(),
-      self.window.lineEdit_outputFile.text(),
-      self.selectedComponents)
+        self.videoWorker.moveToThread(self.videoThread)
+        self.videoWorker.videoCreated.connect(self.videoCreated)
+        self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
+        self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
+        
+        self.videoThread.start()
+        self.videoTask.emit(self.window.lineEdit_background.text(),
+          self.window.lineEdit_audioFile.text(),
+          self.window.lineEdit_outputFile.text(),
+          self.selectedComponents)
+    else:
+        # TODO: use QMessageBox or similar to alert user that fields are empty
+        pass
     
   def progressBarUpdated(self, value):
     self.window.progressBar_createVideo.setValue(value)
@@ -312,18 +273,6 @@ class Main(QtCore.QObject):
 
     self.window.label_previewContainer.setPixmap(self._previewPixmap)
 
-  def pickColor(self, colorTarget):
-    color = QtGui.QColorDialog.getColor()
-    if color.isValid():
-       RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
-       btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
-       if colorTarget == 'text':
-         self.window.lineEdit_textColor.setText(RGBstring)
-         window.pushButton_textColor.setStyleSheet(btnStyle)
-       elif colorTarget == 'vis':
-         self.window.lineEdit_visColor.setText(RGBstring)
-         window.pushButton_visColor.setStyleSheet(btnStyle)
-
   def findComponents(self):
     def findComponents():
         srcPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'components')
@@ -339,8 +288,7 @@ class Main(QtCore.QObject):
   def addComponent(self, moduleIndex):
     self.window.listWidget_componentList.addItem(self.modules[moduleIndex].__doc__)
     self.selectedComponents.append(self.modules[moduleIndex].Component())
-    self.selectedComponents[-1].page = self.selectedComponents[-1].widget(self)
-    self.pages.append(self.selectedComponents[-1].page)
+    self.pages.append(self.selectedComponents[-1].widget(self))
     self.window.stackedWidget.addWidget(self.pages[-1])
     self.selectedComponents[-1].update()
 
@@ -381,6 +329,8 @@ def LoadDefaultSettings(self):
     if self.settings.value(parm) == None:
       self.settings.setValue(parm,value)
 
+
+''' ####### commandline functionality broken until we decide how to implement it
 if len(sys.argv) > 1:
   # command line mode
   app = QtGui.QApplication(sys.argv, False)
@@ -388,8 +338,9 @@ if len(sys.argv) > 1:
   signal.signal(signal.SIGINT, command.cleanUp)
   sys.exit(app.exec_())
 else:
-  # gui mode
-  if __name__ == "__main__":
+'''
+# gui mode
+if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     window = uic.loadUi("mainwindow.ui")
     # window.adjustSize()
