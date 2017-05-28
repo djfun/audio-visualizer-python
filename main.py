@@ -166,6 +166,9 @@ class Main(QtCore.QObject):
     window.comboBox_resolution.setCurrentIndex(currentRes)
     window.comboBox_resolution.currentIndexChanged.connect(self.updateResolution)
 
+    self.window.pushButton_listMoveUp.clicked.connect(self.moveComponentUp)
+    self.window.pushButton_listMoveDown.clicked.connect(self.moveComponentDown)
+
     '''
     window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
     window.pushButton_visColor.clicked.connect(lambda: self.pickColor('vis'))
@@ -292,6 +295,7 @@ class Main(QtCore.QObject):
     self.pages.append(self.selectedComponents[-1].widget(self))
     self.window.listWidget_componentList.setCurrentRow(index)
     self.window.stackedWidget.addWidget(self.pages[-1])
+    self.window.stackedWidget.setCurrentIndex(index)
     self.selectedComponents[-1].update()
 
   def removeComponent(self):
@@ -307,6 +311,33 @@ class Main(QtCore.QObject):
     selected = self.window.listWidget_componentList.selectedItems()
     index = self.window.listWidget_componentList.row(selected[0])
     self.window.stackedWidget.setCurrentIndex(index)
+
+  def moveComponentUp(self):
+    row = self.window.listWidget_componentList.currentRow()
+    if row > 0:
+      item = self.window.listWidget_componentList.takeItem(row)
+      self.window.listWidget_componentList.insertItem(row - 1, item)
+      page = self.pages[row]
+      self.pages.pop(row)
+      self.pages.insert(row - 1, page)
+      widget = self.window.stackedWidget.removeWidget(page)
+      self.window.stackedWidget.insertWidget(row - 1, page)
+      self.window.listWidget_componentList.setCurrentRow(row - 1)
+      self.window.stackedWidget.setCurrentIndex(row -1)
+
+  def moveComponentDown(self):
+    row = self.window.listWidget_componentList.currentRow()
+    if row < len(self.pages):
+      item = self.window.listWidget_componentList.takeItem(row)
+      self.window.listWidget_componentList.insertItem(row + 1, item)
+      page = self.pages[row]
+      self.pages.pop(row)
+      self.pages.insert(row + 1, page)
+      widget = self.window.stackedWidget.removeWidget(page)
+      self.window.stackedWidget.insertWidget(row + 1, page)
+      self.window.listWidget_componentList.setCurrentRow(row + 1)
+      self.window.stackedWidget.setCurrentIndex(row + 1)
+
 
 def LoadDefaultSettings(self):
   self.resolutions = [
