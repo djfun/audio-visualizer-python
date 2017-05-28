@@ -3,7 +3,7 @@ from PyQt4 import QtCore, QtGui, uic
 from os.path import expanduser
 import atexit
 from queue import Queue
-from PyQt4.QtCore import QSettings
+from PyQt4.QtCore import QSettings, QModelIndex
 import signal
 from importlib import import_module
 
@@ -286,9 +286,11 @@ class Main(QtCore.QObject):
     return [import_module('components.%s' % name) for name in findComponents()]
 
   def addComponent(self, moduleIndex):
+    index = len(self.pages)
     self.window.listWidget_componentList.addItem(self.modules[moduleIndex].__doc__)
     self.selectedComponents.append(self.modules[moduleIndex].Component())
     self.pages.append(self.selectedComponents[-1].widget(self))
+    self.window.listWidget_componentList.setCurrentRow(index)
     self.window.stackedWidget.addWidget(self.pages[-1])
     self.selectedComponents[-1].update()
 
@@ -298,6 +300,7 @@ class Main(QtCore.QObject):
         self.window.stackedWidget.removeWidget(self.pages[index])
         self.window.listWidget_componentList.takeItem(index)
         self.selectedComponents.pop(index)
+        self.pages.pop(index)
     self.drawPreview()
 
   def changeComponentWidget(self):
