@@ -63,6 +63,14 @@ class Component:
         self.xPosition = self.page.spinBox_xTextAlign.value()
         self.yPosition = self.page.spinBox_yTextAlign.value()
         self.textColor = RGBFromString(self.page.lineEdit_textColor.text())
+        fm = QtGui.QFontMetrics(self.titleFont)
+        if self.alignment == 0:      #Left
+           self.xPosition = self.xPosition
+        if self.alignment == 1:      #Middle
+           self.xPosition = self.xPosition - fm.width(self.title)/2
+        if self.alignment == 2:      #Right
+           self.xPosition = self.xPosition - fm.width(self.title)
+        
         self.parent.drawPreview()
         
     def previewRender(self, previewWorker):
@@ -90,12 +98,6 @@ class Component:
         painter.setPen(QColor(*self.textColor))
 
         fm = QtGui.QFontMetrics(self.titleFont)
-        if self.alignment == 0:      #Left
-           self.xPosition = self.xPosition
-        if self.alignment == 1:      #Middle
-           self.xPosition = self.xPosition - fm.width(self.title)/2
-        if self.alignment == 2:      #Right
-           self.xPosition = self.xPosition - fm.width(self.title)
         painter.drawText(self.xPosition, self.yPosition, self.title)
         painter.end()
 
