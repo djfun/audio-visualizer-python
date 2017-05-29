@@ -73,6 +73,9 @@ class Component:
         
         self.parent.drawPreview()
         
+    def savePreset(self):
+        return {}
+
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))

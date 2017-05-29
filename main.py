@@ -125,12 +125,12 @@ class Main(QtCore.QObject):
     LoadDefaultSettings(self)
 
     # create data directory structure if needed
-    dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
-    if not os.path.exists(dataDir):
-        os.makedirs(dataDir)
+    self.dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
+    if not os.path.exists(self.dataDir):
+        os.makedirs(self.dataDir)
     for neededDirectory in ('projects', 'presets'):
-        if not os.path.exists(os.path.join(dataDir, neededDirectory)):
-            os.mkdir(os.path.join(dataDir, neededDirectory))
+        if not os.path.exists(os.path.join(self.dataDir, neededDirectory)):
+            os.mkdir(os.path.join(self.dataDir, neededDirectory))
 
     self.pages = []
 
@@ -352,7 +352,27 @@ class Main(QtCore.QObject):
       self.window.stackedWidget.setCurrentIndex(row + 1)
 
   def openSavePresetDialog(self):
-      pass
+    if self.window.listWidget_componentList.currentRow() == -1:
+        return
+    newName, OK = QtGui.QInputDialog.getText(QtGui.QWidget(), 'Audio Visualizer', 'New Preset Name:')
+    if OK and newName:
+        index = self.window.listWidget_componentList.currentRow()
+        if index != -1:
+            saveValueStore = self.selectedComponents[index].savePreset()
+            componentName = str(self.selectedComponents[index]).strip()
+            if hasattr(self.selectedComponents[index], 'version'):
+                vers = self.selectedComponents[index].version()
+            else:
+                vers = 1
+            self.createPresetFile(componentName, vers, saveValueStore, newName)
+
+  def createPresetFile(self, componentName, version, saveValueStore, filename):
+    dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    with open(os.path.join(dirname, filename), 'w') as f:
+        for itemset in saveValueStore.items():
+            f.write('%s=%s' % itemset)
 
   def openPreset(self, comboBoxIndex):
       pass
