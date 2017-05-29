@@ -2,3 +2,5 @@ __pycache__
 settings.ini
 build/*
 .vscode/*
+*.mkv
+*.mp4
