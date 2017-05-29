@@ -304,6 +304,7 @@ class Main(QtCore.QObject):
     self.window.stackedWidget.addWidget(self.pages[-1])
     self.window.stackedWidget.setCurrentIndex(index)
     self.selectedComponents[-1].update()
+    self.updateOpenPresetComboBox(self.selectedComponents[-1])
 
   def removeComponent(self):
     for selected in self.window.listWidget_componentList.selectedItems():
@@ -318,6 +319,7 @@ class Main(QtCore.QObject):
     selected = self.window.listWidget_componentList.selectedItems()
     index = self.window.listWidget_componentList.row(selected[0])
     self.window.stackedWidget.setCurrentIndex(index)
+    self.updateOpenPresetComboBox(self.selectedComponents[index])
 
   def moveComponentUp(self):
     row = self.window.listWidget_componentList.currentRow()
@@ -351,6 +353,16 @@ class Main(QtCore.QObject):
       self.window.listWidget_componentList.setCurrentRow(row + 1)
       self.window.stackedWidget.setCurrentIndex(row + 1)
 
+  def updateOpenPresetComboBox(self, component):
+    self.window.comboBox_openPreset.clear()
+    self.window.comboBox_openPreset.addItem("Open Preset")
+    destination = os.path.join(self.dataDir, 'presets',
+        str(component).strip(), str(component.version()))
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+    for f in os.listdir(destination):
+            self.window.comboBox_openPreset.addItem(f)
+
   def openSavePresetDialog(self):
     if self.window.listWidget_componentList.currentRow() == -1:
         return
@@ -360,10 +372,7 @@ class Main(QtCore.QObject):
         if index != -1:
             saveValueStore = self.selectedComponents[index].savePreset()
             componentName = str(self.selectedComponents[index]).strip()
-            if hasattr(self.selectedComponents[index], 'version'):
-                vers = self.selectedComponents[index].version()
-            else:
-                vers = 1
+            vers = self.selectedComponents[index].version()
             self.createPresetFile(componentName, vers, saveValueStore, newName)
 
   def createPresetFile(self, componentName, version, saveValueStore, filename):
@@ -373,6 +382,7 @@ class Main(QtCore.QObject):
     with open(os.path.join(dirname, filename), 'w') as f:
         for itemset in saveValueStore.items():
             f.write('%s=%s' % itemset)
+    self.window.comboBox_openPreset.addItem(filename)
 
   def openPreset(self, comboBoxIndex):
       pass

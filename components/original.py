@@ -34,6 +34,9 @@ class Component:
         self.visColor = RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
 
+    def version(self):
+        return 1
+        
     def savePreset(self):
         return {}
 
