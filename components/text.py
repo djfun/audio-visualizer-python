@@ -87,6 +87,7 @@ class Component:
     def preFrameRender(self, **kwargs):
         for kwarg, value in kwargs.items():
             exec('self.%s = value' % kwarg)
+        return ['static']
         
     def frameRender(self, moduleNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))

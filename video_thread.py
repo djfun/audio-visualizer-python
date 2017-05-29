@@ -77,10 +77,15 @@ class Worker(QtCore.QObject):
 
     # initialize components
     print('######################## Data')
-    print('loaded components: ', [str(component) for component in components])
+    print('loaded components:',
+        ["%s%s" % (num, str(component)) for num, component in enumerate(components)])
+    staticComponents = {}
     sampleSize = 1470
-    for component in components:
-        component.preFrameRender(worker=self, completeAudioArray=completeAudioArray, sampleSize=sampleSize)
+    for compNo, comp in enumerate(components):
+        properties = None
+        properties = comp.preFrameRender(worker=self, completeAudioArray=completeAudioArray, sampleSize=sampleSize)
+        if properties and 'static' in properties:
+            staticComponents[compNo] = None
 
     # create video for output
     numpy.seterr(divide='ignore')
@@ -88,18 +93,25 @@ class Worker(QtCore.QObject):
     bgI = 0
     for i in range(0, len(completeAudioArray), sampleSize):
         newFrame = Image.new("RGBA", (int(self.core.settings.value('outputWidth')), int(self.core.settings.value('outputHeight'))),(0,0,0,255))
-
         if imBackground:
             newFrame.paste(imBackground)
         else:
             newFrame.paste(getBackgroundAtIndex(bgI))
 
+        # composite all frames returned by the components in order
         for compNo, comp in enumerate(components):
-            newFrame = Image.alpha_composite(newFrame,comp.frameRender(compNo, i))
+            if compNo in staticComponents and staticComponents[compNo] != None:
+                newFrame = Image.alpha_composite(newFrame,staticComponents[compNo])
+            else:
+                newFrame = Image.alpha_composite(newFrame,comp.frameRender(compNo, i))
+            if i == 0 and compNo in staticComponents:
+                staticComponents[compNo] = comp.frameRender(compNo, i)
 
         if not imBackground:
+            # increment background video frame for next iteration
             if bgI < len(backgroundFrames)-1:
                 bgI += 1
+                
       # write to out_pipe
         try:
             frame = Image.new("RGB", (int(self.core.settings.value('outputWidth')), int(self.core.settings.value('outputHeight'))),(0,0,0))
