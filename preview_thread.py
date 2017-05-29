@@ -17,6 +17,7 @@ class Worker(QtCore.QObject):
     parent.processTask.connect(self.process)
     self.core = core.Core()
     self.queue = queue
+    self.core.settings = parent.settings
 
 
   @pyqtSlot(str, str, QtGui.QFont, int, int, int, int, tuple, tuple)

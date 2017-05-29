@@ -36,6 +36,7 @@ class Command(QtCore.QObject):
     self.args = self.parser.parse_args()
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    LoadDefaultSettings(self)
     
     # load colours as tuples from comma-separated strings
     self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
@@ -119,6 +120,7 @@ class Main(QtCore.QObject):
     self.window = window
     self.core = core.Core()
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
+    LoadDefaultSettings(self)
     
     # load colors as tuples from a comma-separated string
     self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
@@ -163,9 +165,11 @@ class Main(QtCore.QObject):
     window.alignmentComboBox.addItem("Left")
     window.alignmentComboBox.addItem("Middle")
     window.alignmentComboBox.addItem("Right")
-    window.fontsizeSpinBox.setValue(35)
-    window.textXSpinBox.setValue(70)
-    window.textYSpinBox.setValue(375)
+    window.alignmentComboBox.setCurrentIndex(1)
+    window.fontsizeSpinBox.setValue(int(int(self.settings.value("outputHeight")) / 14 ))
+    window.textXSpinBox.setValue(int(int(self.settings.value('outputWidth'))/2))
+    window.textYSpinBox.setValue(int(int(self.settings.value('outputHeight'))/2))
+
     window.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
     window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
     window.pushButton_textColor.clicked.connect(lambda: self.pickColor('text'))
@@ -313,6 +317,23 @@ class Main(QtCore.QObject):
        elif colorTarget == 'vis':
          self.window.lineEdit_visColor.setText(RGBstring)
          window.pushButton_visColor.setStyleSheet(btnStyle)
+
+def LoadDefaultSettings(self):
+  default = {
+    "outputWidth": 1280,
+    "outputHeight": 720,
+    "outputFrameRate": 30,
+    "outputAudioCodec": "aac",
+    "outputAudioBitrate": "192k",
+    "outputVideoCodec": "libx264",
+    "outputVideoFormat": "yuv420p",
+    "outputPreset": "medium",
+    "outputFormat": "mp4" 
+  }
+  
+  for parm, value in default.items():
+    if self.settings.value(parm) == None:
+      self.settings.setValue(parm,value)
 
 if len(sys.argv) > 1:
   # command line mode
