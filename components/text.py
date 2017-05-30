@@ -53,6 +53,9 @@ class Component(__base__.Component):
         self.page = page
         return page
 
+    def version(self):
+        return 1
+
     def update(self):
         self.title = self.page.lineEdit_title.text()
         self.alignment = self.page.comboBox_textAlign.currentIndex()
@@ -71,6 +74,9 @@ class Component(__base__.Component):
         
         self.parent.drawPreview()
         
+    def savePreset(self):
+        return {}
+
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))

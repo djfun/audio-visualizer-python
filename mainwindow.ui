@@ -217,10 +217,12 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_15">
           <item>
-           <widget class="QPushButton" name="pushButton_openPreset">
-            <property name="text">
-             <string>Open Preset</string>
-            </property>
+           <widget class="QComboBox" name="comboBox_openPreset">
+            <item>
+             <property name="text">
+              <string>Open Preset</string>
+             </property>
+            </item>
            </widget>
           </item>
           <item>

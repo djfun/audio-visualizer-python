@@ -1,11 +1,12 @@
 import sys, io, os
-from PyQt4 import QtCore, QtGui, uic
 from os.path import expanduser
 import atexit
 from queue import Queue
-from PyQt4.QtCore import QSettings, QModelIndex
 import signal
 from importlib import import_module
+from PyQt4 import QtCore, QtGui, uic
+from PyQt4.QtCore import QSettings, QModelIndex
+from PyQt4.QtGui import QDesktopServices
 
 import preview_thread, core, video_thread
 
@@ -123,6 +124,14 @@ class Main(QtCore.QObject):
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
     LoadDefaultSettings(self)
 
+    # create data directory structure if needed
+    self.dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
+    if not os.path.exists(self.dataDir):
+        os.makedirs(self.dataDir)
+    for neededDirectory in ('projects', 'presets'):
+        if not os.path.exists(os.path.join(self.dataDir, neededDirectory)):
+            os.mkdir(os.path.join(self.dataDir, neededDirectory))
+
     self.pages = []
 
     self.previewQueue = Queue()
@@ -169,13 +178,11 @@ class Main(QtCore.QObject):
     self.window.pushButton_listMoveUp.clicked.connect(self.moveComponentUp)
     self.window.pushButton_listMoveDown.clicked.connect(self.moveComponentDown)
 
-    '''
-    window.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
-    window.pushButton_visColor.clicked.connect(lambda: self.pickColor('vis'))
-    btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.visColor).name()
-    window.pushButton_visColor.setStyleSheet(btnStyle)
-    window.lineEdit_visColor.textChanged.connect(self.drawPreview)
-    '''
+    self.window.pushButton_savePreset.clicked.connect(self.openSavePresetDialog)
+    self.window.comboBox_openPreset.currentIndexChanged.connect( \
+        lambda _: self.openPreset(self.window.comboBox_openPreset.currentIndex())
+    )
+    
     self.drawPreview()
 
     window.show()
@@ -297,6 +304,7 @@ class Main(QtCore.QObject):
     self.window.stackedWidget.addWidget(self.pages[-1])
     self.window.stackedWidget.setCurrentIndex(index)
     self.selectedComponents[-1].update()
+    self.updateOpenPresetComboBox(self.selectedComponents[-1])
 
   def removeComponent(self):
     for selected in self.window.listWidget_componentList.selectedItems():
@@ -311,6 +319,7 @@ class Main(QtCore.QObject):
     selected = self.window.listWidget_componentList.selectedItems()
     index = self.window.listWidget_componentList.row(selected[0])
     self.window.stackedWidget.setCurrentIndex(index)
+    self.updateOpenPresetComboBox(self.selectedComponents[index])
 
   def moveComponentUp(self):
     row = self.window.listWidget_componentList.currentRow()
@@ -343,6 +352,40 @@ class Main(QtCore.QObject):
       self.window.stackedWidget.insertWidget(row + 1, page)
       self.window.listWidget_componentList.setCurrentRow(row + 1)
       self.window.stackedWidget.setCurrentIndex(row + 1)
+
+  def updateOpenPresetComboBox(self, component):
+    self.window.comboBox_openPreset.clear()
+    self.window.comboBox_openPreset.addItem("Open Preset")
+    destination = os.path.join(self.dataDir, 'presets',
+        str(component).strip(), str(component.version()))
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+    for f in os.listdir(destination):
+            self.window.comboBox_openPreset.addItem(f)
+
+  def openSavePresetDialog(self):
+    if self.window.listWidget_componentList.currentRow() == -1:
+        return
+    newName, OK = QtGui.QInputDialog.getText(QtGui.QWidget(), 'Audio Visualizer', 'New Preset Name:')
+    if OK and newName:
+        index = self.window.listWidget_componentList.currentRow()
+        if index != -1:
+            saveValueStore = self.selectedComponents[index].savePreset()
+            componentName = str(self.selectedComponents[index]).strip()
+            vers = self.selectedComponents[index].version()
+            self.createPresetFile(componentName, vers, saveValueStore, newName)
+
+  def createPresetFile(self, componentName, version, saveValueStore, filename):
+    dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    with open(os.path.join(dirname, filename), 'w') as f:
+        for itemset in saveValueStore.items():
+            f.write('%s=%s' % itemset)
+    self.window.comboBox_openPreset.addItem(filename)
+
+  def openPreset(self, comboBoxIndex):
+      pass
 
 
 def LoadDefaultSettings(self):
@@ -382,6 +425,8 @@ else:
 # gui mode
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
+    app.setApplicationName("audio-visualizer")
+    app.setOrganizationName("audio-visualizer")
     window = uic.loadUi("mainwindow.ui")
     # window.adjustSize()
     desc = QtGui.QDesktopWidget()

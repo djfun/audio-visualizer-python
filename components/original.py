@@ -32,6 +32,12 @@ class Component(__base__.Component):
         self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
 
+    def version(self):
+        return 1
+        
+    def savePreset(self):
+        return {}
+
     def previewRender(self, previewWorker):
         spectrum = numpy.fromfunction(lambda x: 0.008*(x-128)**2, (255,), dtype="int16")
         width = int(previewWorker.core.settings.value('outputWidth'))
