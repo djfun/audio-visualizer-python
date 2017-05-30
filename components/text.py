@@ -1,15 +1,13 @@
-''' Title Text '''
 from PIL import Image, ImageDraw
 from PyQt4.QtGui import QPainter, QColor, QFont
 from PyQt4 import uic, QtGui, QtCore
 from PIL.ImageQt import ImageQt
 import os, io
+from . import __base__
 
 
-class Component:
-    def __str__(self):
-        return __doc__
-        
+class Component(__base__.Component):
+    '''Title Text'''
     def widget(self, parent):
         height = int(parent.settings.value('outputHeight'))
         width = int(parent.settings.value('outputWidth'))
@@ -65,7 +63,7 @@ class Component:
         self.fontSize = self.page.spinBox_fontSize.value()
         self.xPosition = self.page.spinBox_xTextAlign.value()
         self.yPosition = self.page.spinBox_yTextAlign.value()
-        self.textColor = RGBFromString(self.page.lineEdit_textColor.text())
+        self.textColor = self.RGBFromString(self.page.lineEdit_textColor.text())
         fm = QtGui.QFontMetrics(self.titleFont)
         if self.alignment == 0:      #Left
            self.xPosition = self.xPosition
@@ -85,8 +83,7 @@ class Component:
         return self.addText(width, height)
 
     def preFrameRender(self, **kwargs):
-        for kwarg, value in kwargs.items():
-            exec('self.%s = value' % kwarg)
+        super().preFrameRender(**kwargs)
         return ['static']
         
     def frameRender(self, moduleNo, frameNo):
@@ -119,22 +116,6 @@ class Component:
         return Image.open(strio)
 
     def pickColor(self):
-        color = QtGui.QColorDialog.getColor()
-        if color.isValid():
-           RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
-           btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
-           self.page.lineEdit_textColor.setText(RGBstring)
-           self.page.pushButton_textColor.setStyleSheet(btnStyle)
-
-def RGBFromString(string):
-   ''' turns an RGB string like "255, 255, 255" into a tuple '''
-   try:
-     tup = tuple([int(i) for i in string.split(',')])
-     if len(tup) != 3:
-        raise ValueError
-     for i in tup:
-        if i > 255 or i < 0:
-           raise ValueError
-     return tup
-   except:
-     return (255, 255, 255)
+        RGBstring, btnStyle = super().pickColor()
+        self.page.lineEdit_textColor.setText(RGBstring)
+        self.page.pushButton_textColor.setStyleSheet(btnStyle)

@@ -1,15 +1,13 @@
-''' Original Audio Visualization '''
 import numpy
 from PIL import Image, ImageDraw
 from PyQt4 import uic, QtGui
 from PyQt4.QtGui import QColor
 import os, random
+from . import __base__
 
 
-class Component:
-    def __str__(self):
-        return __doc__
-        
+class Component(__base__.Component):
+    '''Original Audio Visualization'''
     def widget(self, parent):
         self.parent = parent
         self.visColor = (255,255,255)
@@ -31,7 +29,7 @@ class Component:
     
     def update(self):
         self.layout = self.page.comboBox_visLayout.currentIndex()
-        self.visColor = RGBFromString(self.page.lineEdit_visColor.text())
+        self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
 
     def version(self):
@@ -47,8 +45,7 @@ class Component:
         return drawBars(width, height, spectrum, self.visColor, self.layout)
     
     def preFrameRender(self, **kwargs):
-        for kwarg, value in kwargs.items():
-            exec('self.%s = value' % kwarg)
+        super().preFrameRender(**kwargs)
         self.smoothConstantDown = 0.08
         self.smoothConstantUp = 0.8
         self.lastSpectrum = None
@@ -61,12 +58,9 @@ class Component:
         return drawBars(width, height, self.lastSpectrum, self.visColor, self.layout)
 
     def pickColor(self):
-        color = QtGui.QColorDialog.getColor()
-        if color.isValid():
-           RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
-           btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
-           self.page.lineEdit_visColor.setText(RGBstring)
-           self.page.pushButton_visColor.setStyleSheet(btnStyle)
+        RGBstring, btnStyle = super().pickColor()
+        self.page.lineEdit_visColor.setText(RGBstring)
+        self.page.pushButton_visColor.setStyleSheet(btnStyle)
 
 def transformData(i, completeAudioArray, sampleSize, smoothConstantDown, smoothConstantUp, lastSpectrum):
     if len(completeAudioArray) < (i + sampleSize):
@@ -136,16 +130,3 @@ def drawBars(width, height, spectrum, color, layout):
       im.paste(imTop, (0, y), mask=imTop)
 
     return im
-
-def RGBFromString(string):
-   ''' turns an RGB string like "255, 255, 255" into a tuple '''
-   try:
-     tup = tuple([int(i) for i in string.split(',')])
-     if len(tup) != 3:
-        raise ValueError
-     for i in tup:
-        if i > 255 or i < 0:
-           raise ValueError
-     return tup
-   except:
-     return (255, 255, 255)
