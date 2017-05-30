@@ -149,7 +149,7 @@ class Main(QtCore.QObject):
 
     self.modules = self.findComponents()
     for component in self.modules:
-        window.comboBox_componentSelection.addItem(component.__doc__)
+        window.comboBox_componentSelection.addItem(component.Component.__doc__)
     window.listWidget_componentList.clicked.connect(lambda _: self.changeComponentWidget())
     self.selectedComponents = []
 
@@ -290,8 +290,8 @@ class Main(QtCore.QObject):
 
   def addComponent(self, moduleIndex):
     index = len(self.pages)
-    self.window.listWidget_componentList.addItem(self.modules[moduleIndex].__doc__)
     self.selectedComponents.append(self.modules[moduleIndex].Component())
+    self.window.listWidget_componentList.addItem(self.selectedComponents[-1].__doc__)
     self.pages.append(self.selectedComponents[-1].widget(self))
     self.window.listWidget_componentList.setCurrentRow(index)
     self.window.stackedWidget.addWidget(self.pages[-1])
