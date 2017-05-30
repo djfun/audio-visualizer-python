@@ -3,6 +3,9 @@ from PyQt4 import QtGui
 class Component:
     def __str__(self):
         return self.__doc__
+
+    def version(self):
+        return 1
         
     def preFrameRender(self, **kwargs):
         for kwarg, value in kwargs.items():
@@ -54,4 +57,8 @@ class Component:
         height = int(self.worker.core.settings.value('outputHeight'))
         image = Image.new("RGBA", (width, height), (0,0,0,0))
         return image
+
+    def version(self):
+        # change this number to identify new versions of your component
+        return 1
     '''

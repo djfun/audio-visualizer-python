@@ -179,9 +179,7 @@ class Main(QtCore.QObject):
     self.window.pushButton_listMoveDown.clicked.connect(self.moveComponentDown)
 
     self.window.pushButton_savePreset.clicked.connect(self.openSavePresetDialog)
-    self.window.comboBox_openPreset.currentIndexChanged.connect( \
-        lambda _: self.openPreset(self.window.comboBox_openPreset.currentIndex())
-    )
+    self.window.comboBox_openPreset.currentIndexChanged.connect(self.openPreset)
     
     self.drawPreview()
 
@@ -380,12 +378,30 @@ class Main(QtCore.QObject):
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     with open(os.path.join(dirname, filename), 'w') as f:
-        for itemset in saveValueStore.items():
-            f.write('%s=%s' % itemset)
+        f.write('%s' % repr(saveValueStore))
     self.window.comboBox_openPreset.addItem(filename)
 
-  def openPreset(self, comboBoxIndex):
-      pass
+  def openPreset(self):
+    if self.window.comboBox_openPreset.currentIndex() < 1:
+        return
+    index = self.window.listWidget_componentList.currentRow()
+    if index == -1:
+        # no component selected
+        return
+    filename = self.window.comboBox_openPreset.itemText(self.window.comboBox_openPreset.currentIndex())
+    componentName = str(self.selectedComponents[index]).strip()
+    version = self.selectedComponents[index].version()
+    dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
+    filepath = os.path.join(dirname, filename)
+    if not os.path.exists(filepath):
+        self.window.comboBox_openPreset.removeItem(self.window.comboBox_openPreset.currentIndex())
+        return
+    with open(filepath, 'r') as f:
+        for line in f:
+            saveValueStore = eval(line.strip())
+            break
+    print(saveValueStore)
+    
 
 
 def LoadDefaultSettings(self):
