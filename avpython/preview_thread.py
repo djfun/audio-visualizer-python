@@ -2,7 +2,7 @@ from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
-import core
+from avpython import core
 import time
 from queue import Queue, Empty
 import numpy

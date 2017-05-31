@@ -1,30 +1,19 @@
-from cx_Freeze import setup, Executable
+from setuptools import setup, find_packages
 
-# Dependencies are automatically detected, but it might need
-# fine tuning.
-buildOptions = dict(packages = [], excludes = [
-  "apport",
-  "apt",
-  "ctypes",
-  "curses",
-  "distutils",
-  "email",
-  "html",
-  "http",
-  "json",
-  "xmlrpc",
-  "nose"
-  ], include_files = ["main.ui"])
-
-import sys
-base = 'Win32GUI' if sys.platform=='win32' else None
-
-executables = [
-    Executable('main.py', base=base, targetName = 'audio-visualizer-python')
-]
-
-setup(name='audio-visualizer-python',
-      version = '1.0',
-      description = 'a little GUI tool to render visualization videos of audio files',
-      options = dict(build_exe = buildOptions),
-      executables = executables)
+setup(name='audio_visualizer_python',
+      version='1.0',
+      description='a little GUI tool to render visualization \
+                   videos of audio files',
+      license='MIT',
+      url='https://github.com/djfun/audio-visualizer-python',
+      packages=find_packages(),
+      package_data={
+          'avpython': ['main.ui'],
+      },
+      install_requires=['pillow', 'numpy'],
+      entry_points={
+          'gui_scripts': [
+              'audio-visualizer-python = avpython.main:main'
+          ]
+      }
+      )
