@@ -17,10 +17,14 @@ Installation
 ------------
 ### Easy installation
 * Install python
-* Install pyqt4 using your package manager or by going to their website here http://www.riverbankcomputing.co.uk/software/pyqt/download
-* Install ffmpeg using your package manager or by going to their website here https://www.ffmpeg.org/download.html
+* Install pyqt4 using your package manager or by going to their website here [http://www.riverbankcomputing.co.uk/software/pyqt/download](http://www.riverbankcomputing.co.uk/software/pyqt/download)
+* Install ffmpeg using your package manager or by going to their website here [https://www.ffmpeg.org/download.html](https://www.ffmpeg.org/download.html)
 * Clone this repo: `git clone https://github.com/djfun/audio-visualizer-python` or by hitting the download button up top and unzipping.
-* Navigate to the `audio-visualizer-python` directory and install using setuptools: `python setup.py install`
+* Navigate to the `audio-visualizer-python` directory in your terminal/command prompt (**Windows:** open the command prompt as administrator) 
+* Install using setuptools: `python setup.py install`
+* You may need to use `sudo python setup.py install` if you don't have write permission to your python installation.  This will install it system-wide. 
+
+Once installed, run it with `audio-visualizer-python` from your command prompt. 
 
 ### Manual installation on Ubuntu
 * Get all the python stuff: `sudo apt install python3 python3-pyqt4 python3-pil python3-numpy`
