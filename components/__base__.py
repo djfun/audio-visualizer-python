@@ -5,18 +5,21 @@ class Component:
         return self.__doc__
 
     def version(self):
+        # change this number to identify new versions of a component
         return 1
         
     def preFrameRender(self, **kwargs):
-        for kwarg, value in kwargs.items():
-            exec('self.%s = value' % kwarg)
+        for item in kwargs.items():
+            exec('self.%s = %s' % item)
 
     def pickColor(self):
         color = QtGui.QColorDialog.getColor()
         if color.isValid():
-           RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
-           btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
-        return RGBstring, btnStyle
+            RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
+            btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
+            return RGBstring, btnStyle
+        else:
+            return None, None
 
     def RGBFromString(self, string):
        ''' turns an RGB string like "255, 255, 255" into a tuple '''
@@ -58,7 +61,9 @@ class Component:
         image = Image.new("RGBA", (width, height), (0,0,0,0))
         return image
 
-    def version(self):
-        # change this number to identify new versions of your component
-        return 1
+    def loadPreset(self, presetDict):
+        # update widgets using a preset dict
+        
+    def savePreset(self):
+        return {}
     '''

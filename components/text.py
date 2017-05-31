@@ -53,9 +53,6 @@ class Component(__base__.Component):
         self.page = page
         return page
 
-    def version(self):
-        return 1
-
     def update(self):
         self.title = self.page.lineEdit_title.text()
         self.alignment = self.page.comboBox_textAlign.currentIndex()
@@ -71,11 +68,27 @@ class Component(__base__.Component):
            self.xPosition = self.xPosition - fm.width(self.title)/2
         if self.alignment == 2:      #Right
            self.xPosition = self.xPosition - fm.width(self.title)
-        
         self.parent.drawPreview()
+
+    def loadPreset(self, pr):
+        self.page.lineEdit_title.setText(pr['title'])
+        self.page.spinBox_fontSize.setValue(pr['fontSize'])
+        self.page.spinBox_xTextAlign.setValue(pr['xPosition'])
+        self.page.spinBox_yTextAlign.setValue(pr['yPosition'])
+        self.page.comboBox_textAlign.setCurrentIndex(pr['alignment'])
+        self.page.lineEdit_textColor.setText('%s,%s,%s' % pr['textColor'])
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*pr['textColor']).name()
+        self.page.pushButton_textColor.setStyleSheet(btnStyle)
         
     def savePreset(self):
-        return {}
+        return {
+                'title' : self.title,
+                'alignment' : self.alignment,
+                'fontSize' : self.fontSize,
+                'xPosition' : self.xPosition,
+                'yPosition' : self.yPosition,
+                'textColor' : self.textColor
+                }
 
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
@@ -117,5 +130,7 @@ class Component(__base__.Component):
 
     def pickColor(self):
         RGBstring, btnStyle = super().pickColor()
+        if not RGBstring:
+            return
         self.page.lineEdit_textColor.setText(RGBstring)
         self.page.pushButton_textColor.setStyleSheet(btnStyle)

@@ -400,9 +400,8 @@ class Main(QtCore.QObject):
         for line in f:
             saveValueStore = eval(line.strip())
             break
-    print(saveValueStore)
-    
-
+    self.selectedComponents[index].loadPreset(saveValueStore)
+    self.drawPreview()
 
 def LoadDefaultSettings(self):
   self.resolutions = [
