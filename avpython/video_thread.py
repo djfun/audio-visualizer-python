@@ -2,7 +2,7 @@ from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
-import core
+from avpython import core
 import numpy
 import subprocess as sp
 import sys
@@ -46,7 +46,7 @@ class Worker(QtCore.QObject):
     else:
         # base images will be drawn while drawing the audio bars
         imBackground = None
-        
+
     self.progressBarSetText.emit('Loading audio file…')
     completeAudioArray = self.core.readAudioFile(inputFile)
 
@@ -79,7 +79,7 @@ class Worker(QtCore.QObject):
       ffmpegCommand.append('-2')
 
     ffmpegCommand.append(outputFile)
-    
+
     out_pipe = sp.Popen(ffmpegCommand,
         stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
@@ -87,7 +87,7 @@ class Worker(QtCore.QObject):
     smoothConstantUp = 0.8
     lastSpectrum = None
     sampleSize = 1470
-    
+
     numpy.seterr(divide='ignore')
     bgI = 0
     for i in range(0, len(completeAudioArray), sampleSize):

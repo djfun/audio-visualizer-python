@@ -1,3 +1,5 @@
 __pycache__
 settings.ini
 build/*
+.ropeproject
+.idea
