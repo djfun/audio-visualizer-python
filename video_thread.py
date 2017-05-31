@@ -6,7 +6,7 @@ import core
 import numpy
 import subprocess as sp
 import sys
-from queue import Queue
+from queue import Queue, PriorityQueue
 from threading import Thread
 import time
 
@@ -36,8 +36,6 @@ class Worker(QtCore.QObject):
                 (self.width, self.height),
                 (0, 0, 0, 255)
             )
-
-            frame.paste(self.imBackground)
 
             if self.imBackground is not None:
                 frame.paste(self.imBackground)
@@ -143,9 +141,9 @@ class Worker(QtCore.QObject):
 
         self.compositeQueue = Queue()
         self.compositeQueue.maxsize = 20
-        self.renderQueue = Queue()
+        self.renderQueue = PriorityQueue()
         self.renderQueue.maxsize = 20
-        self.previewQueue = Queue()
+        self.previewQueue = PriorityQueue()
 
         for i in range(2):
             t = Thread(target=self.renderNode)
@@ -176,20 +174,23 @@ class Worker(QtCore.QObject):
             )
 
             if properties and 'static' in properties:
-                self.staticComponents[compNo] = comp.frameRender(compNo, 0)
+                self.staticComponents[compNo] = comp.frameRender(compNo, 0)           
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            data = self.renderQueue.get()
-            frameBuffer[data[0]] = data[1]
 
-            if i in frameBuffer:
-                try:
-                    out_pipe.stdin.write(frameBuffer[i].tobytes())
-                    self.previewQueue.put([i, frameBuffer[i]])
-                    del frameBuffer[i]
-                finally:
-                    True
-            self.renderQueue.task_done()
+            while True:
+                if i in frameBuffer:
+                    break
+                data = self.renderQueue.get()
+                frameBuffer[data[0]] = data[1]
+                self.renderQueue.task_done()
+
+            try:
+                out_pipe.stdin.write(frameBuffer[i].tobytes())
+                self.previewQueue.put([i, frameBuffer[i]])
+                del frameBuffer[i]
+            finally:
+                True
 
             # increase progress bar value
             if progressBarValue + 1 <= (i / len(self.completeAudioArray)) * 100:
