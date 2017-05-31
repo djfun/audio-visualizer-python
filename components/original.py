@@ -49,13 +49,17 @@ class Component(__base__.Component):
         self.smoothConstantDown = 0.08
         self.smoothConstantUp = 0.8
         self.lastSpectrum = None
-    
+        self.spectrumArray = {}
+
+        for i in range(0, len(self.completeAudioArray), self.sampleSize):
+            spectrum = transformData(i, self.completeAudioArray, self.sampleSize,
+                self.smoothConstantDown, self.smoothConstantUp, self.lastSpectrum)
+            self.spectrumArray[i] = spectrum
+
     def frameRender(self, moduleNo, frameNo):
-        self.lastSpectrum = transformData(frameNo, self.completeAudioArray, self.sampleSize,
-                    self.smoothConstantDown, self.smoothConstantUp, self.lastSpectrum)
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
-        return drawBars(width, height, self.lastSpectrum, self.visColor, self.layout)
+        return drawBars(width, height, self.spectrumArray[frameNo], self.visColor, self.layout)
 
     def pickColor(self):
         RGBstring, btnStyle = super().pickColor()

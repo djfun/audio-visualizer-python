@@ -6,136 +6,208 @@ import core
 import numpy
 import subprocess as sp
 import sys
+from queue import Queue
+from threading import Thread
+import time
 
 class Worker(QtCore.QObject):
 
-  videoCreated = pyqtSignal()
-  progressBarUpdate = pyqtSignal(int)
-  progressBarSetText = pyqtSignal(str)
+    imageCreated = pyqtSignal(['QImage'])
+    videoCreated = pyqtSignal()
+    progressBarUpdate = pyqtSignal(int)
+    progressBarSetText = pyqtSignal(str)
 
-  def __init__(self, parent=None):
-    QtCore.QObject.__init__(self)
-    self.core = core.Core()
-    self.core.settings = parent.settings
-    self.modules = parent.modules
-    self.stackedWidget = parent.window.stackedWidget
-    parent.videoTask.connect(self.createVideo)
+    def __init__(self, parent=None):
+        QtCore.QObject.__init__(self)
+        self.core = core.Core()
+        self.core.settings = parent.settings
+        self.modules = parent.modules
+        self.stackedWidget = parent.window.stackedWidget
+        self.parent = parent
+        parent.videoTask.connect(self.createVideo)
+        self.sampleSize = 1470
 
-  @pyqtSlot(str, str, str, list)
-  def createVideo(self, backgroundImage, inputFile, outputFile, components):
-    # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
-    def getBackgroundAtIndex(i):
-        return self.core.drawBaseImage(backgroundFrames[i])
+    def renderNode(self):
+        while True:
+            i = self.compositeQueue.get()
 
-    progressBarValue = 0
-    self.progressBarUpdate.emit(progressBarValue)
-    self.progressBarSetText.emit('Loading background image…')
+            frame = Image.new(
+                "RGBA",
+                (self.width, self.height),
+                (0, 0, 0, 255)
+            )
 
-    backgroundFrames = self.core.parseBaseImage(backgroundImage)
-    if len(backgroundFrames) < 2:
-        # the base image is not a video so we can draw it now
-        imBackground = getBackgroundAtIndex(0)
-    else:
-        # base images will be drawn while drawing the audio bars
-        imBackground = None
-        
-    self.progressBarSetText.emit('Loading audio file…')
-    completeAudioArray = self.core.readAudioFile(inputFile)
+            frame.paste(self.imBackground)
 
-    # test if user has libfdk_aac
-    encoders = sp.check_output(self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
-    acodec = self.core.settings.value('outputAudioCodec')
-
-    if b'libfdk_aac' in encoders and acodec == 'aac':
-      acodec = 'libfdk_aac'
-
-    ffmpegCommand = [ self.core.FFMPEG_BIN,
-       '-y', # (optional) means overwrite the output file if it already exists.
-       '-f', 'rawvideo',
-       '-vcodec', 'rawvideo',
-       '-s', self.core.settings.value('outputWidth')+'x'+self.core.settings.value('outputHeight'), # size of one frame
-       '-pix_fmt', 'rgb24',
-       '-r', self.core.settings.value('outputFrameRate'), # frames per second
-       '-i', '-', # The input comes from a pipe
-       '-an',
-       '-i', inputFile,
-       '-acodec', acodec, # output audio codec
-       '-b:a', self.core.settings.value('outputAudioBitrate'),
-       '-vcodec', self.core.settings.value('outputVideoCodec'),
-       '-pix_fmt', self.core.settings.value('outputVideoFormat'),
-       '-preset', self.core.settings.value('outputPreset'),
-       '-f', self.core.settings.value('outputFormat')]
-
-    if acodec == 'aac':
-      ffmpegCommand.append('-strict')
-      ffmpegCommand.append('-2')
-
-    ffmpegCommand.append(outputFile)
-    
-    out_pipe = sp.Popen(ffmpegCommand,
-        stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
-
-    # initialize components
-    print('######################## Data')
-    print('loaded components:',
-        ["%s%s" % (num, str(component)) for num, component in enumerate(components)])
-    staticComponents = {}
-    sampleSize = 1470
-    for compNo, comp in enumerate(components):
-        properties = None
-        properties = comp.preFrameRender(worker=self, completeAudioArray=completeAudioArray, sampleSize=sampleSize)
-        if properties and 'static' in properties:
-            staticComponents[compNo] = None
-
-    # create video for output
-    numpy.seterr(divide='ignore')
-    frame = getBackgroundAtIndex(0)
-    bgI = 0
-    for i in range(0, len(completeAudioArray), sampleSize):
-        newFrame = Image.new("RGBA", (int(self.core.settings.value('outputWidth')), int(self.core.settings.value('outputHeight'))),(0,0,0,255))
-        if imBackground:
-            newFrame.paste(imBackground)
-        else:
-            newFrame.paste(getBackgroundAtIndex(bgI))
-
-        # composite all frames returned by the components in order
-        for compNo, comp in enumerate(components):
-            if compNo in staticComponents and staticComponents[compNo] != None:
-                newFrame = Image.alpha_composite(newFrame,staticComponents[compNo])
+            if self.imBackground is not None:
+                frame.paste(self.imBackground)
             else:
-                newFrame = Image.alpha_composite(newFrame,comp.frameRender(compNo, i))
-            if i == 0 and compNo in staticComponents:
-                staticComponents[compNo] = comp.frameRender(compNo, i)
+                frame.paste(self.getBackgroundAtIndex(i[1]))
 
-        if not imBackground:
+            for compNo, comp in enumerate(self.components):
+                if compNo in self.staticComponents and self.staticComponents[compNo] != None:
+                    frame = Image.alpha_composite(frame, self.staticComponents[compNo])
+                else:
+                    frame = Image.alpha_composite(frame, comp.frameRender(compNo, i[0]))
+
+                # frame.paste(compFrame, mask=compFrame)
+
+            self.renderQueue.put([i[0], frame])
+            self.compositeQueue.task_done()
+
+    def renderDispatch(self):
+        print('Dispatching Frames for Compositing...')
+        if not self.imBackground:
             # increment background video frame for next iteration
-            if bgI < len(backgroundFrames)-1:
-                bgI += 1
-                
-      # write to out_pipe
-        try:
-            frame = Image.new("RGB", (int(self.core.settings.value('outputWidth')), int(self.core.settings.value('outputHeight'))),(0,0,0))
-            frame.paste(newFrame)
-            out_pipe.stdin.write(frame.tobytes())
-        finally:
-            True
+            if self.bgI < len(self.backgroundFrames)-1 and i != 0:
+                self.bgI += 1
 
-        # increase progress bar value
-        if progressBarValue + 1 <= (i / len(completeAudioArray)) * 100:
-            progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100)
-            self.progressBarUpdate.emit(progressBarValue)
-            self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
+        for i in range(0, len(self.completeAudioArray), self.sampleSize):
+            self.compositeQueue.put([i, self.bgI])
+        self.compositeQueue.join()
+        print('Compositing Complete.')
 
-    numpy.seterr(all='print')
+    def previewDispatch(self):
+        while True:
+            i = self.previewQueue.get()
+            if time.time() - self.lastPreview >= 0.05 or i[0] == 0:
+                self._image = ImageQt(i[1])
+                self.imageCreated.emit(QtGui.QImage(self._image))
+                lastPreview = time.time()
 
-    out_pipe.stdin.close()
-    if out_pipe.stderr is not None:
-      print(out_pipe.stderr.read())
-      out_pipe.stderr.close()
-    # out_pipe.terminate() # don't terminate ffmpeg too early
-    out_pipe.wait()
-    print("Video file created")
-    self.core.deleteTempDir()
-    self.progressBarUpdate.emit(100)
-    self.progressBarSetText.emit('100%')
-    self.videoCreated.emit()
+            self.previewQueue.task_done()
+        
+
+    def getBackgroundAtIndex(self, i):
+        return self.core.drawBaseImage(self.backgroundFrames[i])
+
+    @pyqtSlot(str, str, str, list)
+    def createVideo(self, backgroundImage, inputFile, outputFile, components):
+        self.width = int(self.core.settings.value('outputWidth'))
+        self.height = int(self.core.settings.value('outputHeight'))
+        # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
+        self.components = components
+        progressBarValue = 0
+        self.progressBarUpdate.emit(progressBarValue)
+        self.progressBarSetText.emit('Loading background image…')
+
+        self.backgroundImage = backgroundImage
+
+        self.backgroundFrames = self.core.parseBaseImage(backgroundImage)
+        if len(self.backgroundFrames) < 2:
+            # the base image is not a video so we can draw it now
+            self.imBackground = self.getBackgroundAtIndex(0)
+        else:
+            # base images will be drawn while drawing the audio bars
+            self.imBackground = None
+        self.bgI = 0
+
+        self.progressBarSetText.emit('Loading audio file…')
+        self.completeAudioArray = self.core.readAudioFile(inputFile)
+
+        # test if user has libfdk_aac
+        encoders = sp.check_output(self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
+        acodec = self.core.settings.value('outputAudioCodec')
+
+        if b'libfdk_aac' in encoders and acodec == 'aac':
+            acodec = 'libfdk_aac'
+
+        ffmpegCommand = [
+            self.core.FFMPEG_BIN,
+            '-y',  # (optional) means overwrite the output file if it already exists.
+            '-f', 'rawvideo',
+            '-vcodec', 'rawvideo',
+            '-s', str(self.width)+'x'+str(self.height),  # size of one frame
+            '-pix_fmt', 'rgba',
+            '-r', self.core.settings.value('outputFrameRate'),  # frames per second
+            '-i', '-',  # The input comes from a pipe
+            '-an',
+            '-i', inputFile,
+            '-acodec', acodec,  # output audio codec
+            '-b:a', self.core.settings.value('outputAudioBitrate'),
+            '-vcodec', self.core.settings.value('outputVideoCodec'),
+            '-pix_fmt', self.core.settings.value('outputVideoFormat'),
+            '-preset', self.core.settings.value('outputPreset'),
+            '-f', self.core.settings.value('outputFormat')
+        ]
+
+        if acodec == 'aac':
+            ffmpegCommand.append('-strict')
+            ffmpegCommand.append('-2')
+
+        ffmpegCommand.append(outputFile)
+        out_pipe = sp.Popen(ffmpegCommand, stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
+
+        # create video for output
+        numpy.seterr(divide='ignore')
+
+        self.compositeQueue = Queue()
+        self.compositeQueue.maxsize = 20
+        self.renderQueue = Queue()
+        self.renderQueue.maxsize = 20
+        self.previewQueue = Queue()
+
+        for i in range(2):
+            t = Thread(target=self.renderNode)
+            t.daemon = True
+            t.start()
+
+        self.dispatchThread = Thread(target=self.renderDispatch)
+        self.dispatchThread.daemon = True
+        self.dispatchThread.start()
+
+        self.previewDispatch = Thread(target=self.previewDispatch)
+        self.previewDispatch.daemon = True
+        self.previewDispatch.start()
+
+        frameBuffer = {}
+        self.lastPreview = 0.0
+
+        # initialize components
+        print('loaded components:',
+              ["%s%s" % (num, str(component)) for num, component in enumerate(components)])
+        self.staticComponents = {}
+        for compNo, comp in enumerate(components):
+            properties = None
+            properties = comp.preFrameRender(
+                worker=self,
+                completeAudioArray=self.completeAudioArray,
+                sampleSize=self.sampleSize
+            )
+
+            if properties and 'static' in properties:
+                self.staticComponents[compNo] = comp.frameRender(compNo, 0)
+
+        for i in range(0, len(self.completeAudioArray), self.sampleSize):
+            data = self.renderQueue.get()
+            frameBuffer[data[0]] = data[1]
+
+            if i in frameBuffer:
+                try:
+                    out_pipe.stdin.write(frameBuffer[i].tobytes())
+                    self.previewQueue.put([i, frameBuffer[i]])
+                    del frameBuffer[i]
+                finally:
+                    True
+            self.renderQueue.task_done()
+
+            # increase progress bar value
+            if progressBarValue + 1 <= (i / len(self.completeAudioArray)) * 100:
+                progressBarValue = numpy.floor((i / len(self.completeAudioArray)) * 100)
+                self.progressBarUpdate.emit(progressBarValue)
+                self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
+
+        numpy.seterr(all='print')
+
+        out_pipe.stdin.close()
+        if out_pipe.stderr is not None:
+            print(out_pipe.stderr.read())
+            out_pipe.stderr.close()
+        # out_pipe.terminate() # don't terminate ffmpeg too early
+        out_pipe.wait()
+        print("Video file created")
+        self.parent.drawPreview()
+        self.core.deleteTempDir()
+        self.progressBarUpdate.emit(100)
+        self.progressBarSetText.emit('100%')
+        self.videoCreated.emit()
