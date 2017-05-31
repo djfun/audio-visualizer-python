@@ -377,7 +377,20 @@ class Main(QtCore.QObject):
     dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    with open(os.path.join(dirname, filename), 'w') as f:
+    filepath = os.path.join(dirname, filename)
+    if os.path.exists(filepath):
+        msg = QtGui.QMessageBox()
+        msg.setIcon(QtGui.QMessageBox.Warning)
+        msg.setText("%s already exists! Overwrite it?" % filename)
+        msg.setStandardButtons(QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel)
+        ch = msg.exec_()
+        if ch != 1024:  # 1024 = OK
+            return
+        # remove old copies of the preset
+        for i in range(0, self.windowcomboBox_openPreset.count()):
+            if self.window.comboBox_openPreset.itemText(i) == filename:
+                self.window.comboBox_openPreset.removeItem(i)
+    with open(filepath, 'w') as f:
         f.write('%s' % repr(saveValueStore))
     self.window.comboBox_openPreset.addItem(filename)
 
