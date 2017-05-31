@@ -79,55 +79,77 @@ class Worker(QtCore.QObject):
       ffmpegCommand.append('-2')
 
     ffmpegCommand.append(outputFile)
-    
-    out_pipe = sp.Popen(ffmpegCommand,
-        stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
-    smoothConstantDown = 0.08
-    smoothConstantUp = 0.8
-    lastSpectrum = None
-    sampleSize = 1470
-    
-    numpy.seterr(divide='ignore')
-    bgI = 0
-    for i in range(0, len(completeAudioArray), sampleSize):
-      # create video for output
-      lastSpectrum = self.core.transformData(
-        i,
-        completeAudioArray,
-        sampleSize,
-        smoothConstantDown,
-        smoothConstantUp,
-        lastSpectrum)
-      if imBackground != None:
-        im = self.core.drawBars(lastSpectrum, imBackground, visColor)
-      else:
-        im = self.core.drawBars(lastSpectrum, getBackgroundAtIndex(bgI), visColor)
-        if bgI < len(backgroundFrames)-1:
-            bgI += 1
+    # Hard coded 2 passes in.  Work into settings once UI gets updated.
+    passes = 2
+    pass_count = 0
 
-      # write to out_pipe
-      try:
-        out_pipe.stdin.write(im.tobytes())
-      finally:
-        True
+    while pass_count < passes:
+        pass_count += 1
+        ffmpegCommand.append('-pass')
+        ffmpegCommand.append(str(pass_count))
 
-      # increase progress bar value
-      if progressBarValue + 1 <= (i / len(completeAudioArray)) * 100:
-        progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100)
-        self.progressBarUpdate.emit(progressBarValue)
-        self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
+        # Reset the progress bar to 0.
+        progressBarValue = 0
+        print("\nStarted encoding pass {} of {}".format(pass_count, passes))
 
-    numpy.seterr(all='print')
+        out_pipe = sp.Popen(ffmpegCommand,
+            stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
-    out_pipe.stdin.close()
-    if out_pipe.stderr is not None:
-      print(out_pipe.stderr.read())
-      out_pipe.stderr.close()
-    # out_pipe.terminate() # don't terminate ffmpeg too early
-    out_pipe.wait()
+        smoothConstantDown = 0.08
+        smoothConstantUp = 0.8
+        lastSpectrum = None
+        sampleSize = 1470
+
+        numpy.seterr(divide='ignore')
+        bgI = 0
+        for i in range(0, len(completeAudioArray), sampleSize):
+          # create video for output
+          lastSpectrum = self.core.transformData(
+            i,
+            completeAudioArray,
+            sampleSize,
+            smoothConstantDown,
+            smoothConstantUp,
+            lastSpectrum)
+          if imBackground != None:
+            im = self.core.drawBars(lastSpectrum, imBackground, visColor)
+          else:
+            im = self.core.drawBars(lastSpectrum, getBackgroundAtIndex(bgI), visColor)
+            if bgI < len(backgroundFrames)-1:
+                bgI += 1
+
+          # write to out_pipe
+          try:
+            out_pipe.stdin.write(im.tobytes())
+          finally:
+            True
+
+          # increase progress bar value
+          if progressBarValue + 1 <= (i / len(completeAudioArray)) * 100:
+            progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100)
+            self.progressBarUpdate.emit(progressBarValue)
+            self.progressBarSetText.emit('Working on pass %s of %s: %s%%' % (pass_count, passes,
+                                                                                 str(int(progressBarValue))))
+
+        numpy.seterr(all='print')
+
+        out_pipe.stdin.close()
+        if out_pipe.stderr is not None:
+          print(out_pipe.stderr.read())
+          out_pipe.stderr.close()
+        # out_pipe.terminate() # don't terminate ffmpeg too early
+        out_pipe.wait()
+
+        # Clean up ffMpegCommand. Must do this in the while loop so we don't end up with multiple passes.
+        pass_arg_index = ffmpegCommand.index('-pass')
+        del ffmpegCommand[pass_arg_index: pass_arg_index + 2]
+
+        print("Pass {} of {} completed.".format(pass_count, passes))
+
     print("Video file created")
     self.core.deleteTempDir()
     self.progressBarUpdate.emit(100)
-    self.progressBarSetText.emit('100%')
+    self.progressBarSetText.emit('{}'.format("Completed {} pass{}.".format(pass_count,
+                                                                                "es" if pass_count > 1 else "")))
     self.videoCreated.emit()
