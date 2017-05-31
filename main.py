@@ -179,9 +179,7 @@ class Main(QtCore.QObject):
     self.window.pushButton_listMoveDown.clicked.connect(self.moveComponentDown)
 
     self.window.pushButton_savePreset.clicked.connect(self.openSavePresetDialog)
-    self.window.comboBox_openPreset.currentIndexChanged.connect( \
-        lambda _: self.openPreset(self.window.comboBox_openPreset.currentIndex())
-    )
+    self.window.comboBox_openPreset.currentIndexChanged.connect(self.openPreset)
     
     self.drawPreview()
 
@@ -379,14 +377,44 @@ class Main(QtCore.QObject):
     dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    with open(os.path.join(dirname, filename), 'w') as f:
-        for itemset in saveValueStore.items():
-            f.write('%s=%s' % itemset)
+    filepath = os.path.join(dirname, filename)
+    if os.path.exists(filepath):
+        msg = QtGui.QMessageBox()
+        msg.setIcon(QtGui.QMessageBox.Warning)
+        msg.setText("%s already exists! Overwrite it?" % filename)
+        msg.setStandardButtons(QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel)
+        ch = msg.exec_()
+        if ch != 1024:  # 1024 = OK
+            return
+        # remove old copies of the preset
+        for i in range(0, self.windowcomboBox_openPreset.count()):
+            if self.window.comboBox_openPreset.itemText(i) == filename:
+                self.window.comboBox_openPreset.removeItem(i)
+    with open(filepath, 'w') as f:
+        f.write('%s' % repr(saveValueStore))
     self.window.comboBox_openPreset.addItem(filename)
 
-  def openPreset(self, comboBoxIndex):
-      pass
-
+  def openPreset(self):
+    if self.window.comboBox_openPreset.currentIndex() < 1:
+        return
+    index = self.window.listWidget_componentList.currentRow()
+    if index == -1:
+        # no component selected
+        return
+    filename = self.window.comboBox_openPreset.itemText(self.window.comboBox_openPreset.currentIndex())
+    componentName = str(self.selectedComponents[index]).strip()
+    version = self.selectedComponents[index].version()
+    dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
+    filepath = os.path.join(dirname, filename)
+    if not os.path.exists(filepath):
+        self.window.comboBox_openPreset.removeItem(self.window.comboBox_openPreset.currentIndex())
+        return
+    with open(filepath, 'r') as f:
+        for line in f:
+            saveValueStore = eval(line.strip())
+            break
+    self.selectedComponents[index].loadPreset(saveValueStore)
+    self.drawPreview()
 
 def LoadDefaultSettings(self):
   self.resolutions = [

@@ -32,11 +32,16 @@ class Component(__base__.Component):
         self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
 
-    def version(self):
-        return 1
+    def loadPreset(self, pr):
+        self.page.lineEdit_visColor.setText('%s,%s,%s' % pr['visColor'])
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*pr['visColor']).name()
+        self.page.pushButton_visColor.setStyleSheet(btnStyle)
+        self.page.comboBox_visLayout.setCurrentIndex(pr['layout'])
         
     def savePreset(self):
-        return {}
+        return { 'layout' : self.layout,
+                  'visColor' : self.visColor,
+                }
 
     def previewRender(self, previewWorker):
         spectrum = numpy.fromfunction(lambda x: 0.008*(x-128)**2, (255,), dtype="int16")
@@ -59,6 +64,8 @@ class Component(__base__.Component):
 
     def pickColor(self):
         RGBstring, btnStyle = super().pickColor()
+        if not RGBstring:
+            return
         self.page.lineEdit_visColor.setText(RGBstring)
         self.page.pushButton_visColor.setStyleSheet(btnStyle)
 
