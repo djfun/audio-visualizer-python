@@ -9,8 +9,8 @@ class Component:
         return 1
         
     def preFrameRender(self, **kwargs):
-        for item in kwargs.items():
-            exec('self.%s = %s' % item)
+        for var, value in kwargs.items():
+            exec('self.%s = value' % var)
 
     def pickColor(self):
         color = QtGui.QColorDialog.getColor()
