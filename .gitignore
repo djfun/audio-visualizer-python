@@ -3,3 +3,5 @@ settings.ini
 build/*
 .ropeproject
 .idea
+*.egg-info
+dist
