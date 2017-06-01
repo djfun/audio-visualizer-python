@@ -388,12 +388,14 @@ class Main(QtCore.QObject):
         if ch != 1024:  # 1024 = OK
             return
         # remove old copies of the preset
-        for i in range(0, self.windowcomboBox_openPreset.count()):
+        presetLen = self.window.comboBox_openPreset.count()
+        for i in range(0, presetLen):
             if self.window.comboBox_openPreset.itemText(i) == filename:
                 self.window.comboBox_openPreset.removeItem(i)
     with open(filepath, 'w') as f:
         f.write('%s' % repr(saveValueStore))
     self.window.comboBox_openPreset.addItem(filename)
+    self.window.comboBox_openPreset.setCurrentIndex(presetLen-1)
 
   def openPreset(self):
     if self.window.comboBox_openPreset.currentIndex() < 1:

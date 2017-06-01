@@ -61,21 +61,29 @@ class Component(__base__.Component):
         self.xPosition = self.page.spinBox_xTextAlign.value()
         self.yPosition = self.page.spinBox_yTextAlign.value()
         self.textColor = self.RGBFromString(self.page.lineEdit_textColor.text())
+        
+        self.parent.drawPreview()
+        
+    def getXY(self):
+        '''Returns true x, y after considering alignment settings'''
         fm = QtGui.QFontMetrics(self.titleFont)
         if self.alignment == 0:      #Left
-           self.xPosition = self.xPosition
+           x = self.xPosition
         if self.alignment == 1:      #Middle
-           self.xPosition = self.xPosition - fm.width(self.title)/2
+           x = self.xPosition - fm.width(self.title)/2
         if self.alignment == 2:      #Right
-           self.xPosition = self.xPosition - fm.width(self.title)
-        self.parent.drawPreview()
-
+           x = self.xPosition - fm.width(self.title)
+        return x, self.yPosition
+        
+        
     def loadPreset(self, pr):
         self.page.lineEdit_title.setText(pr['title'])
+        font = QFont(); font.fromString(pr['titleFont'])
+        self.page.fontComboBox_titleFont.setCurrentFont(font)
         self.page.spinBox_fontSize.setValue(pr['fontSize'])
+        self.page.comboBox_textAlign.setCurrentIndex(pr['alignment'])
         self.page.spinBox_xTextAlign.setValue(pr['xPosition'])
         self.page.spinBox_yTextAlign.setValue(pr['yPosition'])
-        self.page.comboBox_textAlign.setCurrentIndex(pr['alignment'])
         self.page.lineEdit_textColor.setText('%s,%s,%s' % pr['textColor'])
         btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*pr['textColor']).name()
         self.page.pushButton_textColor.setStyleSheet(btnStyle)
@@ -83,6 +91,7 @@ class Component(__base__.Component):
     def savePreset(self):
         return {
                 'title' : self.title,
+                'titleFont' : self.titleFont.toString(),
                 'alignment' : self.alignment,
                 'fontSize' : self.fontSize,
                 'xPosition' : self.xPosition,
@@ -105,6 +114,7 @@ class Component(__base__.Component):
         return self.addText(width, height)
 
     def addText(self, width, height):
+        x, y = self.getXY()
         im = Image.new("RGBA", (width, height),(0,0,0,0))
         image = ImageQt(im)
    
@@ -112,7 +122,7 @@ class Component(__base__.Component):
         self.titleFont.setPixelSize(self.fontSize)
         painter.setFont(self.titleFont)
         painter.setPen(QColor(*self.textColor))
-        painter.drawText(self.xPosition, self.yPosition, self.title)
+        painter.drawText(x, y, self.title)
         painter.end()
 
         buffer = QtCore.QBuffer()
