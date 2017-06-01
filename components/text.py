@@ -108,19 +108,16 @@ class Component(__base__.Component):
         im = Image.new("RGBA", (width, height),(0,0,0,0))
         image = ImageQt(im)
    
-        image1 = QtGui.QImage(image)
-        painter = QPainter(image1)
+        painter = QPainter(image)
         self.titleFont.setPixelSize(self.fontSize)
         painter.setFont(self.titleFont)
         painter.setPen(QColor(*self.textColor))
-
-        fm = QtGui.QFontMetrics(self.titleFont)
         painter.drawText(self.xPosition, self.yPosition, self.title)
         painter.end()
 
         buffer = QtCore.QBuffer()
         buffer.open(QtCore.QIODevice.ReadWrite)
-        image1.save(buffer, "PNG")
+        image.save(buffer, "PNG")
 
         strio = io.BytesIO()
         strio.write(buffer.data())

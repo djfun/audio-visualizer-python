@@ -243,6 +243,7 @@ class Main(QtCore.QObject):
         self.videoWorker.videoCreated.connect(self.videoCreated)
         self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
         self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
+        self.videoWorker.imageCreated.connect(self.showPreviewImage)
         
         self.videoThread.start()
         self.videoTask.emit(self.window.lineEdit_background.text(),
