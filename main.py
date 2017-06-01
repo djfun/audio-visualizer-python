@@ -178,6 +178,8 @@ class Main(QtCore.QObject):
 
     self.window.pushButton_savePreset.clicked.connect(self.openSavePresetDialog)
     self.window.comboBox_openPreset.currentIndexChanged.connect(self.openPreset)
+    self.window.pushButton_saveProject.clicked.connect(self.openSaveProjectDialog)
+    #self.window.pushButton_openProject
     
     self.drawPreview()
 
@@ -249,8 +251,7 @@ class Main(QtCore.QObject):
           self.window.lineEdit_outputFile.text(),
           self.selectedComponents)
     else:
-        # TODO: use QMessageBox or similar to alert user that fields are empty
-        pass
+        self.showMessage("You must select an audio file and output filename.")
     
   def progressBarUpdated(self, value):
     self.window.progressBar_createVideo.setValue(value)
@@ -371,11 +372,7 @@ class Main(QtCore.QObject):
                 badName = True
         if badName:
             # some filesystems don't like bizarre characters
-            msg = QtGui.QMessageBox()
-            msg.setIcon(QtGui.QMessageBox.Information)
-            msg.setText("Preset names must contain only letters, numbers, and spaces.")
-            msg.setStandardButtons(QtGui.QMessageBox.Ok)
-            msg.exec_()
+            self.showMessage("Preset names must contain only letters, numbers, and spaces.")
             continue
         if OK and newName:
             index = self.window.listWidget_componentList.currentRow()
@@ -392,19 +389,15 @@ class Main(QtCore.QObject):
         os.makedirs(dirname)
     filepath = os.path.join(dirname, filename)
     if os.path.exists(filepath):
-        msg = QtGui.QMessageBox()
-        msg.setIcon(QtGui.QMessageBox.Warning)
-        msg.setText("%s already exists! Overwrite it?" % filename)
-        msg.setStandardButtons(QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel)
-        ch = msg.exec_()
-        if ch != 1024:  # 1024 = OK
+        ch = self.showMessage("%s already exists! Overwrite it?" % filename, QtGui.QMessageBox.Warning, True)
+        if not ch:
             return
         # remove old copies of the preset
         for i in range(0, self.window.comboBox_openPreset.count()):
             if self.window.comboBox_openPreset.itemText(i) == filename:
                 self.window.comboBox_openPreset.removeItem(i)
     with open(filepath, 'w') as f:
-        f.write('%s' % repr(saveValueStore))
+        f.write(repr(saveValueStore))
     self.window.comboBox_openPreset.addItem(filename)
     self.window.comboBox_openPreset.setCurrentIndex(self.window.comboBox_openPreset.count()-1)
 
@@ -428,6 +421,33 @@ class Main(QtCore.QObject):
             break
     self.selectedComponents[index].loadPreset(saveValueStore)
     self.drawPreview()
+
+  def openSaveProjectDialog(self):
+    outputDir = os.path.join(self.dataDir, 'projects')
+    filename = QtGui.QFileDialog.getSaveFileName(self.window,
+        "Create Project File", outputDir)
+    if not filename:
+        return
+    filepath = os.path.join(outputDir, filename)
+    with open(filepath, 'w') as f:
+        for comp in self.selectedComponents:
+            saveValueStore = comp.savePreset()
+            f.write('%s\n' % str(comp))
+            f.write('%s\n' % str(comp.version()))
+            f.write('%s\n' % repr(saveValueStore))
+
+  def showMessage(self, string, icon=QtGui.QMessageBox.Information, showCancel=False):
+    msg = QtGui.QMessageBox()
+    msg.setIcon(icon)
+    msg.setText(string)
+    if showCancel:
+        msg.setStandardButtons(QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel)
+    else:
+        msg.setStandardButtons(QtGui.QMessageBox.Ok)
+    ch = msg.exec_()
+    if ch == 1024:
+        return True
+    return False
 
 def LoadDefaultSettings(self):
   self.resolutions = [
