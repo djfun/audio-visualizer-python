@@ -44,7 +44,7 @@ class Component(__base__.Component):
         spectrum = numpy.fromfunction(lambda x: 0.008*(x-128)**2, (255,), dtype="int16")
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
-        return drawBars(width, height, spectrum, self.visColor, self.layout)
+        return self.drawBars(width, height, spectrum, self.visColor, self.layout)
     
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
@@ -61,7 +61,7 @@ class Component(__base__.Component):
     def frameRender(self, moduleNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
-        return drawBars(width, height, self.spectrumArray[frameNo], self.visColor, self.layout)
+        return self.drawBars(width, height, self.spectrumArray[frameNo], self.visColor, self.layout)
 
     def pickColor(self):
         RGBstring, btnStyle = super().pickColor()
@@ -97,42 +97,41 @@ class Component(__base__.Component):
         x = frequencies[0:int(paddedSampleSize/2) - 1]
 
         return lastSpectrum
-    
-def drawBars(width, height, spectrum, color, layout):
-    vH = height-height/8
-    bF = width / 64
-    bH = bF / 2
-    bQ = bF / 4
-    imTop = Image.new("RGBA", (width, height),(0,0,0,0))
-    draw = ImageDraw.Draw(imTop)
-    r, g, b = color
-    color2 = (r, g, b, 125)
 
-    bP = height / 1200
+    def drawBars(self, width, height, spectrum, color, layout):
+        vH = height-height/8
+        bF = width / 64
+        bH = bF / 2
+        bQ = bF / 4
+        imTop = Image.new("RGBA", (width, height),(0,0,0,0))
+        draw = ImageDraw.Draw(imTop)
+        r, g, b = color
+        color2 = (r, g, b, 125)
 
-    for j in range(0, 63):
-      draw.rectangle((bH + j * bF, vH+bQ, bH + j * bF + bF, vH + bQ - spectrum[j * 4] * bP - bH), fill=color2)
-      draw.rectangle((bH + bQ + j * bF, vH , bH + bQ + j * bF + bH, vH - spectrum[j * 4] * bP), fill=color)
+        bP = height / 1200
 
+        for j in range(0, 63):
+            draw.rectangle((bH + j * bF, vH+bQ, bH + j * bF + bF, vH + bQ - spectrum[j * 4] * bP - bH), fill=color2)
+            draw.rectangle((bH + bQ + j * bF, vH , bH + bQ + j * bF + bH, vH - spectrum[j * 4] * bP), fill=color)
 
-    imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
+        imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
 
-    im = Image.new("RGBA", (width, height),(0,0,0,0))
+        im = Image.new("RGBA", (width, height),(0,0,0,0))
 
-    if layout == 0:
-      y = 0 - int(height/100*43)
-      im.paste(imTop, (0, y), mask=imTop)
-      y = 0 + int(height/100*43)
-      im.paste(imBottom, (0, y), mask=imBottom)
+        if layout == 0:
+            y = 0 - int(height/100*43)
+            im.paste(imTop, (0, y), mask=imTop)
+            y = 0 + int(height/100*43)
+            im.paste(imBottom, (0, y), mask=imBottom)
 
-    if layout == 1:
-      y = 0 + int(height/100*10)
-      im.paste(imTop, (0, y), mask=imTop)
-      y = 0 - int(height/100*10)
-      im.paste(imBottom, (0, y), mask=imBottom)
+        if layout == 1:
+            y = 0 + int(height/100*10)
+            im.paste(imTop, (0, y), mask=imTop)
+            y = 0 - int(height/100*10)
+            im.paste(imBottom, (0, y), mask=imBottom)
 
-    if layout == 2:
-      y = 0 + int(height/100*10)
-      im.paste(imTop, (0, y), mask=imTop)
+        if layout == 2:
+            y = 0 + int(height/100*10)
+            im.paste(imTop, (0, y), mask=imTop)
 
-    return im
+        return im

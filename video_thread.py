@@ -32,16 +32,10 @@ class Worker(QtCore.QObject):
         while True:
             i = self.compositeQueue.get()
 
-            frame = Image.new(
-                "RGBA",
-                (self.width, self.height),
-                (0, 0, 0, 255)
-            )
-
             if self.imBackground is not None:
-                frame.paste(self.imBackground)
+                frame = self.imBackground
             else:
-                frame.paste(self.getBackgroundAtIndex(i[1]))
+                frame = self.getBackgroundAtIndex(i[1])
 
             for compNo, comp in enumerate(self.components):
                 if compNo in self.staticComponents and self.staticComponents[compNo] != None:
@@ -75,10 +69,16 @@ class Worker(QtCore.QObject):
                 self.lastPreview = time.time()
 
             self.previewQueue.task_done()
-        
 
     def getBackgroundAtIndex(self, i):
-        return self.core.drawBaseImage(self.backgroundFrames[i])
+        background = Image.new(
+                "RGBA",
+                (self.width, self.height),
+                (0, 0, 0, 255)
+            )
+        layer = self.core.drawBaseImage(self.backgroundFrames[i])
+        background.paste(layer)
+        return background
 
     @pyqtSlot(str, str, str, list)
     def createVideo(self, backgroundImage, inputFile, outputFile, components):
@@ -154,7 +154,6 @@ class Worker(QtCore.QObject):
 
             if properties and 'static' in properties:
                 self.staticComponents[compNo] = copy(comp.frameRender(compNo, 0))
-                print('done')
 
         self.compositeQueue = Queue()
         self.compositeQueue.maxsize = 20
@@ -163,7 +162,7 @@ class Worker(QtCore.QObject):
         self.previewQueue = PriorityQueue()
 
         # create threads to render frames and send them back here for piping out
-        for i in range(2):
+        for i in range(3):
             t = Thread(target=self.renderNode, name="Render Thread")
             t.daemon = True
             t.start()
