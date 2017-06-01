@@ -1,8 +1,6 @@
-import sys, io, os
+import sys, io, os, atexit, string, signal
 from os.path import expanduser
-import atexit
 from queue import Queue
-import signal
 from importlib import import_module
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, QModelIndex
@@ -365,14 +363,28 @@ class Main(QtCore.QObject):
   def openSavePresetDialog(self):
     if self.window.listWidget_componentList.currentRow() == -1:
         return
-    newName, OK = QtGui.QInputDialog.getText(QtGui.QWidget(), 'Audio Visualizer', 'New Preset Name:')
-    if OK and newName:
-        index = self.window.listWidget_componentList.currentRow()
-        if index != -1:
-            saveValueStore = self.selectedComponents[index].savePreset()
-            componentName = str(self.selectedComponents[index]).strip()
-            vers = self.selectedComponents[index].version()
-            self.createPresetFile(componentName, vers, saveValueStore, newName)
+    while True:
+        newName, OK = QtGui.QInputDialog.getText(QtGui.QWidget(), 'Audio Visualizer', 'New Preset Name:')
+        badName = False
+        for letter in newName:
+            if letter in string.punctuation:
+                badName = True
+        if badName:
+            # some filesystems don't like bizarre characters
+            msg = QtGui.QMessageBox()
+            msg.setIcon(QtGui.QMessageBox.Information)
+            msg.setText("Preset names must contain only letters, numbers, and spaces.")
+            msg.setStandardButtons(QtGui.QMessageBox.Ok)
+            msg.exec_()
+            continue
+        if OK and newName:
+            index = self.window.listWidget_componentList.currentRow()
+            if index != -1:
+                saveValueStore = self.selectedComponents[index].savePreset()
+                componentName = str(self.selectedComponents[index]).strip()
+                vers = self.selectedComponents[index].version()
+                self.createPresetFile(componentName, vers, saveValueStore, newName)
+        break
 
   def createPresetFile(self, componentName, version, saveValueStore, filename):
     dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
@@ -388,21 +400,19 @@ class Main(QtCore.QObject):
         if ch != 1024:  # 1024 = OK
             return
         # remove old copies of the preset
-        presetLen = self.window.comboBox_openPreset.count()
-        for i in range(0, presetLen):
+        for i in range(0, self.window.comboBox_openPreset.count()):
             if self.window.comboBox_openPreset.itemText(i) == filename:
                 self.window.comboBox_openPreset.removeItem(i)
     with open(filepath, 'w') as f:
         f.write('%s' % repr(saveValueStore))
     self.window.comboBox_openPreset.addItem(filename)
-    self.window.comboBox_openPreset.setCurrentIndex(presetLen-1)
+    self.window.comboBox_openPreset.setCurrentIndex(self.window.comboBox_openPreset.count()-1)
 
   def openPreset(self):
     if self.window.comboBox_openPreset.currentIndex() < 1:
         return
     index = self.window.listWidget_componentList.currentRow()
     if index == -1:
-        # no component selected
         return
     filename = self.window.comboBox_openPreset.itemText(self.window.comboBox_openPreset.currentIndex())
     componentName = str(self.selectedComponents[index]).strip()
