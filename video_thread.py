@@ -71,7 +71,7 @@ class Worker(QtCore.QObject):
             if time.time() - self.lastPreview >= 0.05 or i[0] == 0:
                 self._image = ImageQt(i[1])
                 self.imageCreated.emit(QtGui.QImage(self._image))
-                lastPreview = time.time()
+                self.lastPreview = time.time()
 
             self.previewQueue.task_done()
         
@@ -139,28 +139,6 @@ class Worker(QtCore.QObject):
         # create video for output
         numpy.seterr(divide='ignore')
 
-        self.compositeQueue = Queue()
-        self.compositeQueue.maxsize = 20
-        self.renderQueue = PriorityQueue()
-        self.renderQueue.maxsize = 20
-        self.previewQueue = PriorityQueue()
-
-        for i in range(2):
-            t = Thread(target=self.renderNode)
-            t.daemon = True
-            t.start()
-
-        self.dispatchThread = Thread(target=self.renderDispatch)
-        self.dispatchThread.daemon = True
-        self.dispatchThread.start()
-
-        self.previewDispatch = Thread(target=self.previewDispatch)
-        self.previewDispatch.daemon = True
-        self.previewDispatch.start()
-
-        frameBuffer = {}
-        self.lastPreview = 0.0
-
         # initialize components
         print('loaded components:',
               ["%s%s" % (num, str(component)) for num, component in enumerate(components)])
@@ -174,13 +152,37 @@ class Worker(QtCore.QObject):
             )
 
             if properties and 'static' in properties:
-                self.staticComponents[compNo] = comp.frameRender(compNo, 0)           
+                self.staticComponents[compNo] = comp.frameRender(compNo, 0)
+
+        self.compositeQueue = Queue()
+        self.compositeQueue.maxsize = 20
+        self.renderQueue = PriorityQueue()
+        self.renderQueue.maxsize = 20
+        self.previewQueue = PriorityQueue()
+
+        # create threads to render frames and send them back here for piping out
+        for i in range(2):
+            t = Thread(target=self.renderNode, name="Render Thread")
+            t.daemon = True
+            t.start()
+
+        self.dispatchThread = Thread(target=self.renderDispatch, name="Render Dispatch Thread")
+        self.dispatchThread.daemon = True
+        self.dispatchThread.start()
+
+        self.previewDispatch = Thread(target=self.previewDispatch, name="Render Dispatch Thread")
+        self.previewDispatch.daemon = True
+        self.previewDispatch.start()
+
+        frameBuffer = {}
+        self.lastPreview = 0.0
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
-
             while True:
                 if i in frameBuffer:
+                    # if frame's in buffer, pipe it to ffmpeg
                     break
+                # else fetch the next frame & add to the buffer
                 data = self.renderQueue.get()
                 frameBuffer[data[0]] = data[1]
                 self.renderQueue.task_done()
