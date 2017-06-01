@@ -1,4 +1,4 @@
-import sys, io, os, atexit, string, signal
+import sys, io, os, shutil, atexit, string, signal
 from os.path import expanduser
 from queue import Queue
 from importlib import import_module
@@ -119,22 +119,21 @@ class Main(QtCore.QObject):
     # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
     self.window = window
     self.core = core.Core()
-    self.settings = QSettings('settings.ini', QSettings.IniFormat)
-    LoadDefaultSettings(self)
     self.currentProject = None
+    self.pages = []
+    self.selectedComponents = []
 
     # create data directory structure if needed
     self.dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
     if not os.path.exists(self.dataDir):
         os.makedirs(self.dataDir)
-    for neededDirectory in ('projects', 'presets'):
+    for neededDirectory in ('projects', 'project-settings', 'presets'):
         if not os.path.exists(os.path.join(self.dataDir, neededDirectory)):
             os.mkdir(os.path.join(self.dataDir, neededDirectory))
-
-    self.pages = []
+    self.settings = QSettings(os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
+    LoadDefaultSettings(self)
 
     self.previewQueue = Queue()
-
     self.previewThread = QtCore.QThread(self)
     self.previewWorker = preview_thread.Worker(self, self.previewQueue)
     self.previewWorker.moveToThread(self.previewThread)
@@ -152,12 +151,11 @@ class Main(QtCore.QObject):
     window.progressBar_createVideo.setValue(0)
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
     window.setWindowTitle("Audio Visualizer")
-
+    
     self.modules = self.findComponents()
     for component in self.modules:
         window.comboBox_componentSelection.addItem(component.Component.__doc__)
     window.listWidget_componentList.clicked.connect(lambda _: self.changeComponentWidget())
-    self.selectedComponents = []
 
     self.window.pushButton_addComponent.clicked.connect( \
         lambda _: self.addComponent(self.window.comboBox_componentSelection.currentIndex())
@@ -189,16 +187,11 @@ class Main(QtCore.QObject):
     self.timer.stop()
     self.previewThread.quit()
     self.previewThread.wait()
-    # TODO: replace remembered settings with presets/projects
-    '''
-    self.settings.setValue("titleFont", self.window.fontComboBox_titleFont.currentFont().toString())
-    self.settings.setValue("alignment", str(self.window.comboBox_textAlign.currentIndex()))
-    self.settings.setValue("fontSize", str(self.window.spinBox_fontSize.value()))
-    self.settings.setValue("xPosition", str(self.window.spinBox_xTextAlign.value()))
-    self.settings.setValue("yPosition", str(self.window.spinBox_yTextAlign.value()))
-    self.settings.setValue("visColor", self.window.lineEdit_visColor.text())
-    self.settings.setValue("textColor", self.window.lineEdit_textColor.text())
-    '''
+    backupPath = os.path.join(self.dataDir, 'settings.ini~')
+    settingsPath = os.path.join(self.dataDir, 'settings.ini')
+    if self.currentProject:
+        os.remove(settingsPath)
+        os.rename(backupPath, settingsPath)
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -444,6 +437,8 @@ class Main(QtCore.QObject):
             f.write('%s\n' % str(comp))
             f.write('%s\n' % str(comp.version()))
             f.write('%s\n' % repr(saveValueStore))
+        dir_ = os.path.join(self.dataDir, 'project-settings')
+        shutil.copyfile(self.settings.fileName(), os.path.join(dir_, os.path.basename('%s.ini' % filepath)))
             
   def openOpenProjectDialog(self):
     inputDir = os.path.join(self.dataDir, 'projects')
@@ -471,6 +466,15 @@ class Main(QtCore.QObject):
                 saveValueStore = eval(line.strip())
                 self.selectedComponents[-1].loadPreset(saveValueStore)
                 i = 0
+    projSettingsPath = os.path.join(self.dataDir, 'project-settings', '%s.ini' % os.path.basename(filepath))
+    backupPath = os.path.join(self.dataDir, 'settings.ini~')
+    settingsPath = os.path.join(self.dataDir, 'settings.ini')
+    if os.path.exists(backupPath):
+        os.remove(backupPath)
+    os.rename(settingsPath, backupPath)
+    #os.remove(settingsPath)
+    shutil.copyfile(projSettingsPath, settingsPath)
+    self.settings.sync()
 
   def showMessage(self, string, icon=QtGui.QMessageBox.Information, showCancel=False):
     msg = QtGui.QMessageBox()
@@ -510,7 +514,6 @@ def LoadDefaultSettings(self):
     "outputVideoFormat": "yuv420p",
     "outputPreset": "medium",
     "outputFormat": "mp4",
-    "visLayout": 0 
   }
   
   for parm, value in default.items():
