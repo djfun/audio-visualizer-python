@@ -4,6 +4,8 @@ from PyQt4 import uic, QtGui
 from PyQt4.QtGui import QColor
 import os, random
 from . import __base__
+import time
+from copy import copy
 
 
 class Component(__base__.Component):
@@ -52,9 +54,9 @@ class Component(__base__.Component):
         self.spectrumArray = {}
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            spectrum = transformData(i, self.completeAudioArray, self.sampleSize,
+            self.lastSpectrum = self.transformData(i, self.completeAudioArray, self.sampleSize,
                 self.smoothConstantDown, self.smoothConstantUp, self.lastSpectrum)
-            self.spectrumArray[i] = spectrum
+            self.spectrumArray[i] = copy(self.lastSpectrum)
 
     def frameRender(self, moduleNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
@@ -66,35 +68,35 @@ class Component(__base__.Component):
         self.page.lineEdit_visColor.setText(RGBstring)
         self.page.pushButton_visColor.setStyleSheet(btnStyle)
 
-def transformData(i, completeAudioArray, sampleSize, smoothConstantDown, smoothConstantUp, lastSpectrum):
-    if len(completeAudioArray) < (i + sampleSize):
-      sampleSize = len(completeAudioArray) - i
-    numpy.seterr(divide='ignore')
-    window = numpy.hanning(sampleSize)
-    data = completeAudioArray[i:i+sampleSize][::1] * window
-    paddedSampleSize = 2048
-    paddedData = numpy.pad(data, (0, paddedSampleSize - sampleSize), 'constant')
-    spectrum = numpy.fft.fft(paddedData)
-    sample_rate = 44100
-    frequencies = numpy.fft.fftfreq(len(spectrum), 1./sample_rate)
+    def transformData(self, i, completeAudioArray, sampleSize, smoothConstantDown, smoothConstantUp, lastSpectrum):
+        if len(completeAudioArray) < (i + sampleSize):
+            sampleSize = len(completeAudioArray) - i
 
-    y = abs(spectrum[0:int(paddedSampleSize/2) - 1])
+        window = numpy.hanning(sampleSize)
+        data = completeAudioArray[i:i+sampleSize][::1] * window
+        paddedSampleSize = 2048
+        paddedData = numpy.pad(data, (0, paddedSampleSize - sampleSize), 'constant')
+        spectrum = numpy.fft.fft(paddedData)
+        sample_rate = 44100
+        frequencies = numpy.fft.fftfreq(len(spectrum), 1./sample_rate)
 
-    # filter the noise away
-    # y[y<80] = 0
+        y = abs(spectrum[0:int(paddedSampleSize/2) - 1])
 
-    y = 20 * numpy.log10(y)
-    y[numpy.isinf(y)] = 0
+        # filter the noise away
+        # y[y<80] = 0
 
-    if lastSpectrum is not None:
-      lastSpectrum[y < lastSpectrum] = y[y < lastSpectrum] * smoothConstantDown + lastSpectrum[y < lastSpectrum] * (1 - smoothConstantDown)
-      lastSpectrum[y >= lastSpectrum] = y[y >= lastSpectrum] * smoothConstantUp + lastSpectrum[y >= lastSpectrum] * (1 - smoothConstantUp)
-    else:
-      lastSpectrum = y
+        y = 20 * numpy.log10(y)
+        y[numpy.isinf(y)] = 0
 
-    x = frequencies[0:int(paddedSampleSize/2) - 1]
+        if lastSpectrum is not None:
+            lastSpectrum[y < lastSpectrum] = y[y < lastSpectrum] * smoothConstantDown + lastSpectrum[y < lastSpectrum] * (1 - smoothConstantDown)
+            lastSpectrum[y >= lastSpectrum] = y[y >= lastSpectrum] * smoothConstantUp + lastSpectrum[y >= lastSpectrum] * (1 - smoothConstantUp)
+        else:
+            lastSpectrum = y
 
-    return lastSpectrum
+        x = frequencies[0:int(paddedSampleSize/2) - 1]
+
+        return lastSpectrum
     
 def drawBars(width, height, spectrum, color, layout):
     vH = height-height/8

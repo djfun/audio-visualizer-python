@@ -9,6 +9,7 @@ import sys
 from queue import Queue, PriorityQueue
 from threading import Thread
 import time
+from copy import copy
 
 class Worker(QtCore.QObject):
 
@@ -152,7 +153,8 @@ class Worker(QtCore.QObject):
             )
 
             if properties and 'static' in properties:
-                self.staticComponents[compNo] = comp.frameRender(compNo, 0)
+                self.staticComponents[compNo] = copy(comp.frameRender(compNo, 0))
+                print('done')
 
         self.compositeQueue = Queue()
         self.compositeQueue.maxsize = 20
