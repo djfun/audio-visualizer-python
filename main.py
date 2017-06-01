@@ -121,6 +121,7 @@ class Main(QtCore.QObject):
     self.core = core.Core()
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
     LoadDefaultSettings(self)
+    self.currentProject = None
 
     # create data directory structure if needed
     self.dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
@@ -136,10 +137,8 @@ class Main(QtCore.QObject):
 
     self.previewThread = QtCore.QThread(self)
     self.previewWorker = preview_thread.Worker(self, self.previewQueue)
-
     self.previewWorker.moveToThread(self.previewThread)
     self.previewWorker.imageCreated.connect(self.showPreviewImage)
-    
     self.previewThread.start()
 
     self.timer = QtCore.QTimer(self)
@@ -178,8 +177,9 @@ class Main(QtCore.QObject):
 
     self.window.pushButton_savePreset.clicked.connect(self.openSavePresetDialog)
     self.window.comboBox_openPreset.currentIndexChanged.connect(self.openPreset)
-    self.window.pushButton_saveProject.clicked.connect(self.openSaveProjectDialog)
-    #self.window.pushButton_openProject
+    self.window.pushButton_saveAs.clicked.connect(self.openSaveProjectDialog)
+    self.window.pushButton_saveProject.clicked.connect(self.saveCurrentProject)
+    self.window.pushButton_openProject.clicked.connect(self.openOpenProjectDialog)
     
     self.drawPreview()
 
@@ -422,19 +422,55 @@ class Main(QtCore.QObject):
     self.selectedComponents[index].loadPreset(saveValueStore)
     self.drawPreview()
 
+  def saveCurrentProject(self):
+    if self.currentProject:
+        self.createProjectFile(self.currentProject)
+    else:
+        self.openSaveProjectDialog()
+
   def openSaveProjectDialog(self):
     outputDir = os.path.join(self.dataDir, 'projects')
-    filename = QtGui.QFileDialog.getSaveFileName(self.window,
-        "Create Project File", outputDir)
+    filename = QtGui.QFileDialog.getSaveFileName(self.window, "Create Project File", outputDir)
     if not filename:
         return
     filepath = os.path.join(outputDir, filename)
+    self.currentProject = filepath
+    self.createProjectFile(filepath)
+    
+  def createProjectFile(self, filepath):
     with open(filepath, 'w') as f:
         for comp in self.selectedComponents:
             saveValueStore = comp.savePreset()
             f.write('%s\n' % str(comp))
             f.write('%s\n' % str(comp.version()))
             f.write('%s\n' % repr(saveValueStore))
+            
+  def openOpenProjectDialog(self):
+    inputDir = os.path.join(self.dataDir, 'projects')
+    filename = QtGui.QFileDialog.getOpenFileName(self.window, "Open Project File", inputDir)
+    if not filename:
+        return
+    filepath = os.path.join(inputDir, filename)
+    self.openProject(filepath)
+    
+  def openProject(self, filepath):
+    self.clear()
+    self.currentProject = filepath
+    compNames = [mod.Component.__doc__ for mod in self.modules]
+    with open(filepath, 'r') as f:
+        i = 0
+        for line in f:
+            if i == 0:
+                compIndex = compNames.index(line.strip())
+                self.addComponent(compIndex)
+                i += 1
+            elif i == 1:
+                # version, not used yet
+                i += 1
+            elif i == 2:
+                saveValueStore = eval(line.strip())
+                self.selectedComponents[-1].loadPreset(saveValueStore)
+                i = 0
 
   def showMessage(self, string, icon=QtGui.QMessageBox.Information, showCancel=False):
     msg = QtGui.QMessageBox()
@@ -448,6 +484,14 @@ class Main(QtCore.QObject):
     if ch == 1024:
         return True
     return False
+    
+  def clear(self):
+    ''' empty out all components and fields, get a blank slate '''
+    self.selectedComponents = []
+    self.window.listWidget_componentList.clear()
+    for widget in self.pages:
+        self.window.stackedWidget.removeWidget(widget)
+    self.pages = []
 
 def LoadDefaultSettings(self):
   self.resolutions = [
