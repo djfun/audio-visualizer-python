@@ -6,10 +6,12 @@ import core
 import numpy
 import subprocess as sp
 import sys
+import os
 from queue import Queue, PriorityQueue
 from threading import Thread
 import time
 from copy import copy
+import signal
 
 class Worker(QtCore.QObject):
 
@@ -27,6 +29,8 @@ class Worker(QtCore.QObject):
         self.parent = parent
         parent.videoTask.connect(self.createVideo)
         self.sampleSize = 1470
+        self.canceled = False
+        self.error = False
 
     def renderNode(self):
         while True:
@@ -80,8 +84,14 @@ class Worker(QtCore.QObject):
         background.paste(layer)
         return background
 
+    def stopVideo(self):
+        print('Stop Export')
+        self.canceled = True
+        self.out_pipe.send_signal(signal.SIGINT)
+
     @pyqtSlot(str, str, str, list)
     def createVideo(self, backgroundImage, inputFile, outputFile, components):
+        self.outputFile = outputFile
         self.width = int(self.core.settings.value('outputWidth'))
         self.height = int(self.core.settings.value('outputHeight'))
         # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
@@ -135,7 +145,9 @@ class Worker(QtCore.QObject):
             ffmpegCommand.append('-2')
 
         ffmpegCommand.append(outputFile)
-        out_pipe = sp.Popen(ffmpegCommand, stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
+        self.out_pipe = sp.Popen(ffmpegCommand, stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
+
+        
 
         # create video for output
         numpy.seterr(divide='ignore')
@@ -189,11 +201,11 @@ class Worker(QtCore.QObject):
                 self.renderQueue.task_done()
 
             try:
-                out_pipe.stdin.write(frameBuffer[i].tobytes())
+                self.out_pipe.stdin.write(frameBuffer[i].tobytes())
                 self.previewQueue.put([i, frameBuffer[i]])
                 del frameBuffer[i]
-            finally:
-                True
+            except:
+                break
 
             # increase progress bar value
             if progressBarValue + 1 <= (i / len(self.completeAudioArray)) * 100:
@@ -203,15 +215,31 @@ class Worker(QtCore.QObject):
 
         numpy.seterr(all='print')
 
-        out_pipe.stdin.close()
-        if out_pipe.stderr is not None:
-            print(out_pipe.stderr.read())
-            out_pipe.stderr.close()
+        self.out_pipe.stdin.close()
+        if self.out_pipe.stderr is not None:
+            print(self.out_pipe.stderr.read())
+            self.out_pipe.stderr.close()
+            self.error = True
         # out_pipe.terminate() # don't terminate ffmpeg too early
-        out_pipe.wait()
-        print("Video file created")
+        self.out_pipe.wait()
+        if self.canceled:
+            print("Export Canceled")
+            os.remove(self.outputFile)
+            self.progressBarUpdate.emit(0)
+            self.progressBarSetText.emit('Export Canceled')
+        else:
+            if self.error:
+                print("Export Failed")
+                self.progressBarUpdate.emit(0)
+                self.progressBarSetText.emit('Export Failed')
+            else:
+                print("Export Complete")
+                self.progressBarUpdate.emit(100)
+                self.progressBarSetText.emit('Export Complete')
+            
+        self.error = False
+        self.canceled = False
         self.parent.drawPreview()
         self.core.deleteTempDir()
-        self.progressBarUpdate.emit(100)
-        self.progressBarSetText.emit('100%')
+        
         self.videoCreated.emit()

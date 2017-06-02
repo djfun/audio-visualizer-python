@@ -173,6 +173,7 @@ class Main(QtCore.QObject):
     window.toolButton_selectOutputFile.clicked.connect(self.openOutputFileDialog)
     window.progressBar_createVideo.setValue(0)
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
+    window.pushButton_Cancel.clicked.connect(self.stopVideo)
     window.setWindowTitle("Audio Visualizer")
 
     self.previewWindow = PreviewWindow(self, r"background.jpg")
@@ -250,6 +251,13 @@ class Main(QtCore.QObject):
       self.window.lineEdit_background.setText(fileName)
     self.drawPreview()
 
+  def stopVideo(self):
+      print('stop')
+      try:
+        self.videoWorker.stopVideo()
+      except:
+        pass
+
   def createAudioVisualisation(self):
     # create output video if mandatory settings are filled in
     if self.window.lineEdit_audioFile.text() and self.window.lineEdit_outputFile.text():
@@ -262,8 +270,8 @@ class Main(QtCore.QObject):
         self.videoWorker.videoCreated.connect(self.videoCreated)
         self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
         self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
-        self.videoWorker.imageCreated.connect(self.showPreviewImage)
-        
+        self.videoWorker.imageCreated.connect(self.showPreviewImage) 
+
         self.videoThread.start()
         self.videoTask.emit(self.window.lineEdit_background.text(),
           self.window.lineEdit_audioFile.text(),
@@ -271,7 +279,7 @@ class Main(QtCore.QObject):
           self.selectedComponents)
     else:
         self.showMessage("You must select an audio file and output filename.")
-    
+
   def progressBarUpdated(self, value):
     self.window.progressBar_createVideo.setValue(value)
 
