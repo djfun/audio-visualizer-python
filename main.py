@@ -188,7 +188,7 @@ class Main(QtCore.QObject):
     self.previewThread.quit()
     self.previewThread.wait()
     backupPath = os.path.join(self.dataDir, 'settings.ini~')
-    settingsPath = os.path.join(self.dataDir, 'settings.ini')
+    settingsPath = self.settings.fileName()
     if self.currentProject:
         os.remove(settingsPath)
         os.rename(backupPath, settingsPath)
@@ -327,6 +327,7 @@ class Main(QtCore.QObject):
       self.window.stackedWidget.insertWidget(row - 1, page)
       self.window.listWidget_componentList.setCurrentRow(row - 1)
       self.window.stackedWidget.setCurrentIndex(row -1)
+      self.drawPreview()
 
   def moveComponentDown(self):
     row = self.window.listWidget_componentList.currentRow()
@@ -343,6 +344,7 @@ class Main(QtCore.QObject):
       self.window.stackedWidget.insertWidget(row + 1, page)
       self.window.listWidget_componentList.setCurrentRow(row + 1)
       self.window.stackedWidget.setCurrentIndex(row + 1)
+      self.drawPreview()
 
   def updateOpenPresetComboBox(self, component):
     self.window.comboBox_openPreset.clear()
@@ -437,8 +439,8 @@ class Main(QtCore.QObject):
             f.write('%s\n' % str(comp))
             f.write('%s\n' % str(comp.version()))
             f.write('%s\n' % repr(saveValueStore))
-        dir_ = os.path.join(self.dataDir, 'project-settings')
-        shutil.copyfile(self.settings.fileName(), os.path.join(dir_, os.path.basename('%s.ini' % filepath)))
+        projSettingsPath = os.path.join(self.dataDir, 'project-settings', os.path.basename('%s.ini' % filepath))
+        shutil.copyfile(self.settings.fileName(), projSettingsPath)
             
   def openOpenProjectDialog(self):
     inputDir = os.path.join(self.dataDir, 'projects')
@@ -468,11 +470,10 @@ class Main(QtCore.QObject):
                 i = 0
     projSettingsPath = os.path.join(self.dataDir, 'project-settings', '%s.ini' % os.path.basename(filepath))
     backupPath = os.path.join(self.dataDir, 'settings.ini~')
-    settingsPath = os.path.join(self.dataDir, 'settings.ini')
+    settingsPath = self.settings.fileName()
     if os.path.exists(backupPath):
         os.remove(backupPath)
     os.rename(settingsPath, backupPath)
-    #os.remove(settingsPath)
     shutil.copyfile(projSettingsPath, settingsPath)
     self.settings.sync()
 
