@@ -107,8 +107,8 @@ class Worker(QtCore.QObject):
             self.imBackground = None
         self.bgI = 0
 
-        self.progressBarSetText.emit('Loading audio file…')
-        self.completeAudioArray = self.core.readAudioFile(inputFile)
+        self.progressBarSetText.emit('Loading audio file...')
+        self.completeAudioArray = self.core.readAudioFile(inputFile, self)
 
         # test if user has libfdk_aac
         encoders = sp.check_output(self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
@@ -152,12 +152,17 @@ class Worker(QtCore.QObject):
         print('loaded components:',
               ["%s%s" % (num, str(component)) for num, component in enumerate(self.components)])
         self.staticComponents = {}
+        numComps = len(self.components)
         for compNo, comp in enumerate(self.components):
+            pStr = "Analyzing audio..."
+            self.progressBarSetText.emit(pStr)
             properties = None
             properties = comp.preFrameRender(
                 worker=self,
                 completeAudioArray=self.completeAudioArray,
                 sampleSize=self.sampleSize,
+                progressBarUpdate=self.progressBarUpdate,
+                progressBarSetText=self.progressBarSetText
             )
 
             if properties and 'static' in properties:
@@ -207,7 +212,8 @@ class Worker(QtCore.QObject):
                 if progressBarValue + 1 <= (i / len(self.completeAudioArray)) * 100:
                     progressBarValue = numpy.floor((i / len(self.completeAudioArray)) * 100)
                     self.progressBarUpdate.emit(progressBarValue)
-                    self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
+                    pStr = "Exporting video: " + str(int(progressBarValue)) + "%"
+                    self.progressBarSetText.emit(pStr)
 
         numpy.seterr(all='print')
 
@@ -226,6 +232,7 @@ class Worker(QtCore.QObject):
                 pass
             self.progressBarUpdate.emit(0)
             self.progressBarSetText.emit('Export Canceled')
+            
         else:
             if self.error:
                 print("Export Failed")
@@ -240,9 +247,13 @@ class Worker(QtCore.QObject):
         self.canceled = False
         self.parent.drawPreview()
         self.core.deleteTempDir()
-        
+        self.parent.changeEncodingStatus(False)
         self.videoCreated.emit()
     
+    def updateProgress(self, pStr, pVal):
+        self.progressBarValue.emit(pVal)
+        self.progressBarSetText.emit(pStr)
+
     def cancel(self):
         self.canceled = True
         self.core.cancel()

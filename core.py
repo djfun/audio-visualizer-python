@@ -55,7 +55,24 @@ class Core():
         
     return im
 
-  def readAudioFile(self, filename):
+  def readAudioFile(self, filename, parent):
+    command = [ self.FFMPEG_BIN,
+          '-i', filename]
+
+    try:
+      fileInfo = sp.check_output(command, stderr=sp.STDOUT, shell=False)
+    except sp.CalledProcessError as ex:
+      fileInfo = ex.output
+      pass
+
+    info = fileInfo.decode("utf-8").split('\n')
+    for line in info:
+      if 'Duration' in line:
+        d = line.split(',')[0]
+        d = d.split(' ')[3]
+        d = d.split(':')
+        duration = float(d[0])*3600 + float(d[1])*60 + float(d[2])
+
     command = [ self.FFMPEG_BIN,
           '-i', filename,
           '-f', 's16le',
@@ -67,16 +84,30 @@ class Core():
     
     completeAudioArray = numpy.empty(0, dtype="int16")
 
+    progress = 0
+    lastPercent = None
     while True:
       if self.canceled:
         break
       # read 2 seconds of audio
+      progress = progress + 4
       raw_audio = in_pipe.stdout.read(88200*4)
       if len(raw_audio) == 0:
         break
       audio_array = numpy.fromstring(raw_audio, dtype="int16")
       completeAudioArray = numpy.append(completeAudioArray, audio_array)
-      # print(audio_array)
+
+      percent = int(100*(progress/duration))
+      if percent >= 100:
+        percent = 100
+
+      if lastPercent != percent:
+        string = 'Loading audio file: '+str(percent)+'%'
+        parent.progressBarSetText.emit(string)
+        parent.progressBarUpdate.emit(percent)
+
+      lastPercent = percent
+        
 
     in_pipe.kill()
     in_pipe.wait()

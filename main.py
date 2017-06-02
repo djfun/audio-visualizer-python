@@ -260,7 +260,7 @@ class Main(QtCore.QObject):
     # create output video if mandatory settings are filled in
     if self.window.lineEdit_audioFile.text() and self.window.lineEdit_outputFile.text():
         self.canceled = False
-        self.startExport = True
+        self.changeEncodingStatus(True)
         self.progressBarUpdated(-1)
         ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
 
@@ -282,26 +282,15 @@ class Main(QtCore.QObject):
         self.showMessage("You must select an audio file and output filename.")
 
   def progressBarUpdated(self, value):
-    if value != -1:
       self.window.progressBar_createVideo.setValue(value)
-      
-    if self.canceled:
-      self.window.pushButton_createVideo.setEnabled(True)
-      self.window.pushButton_Cancel.setEnabled(False)
-      self.startExport = False
-      return
 
-    if value == 100 or value == 0:
-      if not self.startExport: 
-        self.window.pushButton_createVideo.setEnabled(True)
-        self.window.pushButton_Cancel.setEnabled(False)
-    else:
-      if value == -1:
-        self.startExport = True
-      else:
-        self.startExport = False
+  def changeEncodingStatus(self, status):
+    if status:
       self.window.pushButton_createVideo.setEnabled(False)
       self.window.pushButton_Cancel.setEnabled(True)
+    else:
+      self.window.pushButton_createVideo.setEnabled(True)
+      self.window.pushButton_Cancel.setEnabled(False)
 
 
   def progressBarSetText(self, value):

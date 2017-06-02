@@ -66,6 +66,14 @@ class Component(__base__.Component):
                 self.smoothConstantDown, self.smoothConstantUp, self.lastSpectrum)
             self.spectrumArray[i] = copy(self.lastSpectrum)
 
+            progress = int(100*(i/len(self.completeAudioArray)))
+            if progress >= 100:
+                progress = 100
+            pStr = "Analyzing audio: "+ str(progress) +'%'
+            self.progressBarSetText.emit(pStr)
+            self.progressBarUpdate.emit(int(progress))
+
+
     def frameRender(self, moduleNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
@@ -151,3 +159,7 @@ class Component(__base__.Component):
 
     def reset(self):
         self.canceled = False
+
+    
+
+
