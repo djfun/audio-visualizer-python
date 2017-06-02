@@ -27,6 +27,7 @@ class Component(__base__.Component):
         page.pushButton_visColor.setStyleSheet(btnStyle)
         page.lineEdit_visColor.textChanged.connect(self.update)
         self.page = page
+        self.canceled = False
         return page
     
     def update(self):
@@ -59,6 +60,8 @@ class Component(__base__.Component):
         self.spectrumArray = {}
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
+            if self.canceled:
+                break
             self.lastSpectrum = self.transformData(i, self.completeAudioArray, self.sampleSize,
                 self.smoothConstantDown, self.smoothConstantUp, self.lastSpectrum)
             self.spectrumArray[i] = copy(self.lastSpectrum)
@@ -142,3 +145,9 @@ class Component(__base__.Component):
             im.paste(imTop, (0, y), mask=imTop)
 
         return im
+
+    def cancel(self):
+        self.canceled = True
+
+    def reset(self):
+        self.canceled = False

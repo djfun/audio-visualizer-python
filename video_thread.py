@@ -82,20 +82,16 @@ class Worker(QtCore.QObject):
             )
         layer = self.core.drawBaseImage(self.backgroundFrames[i])
         background.paste(layer)
-        return background
-
-    def stopVideo(self):
-        print('Stop Export')
-        self.canceled = True
-        self.out_pipe.send_signal(signal.SIGINT)
+        return background        
 
     @pyqtSlot(str, str, str, list)
     def createVideo(self, backgroundImage, inputFile, outputFile, components):
+        self.components = components
         self.outputFile = outputFile
+        self.reset()
         self.width = int(self.core.settings.value('outputWidth'))
         self.height = int(self.core.settings.value('outputHeight'))
         # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
-        self.components = components
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
         self.progressBarSetText.emit('Loading background image…')
@@ -154,14 +150,14 @@ class Worker(QtCore.QObject):
 
         # initialize components
         print('loaded components:',
-              ["%s%s" % (num, str(component)) for num, component in enumerate(components)])
+              ["%s%s" % (num, str(component)) for num, component in enumerate(self.components)])
         self.staticComponents = {}
-        for compNo, comp in enumerate(components):
+        for compNo, comp in enumerate(self.components):
             properties = None
             properties = comp.preFrameRender(
                 worker=self,
                 completeAudioArray=self.completeAudioArray,
-                sampleSize=self.sampleSize
+                sampleSize=self.sampleSize,
             )
 
             if properties and 'static' in properties:
@@ -189,29 +185,29 @@ class Worker(QtCore.QObject):
 
         frameBuffer = {}
         self.lastPreview = 0.0
+        if not self.canceled:
+            for i in range(0, len(self.completeAudioArray), self.sampleSize):
+                while True:
+                    if i in frameBuffer:
+                        # if frame's in buffer, pipe it to ffmpeg
+                        break
+                    # else fetch the next frame & add to the buffer
+                    data = self.renderQueue.get()
+                    frameBuffer[data[0]] = data[1]
+                    self.renderQueue.task_done()
 
-        for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            while True:
-                if i in frameBuffer:
-                    # if frame's in buffer, pipe it to ffmpeg
+                try:
+                    self.out_pipe.stdin.write(frameBuffer[i].tobytes())
+                    self.previewQueue.put([i, frameBuffer[i]])
+                    del frameBuffer[i]
+                except:
                     break
-                # else fetch the next frame & add to the buffer
-                data = self.renderQueue.get()
-                frameBuffer[data[0]] = data[1]
-                self.renderQueue.task_done()
 
-            try:
-                self.out_pipe.stdin.write(frameBuffer[i].tobytes())
-                self.previewQueue.put([i, frameBuffer[i]])
-                del frameBuffer[i]
-            except:
-                break
-
-            # increase progress bar value
-            if progressBarValue + 1 <= (i / len(self.completeAudioArray)) * 100:
-                progressBarValue = numpy.floor((i / len(self.completeAudioArray)) * 100)
-                self.progressBarUpdate.emit(progressBarValue)
-                self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
+                # increase progress bar value
+                if progressBarValue + 1 <= (i / len(self.completeAudioArray)) * 100:
+                    progressBarValue = numpy.floor((i / len(self.completeAudioArray)) * 100)
+                    self.progressBarUpdate.emit(progressBarValue)
+                    self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
 
         numpy.seterr(all='print')
 
@@ -224,7 +220,10 @@ class Worker(QtCore.QObject):
         self.out_pipe.wait()
         if self.canceled:
             print("Export Canceled")
-            os.remove(self.outputFile)
+            try:
+                os.remove(self.outputFile)
+            except:
+                pass
             self.progressBarUpdate.emit(0)
             self.progressBarSetText.emit('Export Canceled')
         else:
@@ -243,3 +242,22 @@ class Worker(QtCore.QObject):
         self.core.deleteTempDir()
         
         self.videoCreated.emit()
+    
+    def cancel(self):
+        self.canceled = True
+        self.core.cancel()
+        
+        for comp in self.components:
+            comp.cancel()
+        
+        try:
+            self.out_pipe.send_signal(signal.SIGINT)
+        except:
+            pass
+
+    def reset(self):
+        self.core.reset()
+
+        self.canceled = False
+        for comp in self.components:
+            comp.reset()

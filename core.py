@@ -7,6 +7,7 @@ from PIL import Image
 import tempfile
 from shutil import rmtree
 import atexit
+import time
 
 class Core():
 
@@ -67,6 +68,8 @@ class Core():
     completeAudioArray = numpy.empty(0, dtype="int16")
 
     while True:
+      if self.canceled:
+        break
       # read 2 seconds of audio
       raw_audio = in_pipe.stdout.read(88200*4)
       if len(raw_audio) == 0:
@@ -110,3 +113,9 @@ class Core():
          shell=True
       )
       return sorted([os.path.join(self.tempDir, f) for f in os.listdir(self.tempDir)])
+
+  def cancel(self):
+    self.canceled = True
+
+  def reset(self):
+    self.canceled = False

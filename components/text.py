@@ -141,3 +141,9 @@ class Component(__base__.Component):
             return
         self.page.lineEdit_textColor.setText(RGBstring)
         self.page.pushButton_textColor.setStyleSheet(btnStyle)
+
+    def cancel(self):
+        self.canceled = True
+
+    def reset(self):
+        self.canceled = False

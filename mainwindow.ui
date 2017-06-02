@@ -711,6 +711,9 @@
             </item>
             <item>
              <widget class="QPushButton" name="pushButton_Cancel">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="text">
                <string>Cancel</string>
               </property>
