@@ -8,7 +8,7 @@ import subprocess as sp
 import sys
 import os
 from queue import Queue, PriorityQueue
-from threading import Thread
+from threading import Thread, Event
 import time
 from copy import copy
 import signal
@@ -31,9 +31,10 @@ class Worker(QtCore.QObject):
         self.sampleSize = 1470
         self.canceled = False
         self.error = False
+        self.stopped = False
 
     def renderNode(self):
-        while True:
+        while not self.stopped:
             i = self.compositeQueue.get()
 
             if self.imBackground is not None:
@@ -61,11 +62,9 @@ class Worker(QtCore.QObject):
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
             self.compositeQueue.put([i, self.bgI])
-        self.compositeQueue.join()
-        print('Compositing Complete.')
 
     def previewDispatch(self):
-        while True:
+        while not self.stopped:
             i = self.previewQueue.get()
             if time.time() - self.lastPreview >= 0.06 or i[0] == 0:
                 self._image = ImageQt(i[1])
@@ -82,7 +81,7 @@ class Worker(QtCore.QObject):
             )
         layer = self.core.drawBaseImage(self.backgroundFrames[i])
         background.paste(layer)
-        return background        
+        return background
 
     @pyqtSlot(str, str, str, list)
     def createVideo(self, backgroundImage, inputFile, outputFile, components):
@@ -113,7 +112,7 @@ class Worker(QtCore.QObject):
         # test if user has libfdk_aac
         encoders = sp.check_output(self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
         acodec = self.core.settings.value('outputAudioCodec')
-
+        
         if b'libfdk_aac' in encoders and acodec == 'aac':
             acodec = 'libfdk_aac'
 
@@ -143,8 +142,6 @@ class Worker(QtCore.QObject):
         ffmpegCommand.append(outputFile)
         self.out_pipe = sp.Popen(ffmpegCommand, stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
 
-        
-
         # create video for output
         numpy.seterr(divide='ignore')
 
@@ -167,6 +164,7 @@ class Worker(QtCore.QObject):
 
             if properties and 'static' in properties:
                 self.staticComponents[compNo] = copy(comp.frameRender(compNo, 0))
+            self.progressBarUpdate.emit(100)
 
         self.compositeQueue = Queue()
         self.compositeQueue.maxsize = 20
@@ -174,11 +172,12 @@ class Worker(QtCore.QObject):
         self.renderQueue.maxsize = 20
         self.previewQueue = PriorityQueue()
 
+        self.renderThreads = []
         # create threads to render frames and send them back here for piping out
         for i in range(3):
-            t = Thread(target=self.renderNode, name="Render Thread")
-            t.daemon = True
-            t.start()
+            self.renderThreads.append(Thread(target=self.renderNode, name="Render Thread"))
+            self.renderThreads[i].daemon = True
+            self.renderThreads[i].start()
 
         self.dispatchThread = Thread(target=self.renderDispatch, name="Render Dispatch Thread")
         self.dispatchThread.daemon = True
@@ -190,6 +189,9 @@ class Worker(QtCore.QObject):
 
         frameBuffer = {}
         self.lastPreview = 0.0
+        self.progressBarUpdate.emit(0)
+        pStr = "Exporting video..."
+        self.progressBarSetText.emit(pStr)
         if not self.canceled:
             for i in range(0, len(self.completeAudioArray), self.sampleSize):
                 while True:
@@ -247,8 +249,11 @@ class Worker(QtCore.QObject):
         self.canceled = False
         self.parent.drawPreview()
         self.core.deleteTempDir()
-        self.parent.changeEncodingStatus(False)
+        self.stopped = True
         self.videoCreated.emit()
+        self.parent.changeEncodingStatus(False)
+
+        return
     
     def updateProgress(self, pStr, pVal):
         self.progressBarValue.emit(pVal)

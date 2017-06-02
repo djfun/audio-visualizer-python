@@ -263,16 +263,13 @@ class Main(QtCore.QObject):
         self.changeEncodingStatus(True)
         self.progressBarUpdated(-1)
         ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
-
         self.videoThread = QtCore.QThread(self)
         self.videoWorker = video_thread.Worker(self)
-
         self.videoWorker.moveToThread(self.videoThread)
         self.videoWorker.videoCreated.connect(self.videoCreated)
         self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
         self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
         self.videoWorker.imageCreated.connect(self.showPreviewImage) 
-
         self.videoThread.start()
         self.videoTask.emit(self.window.lineEdit_background.text(),
           self.window.lineEdit_audioFile.text(),
@@ -291,6 +288,7 @@ class Main(QtCore.QObject):
     else:
       self.window.pushButton_createVideo.setEnabled(True)
       self.window.pushButton_Cancel.setEnabled(False)
+      
 
 
   def progressBarSetText(self, value):
