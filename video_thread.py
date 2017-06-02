@@ -63,7 +63,7 @@ class Worker(QtCore.QObject):
     def previewDispatch(self):
         while True:
             i = self.previewQueue.get()
-            if time.time() - self.lastPreview >= 0.05 or i[0] == 0:
+            if time.time() - self.lastPreview >= 0.06 or i[0] == 0:
                 self._image = ImageQt(i[1])
                 self.imageCreated.emit(QtGui.QImage(self._image))
                 self.lastPreview = time.time()

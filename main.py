@@ -3,7 +3,7 @@ from os.path import expanduser
 from queue import Queue
 from importlib import import_module
 from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtCore import QSettings, QModelIndex
+from PyQt4.QtCore import QSettings, QModelIndex, Qt
 from PyQt4.QtGui import QDesktopServices
 
 import preview_thread, core, video_thread
@@ -107,6 +107,29 @@ class Command(QtCore.QObject):
     self.settings.setValue("textColor", '%s,%s,%s' % self.textColor)
     sys.exit(0)
 '''
+
+class PreviewWindow(QtGui.QLabel):
+    def __init__(self, parent, img):
+        super(PreviewWindow, self).__init__()
+        self.parent = parent
+        self.setFrameStyle(QtGui.QFrame.StyledPanel)
+        self.pixmap = QtGui.QPixmap(img)
+
+    def paintEvent(self, event):
+        size = self.size()
+        painter = QtGui.QPainter(self)
+        point = QtCore.QPoint(0,0)
+        scaledPix = self.pixmap.scaled(size, Qt.KeepAspectRatio, transformMode = Qt.SmoothTransformation)
+        # start painting the label from left upper corner
+        point.setX((size.width() - scaledPix.width())/2)
+        point.setY((size.height() - scaledPix.height())/2)
+        #print point.x(), ' ', point.y()
+        painter.drawPixmap(point, scaledPix)
+
+    def changePixmap(self, img):
+        self.pixmap = QtGui.QPixmap(img)
+        self.repaint()
+
 class Main(QtCore.QObject):
 
   newTask = QtCore.pyqtSignal(str, list)
@@ -151,6 +174,9 @@ class Main(QtCore.QObject):
     window.progressBar_createVideo.setValue(0)
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
     window.setWindowTitle("Audio Visualizer")
+
+    self.previewWindow = PreviewWindow(self, r"background.jpg")
+    window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
     
     self.modules = self.findComponents()
     for component in self.modules:
@@ -269,10 +295,7 @@ class Main(QtCore.QObject):
     # self.processTask.emit()
 
   def showPreviewImage(self, image):
-    self._scaledPreviewImage = image
-    self._previewPixmap = QtGui.QPixmap.fromImage(self._scaledPreviewImage)
-
-    self.window.label_previewContainer.setPixmap(self._previewPixmap)
+    self.previewWindow.changePixmap(image)
 
   def findComponents(self):
     def findComponents():
@@ -548,7 +571,7 @@ if __name__ == "__main__":
     
     topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
     window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
-    window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
+    #window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
   
     main = Main(window)
 
