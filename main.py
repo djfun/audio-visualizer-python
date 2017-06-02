@@ -354,7 +354,7 @@ class Main(QtCore.QObject):
     if not os.path.exists(destination):
         os.makedirs(destination)
     for f in os.listdir(destination):
-            self.window.comboBox_openPreset.addItem(f)
+        self.window.comboBox_openPreset.addItem(f)
 
   def openSavePresetDialog(self):
     if self.window.listWidget_componentList.currentRow() == -1:
@@ -476,6 +476,11 @@ class Main(QtCore.QObject):
     os.rename(settingsPath, backupPath)
     shutil.copyfile(projSettingsPath, settingsPath)
     self.settings.sync()
+    currentRes = str(self.settings.value('outputWidth'))+'x'+str(self.settings.value('outputHeight'))
+    for i in range(self.window.comboBox_resolution.count()-1):
+        if self.window.comboBox_resolution.itemText(i) == currentRes:
+            self.window.comboBox_resolution.setCurrentIndex(i)
+            break
 
   def showMessage(self, string, icon=QtGui.QMessageBox.Information, showCancel=False):
     msg = QtGui.QMessageBox()
