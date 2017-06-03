@@ -8,6 +8,7 @@ import tempfile
 from shutil import rmtree
 import atexit
 import time
+from collections import OrderedDict
 
 class Core():
 
@@ -150,3 +151,8 @@ class Core():
 
   def reset(self):
     self.canceled = False
+    
+  @staticmethod
+  def sortedStringDict(dictionary):
+    sorted_ = OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
+    return repr(sorted_)
