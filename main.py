@@ -473,6 +473,7 @@ class Main(QtCore.QObject):
     if not filepath.endswith(".avp"):
         filepath += '.avp'
     with open(filepath, 'w') as f:
+        f.write('[Components]\n')
         for comp in self.selectedComponents:
             saveValueStore = comp.savePreset()
             f.write('%s\n' % str(comp))
@@ -496,20 +497,35 @@ class Main(QtCore.QObject):
     self.settings.setValue("lastProject", filepath)
     self.settings.setValue("projectDir", os.path.dirname(filepath))
     compNames = [mod.Component.__doc__ for mod in self.modules]
+    
     with open(filepath, 'r') as f:
+        validSections = ('Components')
+        section = ''
+        def parseLine(line):
+            line = line.strip()
+            newSection = ''
+            if line.startswith('[') and line.endswith(']') and line[1:-1] in validSections:
+                newSection = line[1:-1]
+            return line, newSection
+            
         i = 0
         for line in f:
-            if i == 0:
-                compIndex = compNames.index(line.strip())
-                self.addComponent(compIndex)
-                i += 1
-            elif i == 1:
-                # version, not used yet
-                i += 1
-            elif i == 2:
-                saveValueStore = eval(line.strip())
-                self.selectedComponents[-1].loadPreset(saveValueStore)
-                i = 0
+            line, newSection = parseLine(line)
+            if newSection:
+                section = str(newSection)
+                continue
+            if line and section == 'Components':
+                if i == 0:
+                    compIndex = compNames.index(line.strip())
+                    self.addComponent(compIndex)
+                    i += 1
+                elif i == 1:
+                    # version, not used yet
+                    i += 1
+                elif i == 2:
+                    saveValueStore = eval(line.strip())
+                    self.selectedComponents[-1].loadPreset(saveValueStore)
+                    i = 0
 
   def showMessage(self, string, icon=QtGui.QMessageBox.Information, showCancel=False):
     msg = QtGui.QMessageBox()
