@@ -56,13 +56,13 @@ class Worker(QtCore.QObject):
 
     def renderDispatch(self):
         print('Dispatching Frames for Compositing...')
-        if not self.imBackground:
-            # increment background video frame for next iteration
-            if self.bgI < len(self.backgroundFrames)-1 and i != 0:
-                self.bgI += 1
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
             self.compositeQueue.put([i, self.bgI])
+            if not self.imBackground:
+                # increment background video frame for next iteration
+                if self.bgI < len(self.backgroundFrames)-1:
+                    self.bgI += 1
 
     def previewDispatch(self):
         while not self.stopped:

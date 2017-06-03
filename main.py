@@ -580,7 +580,7 @@ if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     app.setApplicationName("audio-visualizer")
     app.setOrganizationName("audio-visualizer")
-    window = uic.loadUi("mainwindow.ui")
+    window = uic.loadUi(os.path.join(os.path.dirname(os.path.realpath(__file__)), "mainwindow.ui"))
     # window.adjustSize()
     desc = QtGui.QDesktopWidget()
     dpi = desc.physicalDpiX()
