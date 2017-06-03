@@ -19,6 +19,7 @@ class Worker(QtCore.QObject):
     videoCreated = pyqtSignal()
     progressBarUpdate = pyqtSignal(int)
     progressBarSetText = pyqtSignal(str)
+    encoding = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         QtCore.QObject.__init__(self)
@@ -85,6 +86,7 @@ class Worker(QtCore.QObject):
 
     @pyqtSlot(str, str, str, list)
     def createVideo(self, backgroundImage, inputFile, outputFile, components):
+        self.encoding.emit(True)
         self.components = components
         self.outputFile = outputFile
         self.reset()
@@ -250,10 +252,8 @@ class Worker(QtCore.QObject):
         self.parent.drawPreview()
         self.core.deleteTempDir()
         self.stopped = True
+        self.encoding.emit(False)
         self.videoCreated.emit()
-        self.parent.changeEncodingStatus(False)
-
-        return
     
     def updateProgress(self, pStr, pVal):
         self.progressBarValue.emit(pVal)
@@ -273,7 +273,6 @@ class Worker(QtCore.QObject):
 
     def reset(self):
         self.core.reset()
-
         self.canceled = False
         for comp in self.components:
             comp.reset()

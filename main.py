@@ -260,7 +260,6 @@ class Main(QtCore.QObject):
     # create output video if mandatory settings are filled in
     if self.window.lineEdit_audioFile.text() and self.window.lineEdit_outputFile.text():
         self.canceled = False
-        self.changeEncodingStatus(True)
         self.progressBarUpdated(-1)
         ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
         self.videoThread = QtCore.QThread(self)
@@ -269,7 +268,8 @@ class Main(QtCore.QObject):
         self.videoWorker.videoCreated.connect(self.videoCreated)
         self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
         self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
-        self.videoWorker.imageCreated.connect(self.showPreviewImage) 
+        self.videoWorker.imageCreated.connect(self.showPreviewImage)
+        self.videoWorker.encoding.connect(self.changeEncodingStatus)
         self.videoThread.start()
         self.videoTask.emit(self.window.lineEdit_background.text(),
           self.window.lineEdit_audioFile.text(),
