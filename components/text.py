@@ -8,6 +8,10 @@ from . import __base__
 
 class Component(__base__.Component):
     '''Title Text'''
+    def __init__(self):
+        super().__init__()
+        self.titleFont = QFont()
+
     def widget(self, parent):
         height = int(parent.settings.value('outputHeight'))
         width = int(parent.settings.value('outputWidth'))
@@ -36,8 +40,8 @@ class Component(__base__.Component):
         page.pushButton_textColor.setStyleSheet(btnStyle)
 
         page.lineEdit_title.setText(self.title)
-        if not self.titleFont == None: 
-          page.fontComboBox_titleFont.setCurrentFont(QFont(self.titleFont))
+        #if self.titleFont:
+        #  page.fontComboBox_titleFont.setCurrentFont(QFont(self.titleFont))
         page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
         page.spinBox_fontSize.setValue(int(self.fontSize))
         page.spinBox_xTextAlign.setValue(int(self.xPosition))

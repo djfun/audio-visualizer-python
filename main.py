@@ -146,16 +146,18 @@ class Main(QtCore.QObject):
     self.pages = []
     self.selectedComponents = []
 
-    # create data directory structure if needed
+    # create data directory, load/create settings
     self.dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
-    if not os.path.exists(self.dataDir):
-        os.makedirs(self.dataDir)
-    for neededDirectory in ('projects', 'project-settings', 'presets'):
-        if not os.path.exists(os.path.join(self.dataDir, neededDirectory)):
-            os.mkdir(os.path.join(self.dataDir, neededDirectory))
     self.settings = QSettings(os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
     LoadDefaultSettings(self)
+    if not os.path.exists(self.dataDir):
+        os.makedirs(self.dataDir)
+    presetDir = os.path.join(self.dataDir, 'presets')
+    for neededDirectory in (presetDir, self.settings.value("projectDir")):
+        if not os.path.exists(neededDirectory):
+            os.mkdir(neededDirectory)
 
+    #
     self.previewQueue = Queue()
     self.previewThread = QtCore.QThread(self)
     self.previewWorker = preview_thread.Worker(self, self.previewQueue)
@@ -176,7 +178,7 @@ class Main(QtCore.QObject):
     window.pushButton_Cancel.clicked.connect(self.stopVideo)
     window.setWindowTitle("Audio Visualizer")
 
-    self.previewWindow = PreviewWindow(self, r"background.jpg")
+    self.previewWindow = PreviewWindow(self, os.path.join(os.path.dirname(os.path.realpath(__file__)), "background.jpg"))
     window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
     
     self.modules = self.findComponents()
@@ -206,19 +208,14 @@ class Main(QtCore.QObject):
     self.window.pushButton_saveProject.clicked.connect(self.saveCurrentProject)
     self.window.pushButton_openProject.clicked.connect(self.openOpenProjectDialog)
     
+    self.openProject(self.settings.value("lastProject"))
     self.drawPreview()
-
     window.show()
 
   def cleanUp(self):
     self.timer.stop()
     self.previewThread.quit()
     self.previewThread.wait()
-    backupPath = os.path.join(self.dataDir, 'settings.ini~')
-    settingsPath = self.settings.fileName()
-    if self.currentProject:
-        os.remove(settingsPath)
-        os.rename(backupPath, settingsPath)
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -343,13 +340,15 @@ class Main(QtCore.QObject):
         self.window.listWidget_componentList.takeItem(index)
         self.selectedComponents.pop(index)
         self.pages.pop(index)
+        self.changeComponentWidget()
     self.drawPreview()
 
   def changeComponentWidget(self):
     selected = self.window.listWidget_componentList.selectedItems()
-    index = self.window.listWidget_componentList.row(selected[0])
-    self.window.stackedWidget.setCurrentIndex(index)
-    self.updateOpenPresetComboBox(self.selectedComponents[index])
+    if selected:
+        index = self.window.listWidget_componentList.row(selected[0])
+        self.window.stackedWidget.setCurrentIndex(index)
+        self.updateOpenPresetComboBox(self.selectedComponents[index])
 
   def moveComponentUp(self):
     row = self.window.listWidget_componentList.currentRow()
@@ -463,35 +462,39 @@ class Main(QtCore.QObject):
         self.openSaveProjectDialog()
 
   def openSaveProjectDialog(self):
-    outputDir = os.path.join(self.dataDir, 'projects')
-    filename = QtGui.QFileDialog.getSaveFileName(self.window, "Create Project File", outputDir)
+    filename = QtGui.QFileDialog.getSaveFileName(self.window,
+        "Create Project File", self.settings.value("projectDir"),
+        "Project Files (*.avp)")
     if not filename:
         return
-    filepath = os.path.join(outputDir, filename)
-    self.currentProject = filepath
-    self.createProjectFile(filepath)
+    self.createProjectFile(filename)
     
   def createProjectFile(self, filepath):
+    if not filepath.endswith(".avp"):
+        filepath += '.avp'
     with open(filepath, 'w') as f:
         for comp in self.selectedComponents:
             saveValueStore = comp.savePreset()
             f.write('%s\n' % str(comp))
             f.write('%s\n' % str(comp.version()))
             f.write('%s\n' % repr(saveValueStore))
-        projSettingsPath = os.path.join(self.dataDir, 'project-settings', os.path.basename('%s.ini' % filepath))
-        shutil.copyfile(self.settings.fileName(), projSettingsPath)
+    self.settings.setValue("projectDir", os.path.dirname(filepath))
+    self.settings.setValue("lastProject", filepath)
+    self.currentProject = filepath
             
   def openOpenProjectDialog(self):
-    inputDir = os.path.join(self.dataDir, 'projects')
-    filename = QtGui.QFileDialog.getOpenFileName(self.window, "Open Project File", inputDir)
-    if not filename:
-        return
-    filepath = os.path.join(inputDir, filename)
-    self.openProject(filepath)
+    filename = QtGui.QFileDialog.getOpenFileName(self.window,
+        "Open Project File", self.settings.value("projectDir"),
+        "Project Files (*.avp)")
+    self.openProject(filename)
     
   def openProject(self, filepath):
+    if not filepath or not os.path.exists(filepath) or not filepath.endswith('.avp'):
+        return
     self.clear()
     self.currentProject = filepath
+    self.settings.setValue("lastProject", filepath)
+    self.settings.setValue("projectDir", os.path.dirname(filepath))
     compNames = [mod.Component.__doc__ for mod in self.modules]
     with open(filepath, 'r') as f:
         i = 0
@@ -507,19 +510,6 @@ class Main(QtCore.QObject):
                 saveValueStore = eval(line.strip())
                 self.selectedComponents[-1].loadPreset(saveValueStore)
                 i = 0
-    projSettingsPath = os.path.join(self.dataDir, 'project-settings', '%s.ini' % os.path.basename(filepath))
-    backupPath = os.path.join(self.dataDir, 'settings.ini~')
-    settingsPath = self.settings.fileName()
-    if os.path.exists(backupPath):
-        os.remove(backupPath)
-    os.rename(settingsPath, backupPath)
-    shutil.copyfile(projSettingsPath, settingsPath)
-    self.settings.sync()
-    currentRes = str(self.settings.value('outputWidth'))+'x'+str(self.settings.value('outputHeight'))
-    for i in range(self.window.comboBox_resolution.count()-1):
-        if self.window.comboBox_resolution.itemText(i) == currentRes:
-            self.window.comboBox_resolution.setCurrentIndex(i)
-            break
 
   def showMessage(self, string, icon=QtGui.QMessageBox.Information, showCancel=False):
     msg = QtGui.QMessageBox()
@@ -559,6 +549,7 @@ def LoadDefaultSettings(self):
     "outputVideoFormat": "yuv420p",
     "outputPreset": "medium",
     "outputFormat": "mp4",
+    "projectDir" : os.path.join(self.dataDir, 'projects'),
   }
   
   for parm, value in default.items():
