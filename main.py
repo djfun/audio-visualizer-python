@@ -1,7 +1,8 @@
-import sys, io, os, shutil, atexit, string, signal
+import sys, io, os, shutil, atexit, string, signal, filecmp
 from os.path import expanduser
 from queue import Queue
 from importlib import import_module
+from collections import OrderedDict
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, QModelIndex, Qt
 from PyQt4.QtGui import QDesktopServices
@@ -142,18 +143,18 @@ class Main(QtCore.QObject):
     # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
     self.window = window
     self.core = core.Core()
-    self.currentProject = None
     self.pages = []
     self.selectedComponents = []
 
     # create data directory, load/create settings
     self.dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
+    self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
+    self.presetDir = os.path.join(self.dataDir, 'presets')
     self.settings = QSettings(os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
     LoadDefaultSettings(self)
     if not os.path.exists(self.dataDir):
         os.makedirs(self.dataDir)
-    presetDir = os.path.join(self.dataDir, 'presets')
-    for neededDirectory in (presetDir, self.settings.value("projectDir")):
+    for neededDirectory in (self.presetDir, self.settings.value("projectDir")):
         if not os.path.exists(neededDirectory):
             os.mkdir(neededDirectory)
 
@@ -208,14 +209,35 @@ class Main(QtCore.QObject):
     self.window.pushButton_saveProject.clicked.connect(self.saveCurrentProject)
     self.window.pushButton_openProject.clicked.connect(self.openOpenProjectDialog)
     
-    self.openProject(self.settings.value("lastProject"))
-    self.drawPreview()
+    # show the window and load current project
     window.show()
+    self.currentProject = self.settings.value("currentProject")
+    if self.currentProject and os.path.exists(self.autosavePath) \
+        and filecmp.cmp(self.autosavePath, self.currentProject):
+        # delete autosave if it's identical to the project
+        os.remove(self.autosavePath)
+    
+    if self.currentProject and os.path.exists(self.autosavePath):
+        ch = self.showMessage("Restore unsaved changes in project '%s'?" % os.path.basename(self.currentProject)[:-4], True)
+        if ch:
+            os.remove(self.currentProject)
+            os.rename(self.autosavePath, self.currentProject)
+        else:
+            os.remove(self.autosavePath)
+    
+    self.openProject(self.currentProject)
+    self.drawPreview()
 
   def cleanUp(self):
     self.timer.stop()
     self.previewThread.quit()
     self.previewThread.wait()
+    self.autosave()
+    
+  def autosave(self):
+    if os.path.exists(self.autosavePath):
+        os.remove(self.autosavePath)
+    self.createProjectFile(self.autosavePath)
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -303,9 +325,9 @@ class Main(QtCore.QObject):
     self.drawPreview()
 
   def drawPreview(self):
-    #self.settings.setValue('visLayout', self.window.comboBox_visLayout.currentIndex())
     self.newTask.emit(self.window.lineEdit_background.text(), self.selectedComponents)
     # self.processTask.emit()
+    self.autosave()
 
   def showPreviewImage(self, image):
     self.previewWindow.changePixmap(image)
@@ -387,7 +409,7 @@ class Main(QtCore.QObject):
   def updateOpenPresetComboBox(self, component):
     self.window.comboBox_openPreset.clear()
     self.window.comboBox_openPreset.addItem("Open Preset")
-    destination = os.path.join(self.dataDir, 'presets',
+    destination = os.path.join(self.presetDir,
         str(component).strip(), str(component.version()))
     if not os.path.exists(destination):
         os.makedirs(destination)
@@ -417,12 +439,12 @@ class Main(QtCore.QObject):
         break
 
   def createPresetFile(self, componentName, version, saveValueStore, filename):
-    dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
+    dirname = os.path.join(self.presetDir, componentName, str(version))
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     filepath = os.path.join(dirname, filename)
     if os.path.exists(filepath):
-        ch = self.showMessage("%s already exists! Overwrite it?" % filename, QtGui.QMessageBox.Warning, True)
+        ch = self.showMessage("%s already exists! Overwrite it?" % filename, True, QtGui.QMessageBox.Warning)
         if not ch:
             return
         # remove old copies of the preset
@@ -430,7 +452,7 @@ class Main(QtCore.QObject):
             if self.window.comboBox_openPreset.itemText(i) == filename:
                 self.window.comboBox_openPreset.removeItem(i)
     with open(filepath, 'w') as f:
-        f.write(repr(saveValueStore))
+        f.write(core.Core.sortedStringDict(saveValueStore))
     self.window.comboBox_openPreset.addItem(filename)
     self.window.comboBox_openPreset.setCurrentIndex(self.window.comboBox_openPreset.count()-1)
 
@@ -443,14 +465,14 @@ class Main(QtCore.QObject):
     filename = self.window.comboBox_openPreset.itemText(self.window.comboBox_openPreset.currentIndex())
     componentName = str(self.selectedComponents[index]).strip()
     version = self.selectedComponents[index].version()
-    dirname = os.path.join(self.dataDir, 'presets', componentName, str(version))
+    dirname = os.path.join(self.presetDir, componentName, str(version))
     filepath = os.path.join(dirname, filename)
     if not os.path.exists(filepath):
         self.window.comboBox_openPreset.removeItem(self.window.comboBox_openPreset.currentIndex())
         return
     with open(filepath, 'r') as f:
         for line in f:
-            saveValueStore = eval(line.strip())
+            saveValueStore = dict(eval(line.strip()))
             break
     self.selectedComponents[index].loadPreset(saveValueStore)
     self.drawPreview()
@@ -478,10 +500,11 @@ class Main(QtCore.QObject):
             saveValueStore = comp.savePreset()
             f.write('%s\n' % str(comp))
             f.write('%s\n' % str(comp.version()))
-            f.write('%s\n' % repr(saveValueStore))
-    self.settings.setValue("projectDir", os.path.dirname(filepath))
-    self.settings.setValue("lastProject", filepath)
-    self.currentProject = filepath
+            f.write('%s\n' % core.Core.sortedStringDict(saveValueStore))
+    if filepath != self.autosavePath:
+        self.settings.setValue("projectDir", os.path.dirname(filepath))
+        self.settings.setValue("currentProject", filepath)
+        self.currentProject = filepath
             
   def openOpenProjectDialog(self):
     filename = QtGui.QFileDialog.getOpenFileName(self.window,
@@ -494,40 +517,43 @@ class Main(QtCore.QObject):
         return
     self.clear()
     self.currentProject = filepath
-    self.settings.setValue("lastProject", filepath)
+    self.settings.setValue("currentProject", filepath)
     self.settings.setValue("projectDir", os.path.dirname(filepath))
     compNames = [mod.Component.__doc__ for mod in self.modules]
-    
-    with open(filepath, 'r') as f:
-        validSections = ('Components')
-        section = ''
-        def parseLine(line):
-            line = line.strip()
-            newSection = ''
-            if line.startswith('[') and line.endswith(']') and line[1:-1] in validSections:
-                newSection = line[1:-1]
-            return line, newSection
-            
-        i = 0
-        for line in f:
-            line, newSection = parseLine(line)
-            if newSection:
-                section = str(newSection)
-                continue
-            if line and section == 'Components':
-                if i == 0:
-                    compIndex = compNames.index(line.strip())
-                    self.addComponent(compIndex)
-                    i += 1
-                elif i == 1:
-                    # version, not used yet
-                    i += 1
-                elif i == 2:
-                    saveValueStore = eval(line.strip())
-                    self.selectedComponents[-1].loadPreset(saveValueStore)
-                    i = 0
+    try:
+        with open(filepath, 'r') as f:
+            validSections = ('Components')
+            section = ''
+            def parseLine(line):
+                line = line.strip()
+                newSection = ''
+                if line.startswith('[') and line.endswith(']') and line[1:-1] in validSections:
+                    newSection = line[1:-1]
+                return line, newSection
+                
+            i = 0
+            for line in f:
+                line, newSection = parseLine(line)
+                if newSection:
+                    section = str(newSection)
+                    continue
+                if line and section == 'Components':
+                    if i == 0:
+                        compIndex = compNames.index(line)
+                        self.addComponent(compIndex)
+                        i += 1
+                    elif i == 1:
+                        # version, not used yet
+                        i += 1
+                    elif i == 2:
+                        saveValueStore = dict(eval(line))
+                        self.selectedComponents[-1].loadPreset(saveValueStore)
+                        i = 0
+    except:
+        self.clear()
+        self.showMessage("Project file '%s' is corrupted." % filepath)
 
-  def showMessage(self, string, icon=QtGui.QMessageBox.Information, showCancel=False):
+  def showMessage(self, string, showCancel=False, icon=QtGui.QMessageBox.Information):
     msg = QtGui.QMessageBox()
     msg.setIcon(icon)
     msg.setText(string)
