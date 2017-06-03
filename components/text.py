@@ -20,19 +20,14 @@ class Component(__base__.Component):
         self.title = 'Text'
         self.titleFont = None
         self.alignment = 1
-        self.fontSize = height / 16
+        self.fontSize = height / 13.5
         self.xPosition = width / 2
-        self.yPosition = height / 2
+        self.yPosition = height / 2 * 1.036
         
         page = uic.loadUi(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'text.ui'))
         page.comboBox_textAlign.addItem("Left")
         page.comboBox_textAlign.addItem("Middle")
         page.comboBox_textAlign.addItem("Right")
-        page.comboBox_textAlign.setCurrentIndex(1)
-
-        page.spinBox_fontSize.setValue(int(int(parent.settings.value("outputHeight")) / 14 ))
-        page.spinBox_xTextAlign.setValue(int(int(parent.settings.value('outputWidth'))/2))
-        page.spinBox_yTextAlign.setValue(int(int(parent.settings.value('outputHeight'))/2))
 
         page.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
         page.pushButton_textColor.clicked.connect(lambda: self.pickColor())
