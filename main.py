@@ -5,7 +5,7 @@ from importlib import import_module
 from collections import OrderedDict
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, QModelIndex, Qt
-from PyQt4.QtGui import QDesktopServices
+from PyQt4.QtGui import QDesktopServices, QMenu
 
 import preview_thread, core, video_thread
 
@@ -183,13 +183,14 @@ class Main(QtCore.QObject):
     window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
     
     self.modules = self.findComponents()
-    for component in self.modules:
-        window.comboBox_componentSelection.addItem(component.Component.__doc__)
-    window.listWidget_componentList.clicked.connect(lambda _: self.changeComponentWidget())
+    self.compMenu = QMenu()
+    for i, comp in enumerate(self.modules):
+        action = self.compMenu.addAction(comp.Component.__doc__)
+        action.triggered[()].connect( lambda item=i: self.addComponent(item))
 
-    self.window.pushButton_addComponent.clicked.connect( \
-        lambda _: self.addComponent(self.window.comboBox_componentSelection.currentIndex())
-    )
+    self.window.pushButton_addComponent.setMenu(self.compMenu)
+    window.listWidget_componentList.clicked.connect(lambda _: self.changeComponentWidget())
+    
     self.window.pushButton_removeComponent.clicked.connect(lambda _: self.removeComponent())
 
     currentRes = str(self.settings.value('outputWidth'))+'x'+str(self.settings.value('outputHeight'))
@@ -408,7 +409,7 @@ class Main(QtCore.QObject):
 
   def updateOpenPresetComboBox(self, component):
     self.window.comboBox_openPreset.clear()
-    self.window.comboBox_openPreset.addItem("Open Preset")
+    self.window.comboBox_openPreset.addItem("Component Presets")
     destination = os.path.join(self.presetDir,
         str(component).strip(), str(component.version()))
     if not os.path.exists(destination):
