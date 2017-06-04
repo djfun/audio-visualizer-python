@@ -43,7 +43,7 @@ class Worker(QtCore.QObject):
             else:
                 frame = self.getBackgroundAtIndex(i[1])
 
-            for compNo, comp in enumerate(self.components):
+            for compNo, comp in reversed(list(enumerate(self.components))):
                 if compNo in self.staticComponents and self.staticComponents[compNo] != None:
                     frame = Image.alpha_composite(frame, self.staticComponents[compNo])
                 else:

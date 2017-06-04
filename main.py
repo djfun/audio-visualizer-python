@@ -186,7 +186,7 @@ class Main(QtCore.QObject):
     self.compMenu = QMenu()
     for i, comp in enumerate(self.modules):
         action = self.compMenu.addAction(comp.Component.__doc__)
-        action.triggered[()].connect( lambda item=i: self.addComponent(item))
+        action.triggered[()].connect( lambda item=i: self.insertComponent(item))
 
     self.window.pushButton_addComponent.setMenu(self.compMenu)
     window.listWidget_componentList.clicked.connect(lambda _: self.changeComponentWidget())
@@ -305,9 +305,53 @@ class Main(QtCore.QObject):
     if status:
       self.window.pushButton_createVideo.setEnabled(False)
       self.window.pushButton_Cancel.setEnabled(True)
+      self.window.comboBox_resolution.setEnabled(False)
+      self.window.stackedWidget.setEnabled(False)
+      self.window.tab_encoderSettings.setEnabled(False)
+      self.window.label_audioFile.setEnabled(False)
+      self.window.toolButton_selectAudioFile.setEnabled(False)
+      self.window.label_outputFile.setEnabled(False)
+      self.window.toolButton_selectOutputFile.setEnabled(False)
+      self.window.lineEdit_audioFile.setEnabled(False)
+      self.window.lineEdit_outputFile.setEnabled(False)
+      self.window.pushButton_addComponent.setEnabled(False)
+      self.window.pushButton_removeComponent.setEnabled(False)
+      self.window.pushButton_listMoveDown.setEnabled(False)
+      self.window.pushButton_listMoveUp.setEnabled(False)
+      self.window.comboBox_openPreset.setEnabled(False)
+      self.window.pushButton_removePreset.setEnabled(False)
+      self.window.pushButton_savePreset.setEnabled(False)
+      self.window.pushButton_openProject.setEnabled(False)
+      self.window.listWidget_componentList.setEnabled(False)
+
+      self.window.label_background.setEnabled(False)
+      self.window.lineEdit_background.setEnabled(False)
+      self.window.toolButton_selectBackground.setEnabled(False)
     else:
       self.window.pushButton_createVideo.setEnabled(True)
       self.window.pushButton_Cancel.setEnabled(False)
+      self.window.comboBox_resolution.setEnabled(True)
+      self.window.stackedWidget.setEnabled(True)
+      self.window.tab_encoderSettings.setEnabled(True)
+      self.window.label_audioFile.setEnabled(True)
+      self.window.toolButton_selectAudioFile.setEnabled(True)
+      self.window.lineEdit_audioFile.setEnabled(True)
+      self.window.label_outputFile.setEnabled(True)
+      self.window.toolButton_selectOutputFile.setEnabled(True)
+      self.window.lineEdit_outputFile.setEnabled(True)
+      self.window.pushButton_addComponent.setEnabled(True)
+      self.window.pushButton_removeComponent.setEnabled(True)
+      self.window.pushButton_listMoveDown.setEnabled(True)
+      self.window.pushButton_listMoveUp.setEnabled(True)
+      self.window.comboBox_openPreset.setEnabled(True)
+      self.window.pushButton_removePreset.setEnabled(True)
+      self.window.pushButton_savePreset.setEnabled(True)
+      self.window.pushButton_openProject.setEnabled(True)
+      self.window.listWidget_componentList.setEnabled(True)
+
+      self.window.label_background.setEnabled(True)
+      self.window.lineEdit_background.setEnabled(True)
+      self.window.toolButton_selectBackground.setEnabled(True)
       
 
 
@@ -355,6 +399,16 @@ class Main(QtCore.QObject):
     self.window.stackedWidget.setCurrentIndex(index)
     self.selectedComponents[-1].update()
     self.updateOpenPresetComboBox(self.selectedComponents[-1])
+
+  def insertComponent(self, moduleIndex):
+    self.selectedComponents.insert(0, self.modules[moduleIndex].Component())
+    self.window.listWidget_componentList.insertItem(0, self.selectedComponents[0].__doc__)
+    self.pages.insert(0, self.selectedComponents[0].widget(self))
+    self.window.listWidget_componentList.setCurrentRow(0)
+    self.window.stackedWidget.insertWidget(0, self.pages[0])
+    self.window.stackedWidget.setCurrentIndex(0)
+    self.selectedComponents[0].update()
+    self.updateOpenPresetComboBox(self.selectedComponents[0])
 
   def removeComponent(self):
     for selected in self.window.listWidget_componentList.selectedItems():
