@@ -1,0 +1,191 @@
+{
+    "containers":[
+        {
+            "name": "MP4",
+            "container": "mp4",
+            "default-vcodec": "H264",
+            "default-acodec": "AAC",
+            "video-codecs": [
+                {
+                    "name": "H264",
+                    "encoders": ["libx264"]
+                },
+                {
+                    "name": "H264 (nvenc)",
+                    "encoders": ["nvenc_264"]
+                },
+                {
+                    "name": "MPEG4",
+                    "encoders": ["mpeg4"]
+                }
+            ],
+            "audio-codecs": [
+                {
+                    "name": "AAC",
+                    "encoders": ["libfdk_aac","aac"]
+                },
+                {
+                    "name": "AC3",
+                    "encoders": ["ac3"]
+                },
+                {
+                    "name": "MP3",
+                    "encoders": ["libmp3lame"]
+                }
+            ]
+        },
+        {
+            "name": "MOV",
+            "container": "mov",
+            "default-vcodec": "H264",
+            "default-acodec": "AAC",
+            "video-codecs": [
+                {
+                    "name": "H264",
+                    "encoders": ["libx264"]
+                },
+                {
+                    "name": "H264 (nvenc)",
+                    "encoders": ["nvenc_264"]
+                },
+                {
+                    "name": "MPEG4",
+                    "encoders": ["mpeg4"]
+                },
+                {
+                    "name": "XVID",
+                    "encoders": ["libxvid"]
+                }
+            ],
+            "audio-codecs": [
+                {
+                    "name": "AAC",
+                    "encoders": ["libfdk_aac","aac"]
+                },
+                {
+                    "name": "AC3",
+                    "encoders": ["ac3"]
+                },
+                {
+                    "name": "MP3",
+                    "encoders": ["libmp3lame"]
+                },
+                {
+                    "name": "PCM s16 LE",
+                    "encoders": ["pcm_s16le"]
+                }
+            ]
+        },
+        {
+            "name": "AVI",
+            "container": "avi",
+            "default-vcodec": "H264",
+            "default-acodec": "AAC",
+            "video-codecs": [
+                {
+                    "name": "H264",
+                    "encoders": ["libx264"]
+                },
+                {
+                    "name": "H264 (nvenc)",
+                    "encoders": ["nvenc_264"]
+                },
+                {
+                    "name": "MPEG4",
+                    "encoders": ["mpeg4"]
+                },
+                {
+                    "name": "MPEG2",
+                    "encoders": ["mp2video"]
+                },
+                {
+                    "name": "DV",
+                    "encoders": ["dvvideo"]
+                },
+                {
+                    "name": "WMV",
+                    "encoders": ["wmv2"]
+                }
+            ],
+            "audio-codecs": [
+                {
+                    "name": "AAC",
+                    "encoders": ["libfdk_aac","aac"]
+                },
+                {
+                    "name": "AC3",
+                    "encoders": ["ac3"]
+                },
+                {
+                    "name": "WMA",
+                    "encoders": ["wmav2"]
+                },
+                {
+                    "name": "MP3",
+                    "encoders": ["libmp3lame"]
+                },
+                {
+                    "name": "PCM s16 LE",
+                    "encoders": ["pcm_s16le"]
+                }
+            ]
+        },
+        {
+            "name": "WEBM",
+            "container": "webm",
+            "default-vcodec": "VP9",
+            "default-acodec": "Vorbis",
+            "video-codecs": [
+                {
+                    "name": "VP9",
+                    "encoders": ["libvpx-vp9"]
+                },
+                {
+                    "name": "VP8",
+                    "encoders": ["libvpx"]
+                }
+            ],
+            "audio-codecs": [
+                {
+                    "name": "Vorbis",
+                    "encoders": ["vorbis"]
+                }
+            ]
+        },
+        {
+            "name": "FLV",
+            "container": "flv",
+            "default-vcodec": "FLV",
+            "default-acodec": "Vorbis",
+            "video-codecs": [
+                {
+                    "name": "Sorenson (flv)",
+                    "encoders": ["flv"]
+                },
+                {
+                    "name": "H264",
+                    "encoders": ["libx264"]
+                },
+                {
+                    "name": "MPEG4",
+                    "encoders": ["mpeg4"]
+                }
+            ],
+            "audio-codecs": [
+                {
+                    "name": "MP3",
+                    "encoders": ["libmp3lame"]
+                },
+                {
+                    "name": "Vorbis",
+                    "encoders": ["vorbis"]
+                },
+                {
+                    "name": "PCM s16 LE",
+                    "encoders": ["pcm_s16le"]
+                }
+            ]
+        }
+    ]
+    
+}
