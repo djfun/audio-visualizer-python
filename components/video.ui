@@ -41,20 +41,17 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="lineEdit_color1">
+        <widget class="QLineEdit" name="lineEdit_video">
          <property name="minimumSize">
           <size>
            <width>1</width>
            <height>0</height>
           </size>
          </property>
-         <property name="maxLength">
-          <number>12</number>
-         </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_color1">
+        <widget class="QPushButton" name="pushButton_video">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -114,7 +111,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="spinBox_y">
+        <widget class="QSpinBox" name="spinBox_x_2">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -146,7 +143,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="spinBox_x">
+        <widget class="QSpinBox" name="spinBox_y">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -183,7 +180,7 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_9">
      <item>
-      <widget class="QCheckBox" name="checkBox">
+      <widget class="QCheckBox" name="checkBox_loop">
        <property name="text">
         <string>Loop</string>
        </property>

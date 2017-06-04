@@ -57,12 +57,19 @@ class Component(__base__.Component):
         r,g,b = self.color1
         return Image.new("RGBA", (width, height), (r, g, b, 255))
 
-    def loadPreset(self, presetDict):
-        # update widgets using a preset dict
-        pass
+    def loadPreset(self, pr):
+        self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
+        self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*pr['color1']).name()
+        self.page.pushButton_color1.setStyleSheet(btnStyle)
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*pr['color2']).name()
+        self.page.pushButton_color2.setStyleSheet(btnStyle)
         
     def savePreset(self):
-        return {}
+        return {
+            'color1' : self.color1,
+            'color2' : self.color2,
+        }
         
     def pickColor(self, num):
         RGBstring, btnStyle = super().pickColor()

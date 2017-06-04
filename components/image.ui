@@ -41,20 +41,17 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="lineEdit_color1">
+        <widget class="QLineEdit" name="lineEdit_image">
          <property name="minimumSize">
           <size>
            <width>1</width>
            <height>0</height>
           </size>
          </property>
-         <property name="maxLength">
-          <number>12</number>
-         </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_color1">
+        <widget class="QPushButton" name="pushButton_image">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -114,7 +111,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="spinBox_y">
+        <widget class="QSpinBox" name="spinBox_x">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -146,7 +143,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="spinBox_x">
+        <widget class="QSpinBox" name="spinBox_y">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
