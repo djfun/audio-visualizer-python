@@ -56,7 +56,7 @@ class Worker(QtCore.QObject):
       frame.paste(im)
 
       components = nextPreviewInformation["components"]
-      for component in components:
+      for component in reversed(components):
         newFrame = Image.alpha_composite(frame,component.previewRender(self))
         frame = Image.alpha_composite(frame,newFrame)
 
