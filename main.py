@@ -186,7 +186,7 @@ class Main(QtCore.QObject):
     self.compMenu = QMenu()
     for i, comp in enumerate(self.modules):
         action = self.compMenu.addAction(comp.Component.__doc__)
-        action.triggered[()].connect( lambda item=i: self.addComponent(item))
+        action.triggered[()].connect( lambda item=i: self.insertComponent(item))
 
     self.window.pushButton_addComponent.setMenu(self.compMenu)
     window.listWidget_componentList.clicked.connect(lambda _: self.changeComponentWidget())
@@ -399,6 +399,16 @@ class Main(QtCore.QObject):
     self.window.stackedWidget.setCurrentIndex(index)
     self.selectedComponents[-1].update()
     self.updateOpenPresetComboBox(self.selectedComponents[-1])
+
+  def insertComponent(self, moduleIndex):
+    self.selectedComponents.insert(0, self.modules[moduleIndex].Component())
+    self.window.listWidget_componentList.insertItem(0, self.selectedComponents[0].__doc__)
+    self.pages.insert(0, self.selectedComponents[0].widget(self))
+    self.window.listWidget_componentList.setCurrentRow(0)
+    self.window.stackedWidget.insertWidget(0, self.pages[0])
+    self.window.stackedWidget.setCurrentIndex(0)
+    self.selectedComponents[0].update()
+    self.updateOpenPresetComboBox(self.selectedComponents[0])
 
   def removeComponent(self):
     for selected in self.window.listWidget_componentList.selectedItems():
