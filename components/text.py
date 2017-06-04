@@ -18,7 +18,6 @@ class Component(__base__.Component):
         self.parent = parent
         self.textColor = (255,255,255)
         self.title = 'Text'
-        self.titleFont = None
         self.alignment = 1
         self.fontSize = height / 13.5
         self.xPosition = width / 2
@@ -35,8 +34,6 @@ class Component(__base__.Component):
         page.pushButton_textColor.setStyleSheet(btnStyle)
 
         page.lineEdit_title.setText(self.title)
-        #if self.titleFont:
-        #  page.fontComboBox_titleFont.setCurrentFont(QFont(self.titleFont))
         page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
         page.spinBox_fontSize.setValue(int(self.fontSize))
         page.spinBox_xTextAlign.setValue(int(self.xPosition))

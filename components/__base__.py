@@ -66,4 +66,10 @@ class Component:
         
     def savePreset(self):
         return {}
+        
+    def cancel(self):
+        self.canceled = True
+
+    def reset(self):
+        self.canceled = False
     '''
