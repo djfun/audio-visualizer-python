@@ -42,13 +42,17 @@ class Component(__base__.Component):
         self.x = self.page.spinBox_x.value()
         self.y = self.page.spinBox_y.value()
         self.parent.drawPreview()
-        
+    
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
-        
-    def frameRender(self, moduleNo, frameNo):
+    
+    def preFrameRender(self, **kwargs):
+        super().preFrameRender(**kwargs)
+        return ['static']
+    
+    def frameRender(self, moduleNo, arrayNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
@@ -81,9 +85,3 @@ class Component(__base__.Component):
         else:
             self.page.lineEdit_color2.setText(RGBstring)
             self.page.pushButton_color2.setStyleSheet(btnStyle)
-
-    def cancel(self):
-        self.canceled = True
-
-    def reset(self):
-        self.canceled = False

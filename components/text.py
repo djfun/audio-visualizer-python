@@ -104,7 +104,7 @@ class Component(__base__.Component):
         super().preFrameRender(**kwargs)
         return ['static']
         
-    def frameRender(self, moduleNo, frameNo):
+    def frameRender(self, moduleNo, arrayNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
         return self.addText(width, height)
@@ -137,9 +137,3 @@ class Component(__base__.Component):
             return
         self.page.lineEdit_textColor.setText(RGBstring)
         self.page.pushButton_textColor.setStyleSheet(btnStyle)
-
-    def cancel(self):
-        self.canceled = True
-
-    def reset(self):
-        self.canceled = False

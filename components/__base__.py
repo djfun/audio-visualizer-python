@@ -7,6 +7,13 @@ class Component:
     def version(self):
         # change this number to identify new versions of a component
         return 1
+
+    def cancel(self):
+        # make sure your component responds to these variables in frameRender()
+        self.canceled = True
+
+    def reset(self):
+        self.canceled = False
         
     def preFrameRender(self, **kwargs):
         for var, value in kwargs.items():

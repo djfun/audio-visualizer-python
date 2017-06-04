@@ -27,8 +27,12 @@ class Component(__base__.Component):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
-        
-    def frameRender(self, moduleNo, frameNo):
+
+    def preFrameRender(self, **kwargs):
+        super().preFrameRender(**kwargs)
+        return ['static']
+
+    def frameRender(self, moduleNo, arrayNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
@@ -49,12 +53,6 @@ class Component(__base__.Component):
         return {
             'image' : self.imagePath,
         }
-
-    def cancel(self):
-        self.canceled = True
-
-    def reset(self):
-        self.canceled = False
         
     def pickImage(self):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))

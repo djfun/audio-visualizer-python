@@ -38,16 +38,17 @@ class Worker(QtCore.QObject):
         while not self.stopped:
             i = self.compositeQueue.get()
 
-            if self.imBackground is not None:
-                frame = self.imBackground
-            else:
-                frame = self.getBackgroundAtIndex(i[1])
+            frame = Image.new(
+                "RGBA",
+                (self.width, self.height),
+                (0, 0, 0, 0)
+            )
 
             for compNo, comp in reversed(list(enumerate(self.components))):
                 if compNo in self.staticComponents and self.staticComponents[compNo] != None:
                     frame = Image.alpha_composite(frame, self.staticComponents[compNo])
                 else:
-                    frame = Image.alpha_composite(frame, comp.frameRender(compNo, i[0]))
+                    frame = Image.alpha_composite(frame, comp.frameRender(compNo, i[0], i[1]))
 
                 # frame.paste(compFrame, mask=compFrame)
 
@@ -59,10 +60,8 @@ class Worker(QtCore.QObject):
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
             self.compositeQueue.put([i, self.bgI])
-            if not self.imBackground:
-                # increment background video frame for next iteration
-                if self.bgI < len(self.backgroundFrames)-1:
-                    self.bgI += 1
+            # increment tracked video frame for next iteration
+            self.bgI += 1
 
     def previewDispatch(self):
         while not self.stopped:
@@ -74,39 +73,18 @@ class Worker(QtCore.QObject):
 
             self.previewQueue.task_done()
 
-    def getBackgroundAtIndex(self, i):
-        background = Image.new(
-                "RGBA",
-                (self.width, self.height),
-                (0, 0, 0, 255)
-            )
-        layer = self.core.drawBaseImage(self.backgroundFrames[i])
-        background.paste(layer)
-        return background
-
-    @pyqtSlot(str, str, str, list)
-    def createVideo(self, backgroundImage, inputFile, outputFile, components):
+    @pyqtSlot(str, str, list)
+    def createVideo(self, inputFile, outputFile, components):
         self.encoding.emit(True)
         self.components = components
         self.outputFile = outputFile
+        self.bgI = 0 # tracked video frame
         self.reset()
         self.width = int(self.core.settings.value('outputWidth'))
         self.height = int(self.core.settings.value('outputHeight'))
         # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
-        self.progressBarSetText.emit('Loading background image…')
-
-        self.backgroundImage = backgroundImage
-
-        self.backgroundFrames = self.core.parseBaseImage(backgroundImage)
-        if len(self.backgroundFrames) < 2:
-            # the base image is not a video so we can draw it now
-            self.imBackground = self.getBackgroundAtIndex(0)
-        else:
-            # base images will be drawn while drawing the audio bars
-            self.imBackground = None
-        self.bgI = 0
 
         self.progressBarSetText.emit('Loading audio file...')
         self.completeAudioArray = self.core.readAudioFile(inputFile, self)
@@ -165,7 +143,7 @@ class Worker(QtCore.QObject):
             )
 
             if properties and 'static' in properties:
-                self.staticComponents[compNo] = copy(comp.frameRender(compNo, 0))
+                self.staticComponents[compNo] = copy(comp.frameRender(compNo, 0, 0))
             self.progressBarUpdate.emit(100)
 
         self.compositeQueue = Queue()

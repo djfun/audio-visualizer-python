@@ -5,6 +5,10 @@ from . import __base__
 
 class Component(__base__.Component):
     '''Video'''
+    def __init__(self):
+        super().__init__()
+        self.working = False
+        
     def widget(self, parent):
         self.parent = parent
         self.settings = parent.settings
@@ -27,24 +31,35 @@ class Component(__base__.Component):
         self.width = int(previewWorker.core.settings.value('outputWidth'))
         self.height = int(previewWorker.core.settings.value('outputHeight'))
         frames = self.getVideoFrames(True)
-        if frames:
-            im = Image.open(frames[0])
-            im = self.resize(im)
-            return im
-        else:
-            return Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
+        if not hasattr(self, 'staticFrame') or not self.working and frames:
+            frame = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
+            if frames:
+                im = Image.open(frames[0])
+                im = self.resize(im)
+                frame.paste(im)
+            if not self.working:
+                self.staticFrame = frame
+        return self.staticFrame
     
     def preFrameRender(self, **kwargs):
-        super().__init__(**kwargs)
+        super().preFrameRender(**kwargs)
         self.width = int(self.worker.core.settings.value('outputWidth'))
         self.height = int(self.worker.core.settings.value('outputHeight'))
         self.frames = self.getVideoFrames()
+        self.working = True
         
-    def frameRender(self, moduleNo, frameNo):
-        i = frameNo if frameNo < len(self.frames)-1 else len(self.frames)-1
-        im = Image.open(self.frames[i])
-        im = self.resize(im)
-        return im
+    def frameRender(self, moduleNo, arrayNo, frameNo):
+        print(frameNo)
+        try:
+            if frameNo < len(self.frames)-1:
+                self.staticFrame = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
+                im = Image.open(self.frames[frameNo])
+                im = self.resize(im)
+                self.staticFrame.paste(im)
+        except FileNotFoundError:
+            print("Video component encountered an error")
+            self.frames = []
+        return self.staticFrame
 
     def loadPreset(self, pr):
         self.page.lineEdit_video.setText(pr['video'])
@@ -53,12 +68,6 @@ class Component(__base__.Component):
         return {
             'video' : self.videoPath,
         }
-
-    def cancel(self):
-        self.canceled = True
-
-    def reset(self):
-        self.canceled = False
         
     def pickVideo(self):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
@@ -69,19 +78,27 @@ class Component(__base__.Component):
             self.page.lineEdit_video.setText(filename)
             self.update()
             
-    def getVideoFrames(self, firstOnly=False):
+    def getVideoFrames(self, preview=False):
         # recreate the temporary directory so it is empty
-        # FIXME: don't dump too many frames at once
+        # FIXME: don't dump all the frames at once, don't dump more than sound length
+        # FIXME: make cancellable, report status to user, etc etc etc
         if not self.videoPath:
             return
+        name = os.path.basename(self.videoPath).split('.', 1)[0]
+        if preview:
+            filename = 'preview%s.jpg' % name
+            if os.path.exists(os.path.join(self.parent.core.tempDir, filename)):
+                return False
+        else:
+            filename = name+'-frame%05d.jpg'
+         
+        # recreate tempDir and dump needed frame(s)
         self.parent.core.deleteTempDir()
         os.mkdir(self.parent.core.tempDir)
-        if firstOnly:
-         filename = 'preview%s.jpg' % os.path.basename(self.videoPath).split('.', 1)[0]
-         options = '-ss 10 -vframes 1'
+        if preview:
+            options = '-ss 10 -vframes 1'
         else:
-         filename = '$frame%05d.jpg'
-         options = ''
+            options = '' #'-vframes 99999'
         subprocess.call( \
          '%s -i "%s" -y %s "%s"' % ( \
             self.parent.core.FFMPEG_BIN,
@@ -91,6 +108,7 @@ class Component(__base__.Component):
          ),
          shell=True
         )
+        print('### Got Preview Frame From %s ###' % name if preview else '### Finished Dumping Frames From %s ###' % name)
         return sorted([os.path.join(self.parent.core.tempDir, f) for f in os.listdir(self.parent.core.tempDir)])
 
     def resize(self, im):
