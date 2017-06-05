@@ -69,9 +69,11 @@ class Component(__base__.Component):
         if self.alignment == 0:      #Left
            x = self.xPosition
         if self.alignment == 1:      #Middle
-           x = self.xPosition - fm.width(self.title)/2
+           offset = fm.width(self.title)/2
+           x = self.xPosition - offset
         if self.alignment == 2:      #Right
-           x = self.xPosition - fm.width(self.title)
+           offset = fm.width(self.title)
+           x = self.xPosition - offset
         return x, self.yPosition
         
         
