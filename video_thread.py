@@ -228,7 +228,6 @@ class Worker(QtCore.QObject):
         self.error = False
         self.canceled = False
         self.parent.drawPreview()
-        self.core.deleteTempDir()
         self.stopped = True
         self.encoding.emit(False)
         self.videoCreated.emit()

@@ -15,6 +15,8 @@ class Core():
   def __init__(self):
     self.FFMPEG_BIN = self.findFfmpeg()
     self.tempDir = os.path.join(tempfile.gettempdir(), 'audio-visualizer-python-data')
+    if not os.path.exists(self.tempDir):
+        os.makedirs(self.tempDir)
     atexit.register(self.deleteTempDir)
 
   def findFfmpeg(self):
@@ -94,8 +96,7 @@ class Core():
 
   def deleteTempDir(self):
     try:
-        if os.path.exists(self.tempDir):
-            rmtree(self.tempDir)
+        rmtree(self.tempDir)
     except FileNotFoundError:
         pass
 

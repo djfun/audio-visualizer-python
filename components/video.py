@@ -30,11 +30,11 @@ class Component(__base__.Component):
     def previewRender(self, previewWorker):
         self.width = int(previewWorker.core.settings.value('outputWidth'))
         self.height = int(previewWorker.core.settings.value('outputHeight'))
-        frames = self.getVideoFrames(True)
-        if not hasattr(self, 'staticFrame') or not self.working and frames:
+        frame1 = self.getPreviewFrame()
+        if not hasattr(self, 'staticFrame') or not self.working and frame1:
             frame = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
-            if frames:
-                im = Image.open(frames[0])
+            if frame1:
+                im = Image.open(frame1)
                 im = self.resize(im)
                 frame.paste(im)
             if not self.working:
@@ -77,39 +77,56 @@ class Component(__base__.Component):
             self.settings.setValue("backgroundDir", os.path.dirname(filename))
             self.page.lineEdit_video.setText(filename)
             self.update()
-            
-    def getVideoFrames(self, preview=False):
-        # recreate the temporary directory so it is empty
-        # FIXME: don't dump all the frames at once, don't dump more than sound length
-        # FIXME: make cancellable, report status to user, etc etc etc
+    
+    def getPreviewFrame(self):
         if not self.videoPath:
             return
         name = os.path.basename(self.videoPath).split('.', 1)[0]
-        if preview:
-            filename = 'preview%s.jpg' % name
-            if os.path.exists(os.path.join(self.parent.core.tempDir, filename)):
-                return False
-        else:
-            filename = name+'-frame%05d.jpg'
-         
-        # recreate tempDir and dump needed frame(s)
-        self.parent.core.deleteTempDir()
-        os.mkdir(self.parent.core.tempDir)
-        if preview:
-            options = '-ss 10 -vframes 1'
-        else:
-            options = '' #'-vframes 99999'
+        filename = 'preview%s.jpg' % name
+        if os.path.exists(os.path.join(self.parent.core.tempDir, filename)):
+            # no, we don't need a new preview frame
+            return False
+        
+        # get a preview frame
         subprocess.call( \
          '%s -i "%s" -y %s "%s"' % ( \
             self.parent.core.FFMPEG_BIN,
             self.videoPath,
-            options,
+            '-ss 10 -vframes 1',
             os.path.join(self.parent.core.tempDir, filename)
          ),
          shell=True
         )
-        print('### Got Preview Frame From %s ###' % name if preview else '### Finished Dumping Frames From %s ###' % name)
-        return sorted([os.path.join(self.parent.core.tempDir, f) for f in os.listdir(self.parent.core.tempDir)])
+        print('### Got Preview Frame From %s ###' % name)
+        return os.path.join(self.parent.core.tempDir, filename)
+    
+    def getVideoFrames(self):
+        # FIXME: make cancellable, report status to user, etc etc etc
+        if not self.videoPath:
+            return
+        
+        command = [
+            self.parent.core.FFMPEG_BIN,
+            '-i', self.videoPath,
+            '-f', 'image2pipe',
+            '-vcodec', 'rawvideo', '-',
+            '-pix_fmt', 'rgba',
+        ]
+        
+        # pipe in video frames from ffmpeg
+        in_pipe = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=8**10)
+        # maybe bufsize=4*self.width*self.height+100 ?
+        chunk = 4*self.width*self.height
+        
+        frames = []
+        while True:
+            byteFrame = in_pipe.stdout.read(chunk)
+            if len(byteFrame) == 0:
+                break
+            img = Image.frombytes('RGBA', (self.width, self.height), byteFrame, 'raw', 'RGBa')
+            frames.append(img)
+
+        return frames
 
     def resize(self, im):
         if im.size != (self.width, self.height):
