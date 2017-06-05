@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw
 from PyQt4 import uic, QtGui, QtCore
 import os, subprocess
+import numpy
 from . import __base__
 
 class Component(__base__.Component):
@@ -35,6 +36,7 @@ class Component(__base__.Component):
             frame = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
             if frame1:
                 im = Image.open(frame1)
+                self.realSize = im.size
                 im = self.resize(im)
                 frame.paste(im)
             if not self.working:
@@ -45,20 +47,26 @@ class Component(__base__.Component):
         super().preFrameRender(**kwargs)
         self.width = int(self.worker.core.settings.value('outputWidth'))
         self.height = int(self.worker.core.settings.value('outputHeight'))
-        self.frames = self.getVideoFrames()
         self.working = True
+        self.frames = self.getVideoFrames()
         
     def frameRender(self, moduleNo, arrayNo, frameNo):
-        print(frameNo)
-        try:
-            if frameNo < len(self.frames)-1:
-                self.staticFrame = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
-                im = Image.open(self.frames[frameNo])
-                im = self.resize(im)
-                self.staticFrame.paste(im)
-        except FileNotFoundError:
-            print("Video component encountered an error")
-            self.frames = []
+        # don't make a new frame
+        if not self.working:
+            return self.staticFrame
+        byteFrame = self.frames.stdout.read(self.chunkSize)
+        if len(byteFrame) == 0:
+            self.working = False
+            self.frames.kill()
+            return self.staticFrame
+            
+        # make a new frame
+        width, height = self.realSize
+        image = numpy.fromstring(byteFrame, dtype='uint8')
+        image = image.reshape((width, height, 4))
+        image = Image.frombytes('RGBA', (width, height), image, 'raw', 'RGBa')
+        image = self.resize(image)
+        self.staticFrame = image
         return self.staticFrame
 
     def loadPreset(self, pr):
@@ -101,7 +109,6 @@ class Component(__base__.Component):
         return os.path.join(self.parent.core.tempDir, filename)
     
     def getVideoFrames(self):
-        # FIXME: make cancellable, report status to user, etc etc etc
         if not self.videoPath:
             return
         
@@ -109,24 +116,16 @@ class Component(__base__.Component):
             self.parent.core.FFMPEG_BIN,
             '-i', self.videoPath,
             '-f', 'image2pipe',
-            '-vcodec', 'rawvideo', '-',
             '-pix_fmt', 'rgba',
+            '-vcodec', 'rawvideo', '-',
         ]
         
         # pipe in video frames from ffmpeg
-        in_pipe = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=8**10)
-        # maybe bufsize=4*self.width*self.height+100 ?
-        chunk = 4*self.width*self.height
-        
-        frames = []
-        while True:
-            byteFrame = in_pipe.stdout.read(chunk)
-            if len(byteFrame) == 0:
-                break
-            img = Image.frombytes('RGBA', (self.width, self.height), byteFrame, 'raw', 'RGBa')
-            frames.append(img)
+        in_pipe = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**8)
+        width, height = self.realSize
+        self.chunkSize = 4*width*height
 
-        return frames
+        return in_pipe
 
     def resize(self, im):
         if im.size != (self.width, self.height):
