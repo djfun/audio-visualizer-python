@@ -36,8 +36,6 @@ class Component(__base__.Component):
             frame = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
             if frame1:
                 im = Image.open(frame1)
-                self.realSize = im.size
-                im = self.resize(im)
                 frame.paste(im)
             if not self.working:
                 self.staticFrame = frame
@@ -61,11 +59,9 @@ class Component(__base__.Component):
             return self.staticFrame
             
         # make a new frame
-        width, height = self.realSize
-        image = numpy.fromstring(byteFrame, dtype='uint8')
-        image = image.reshape((width, height, 4))
-        image = Image.frombytes('RGBA', (width, height), image, 'raw', 'RGBa')
-        image = self.resize(image)
+        width = self.width
+        height = self.height
+        image = Image.frombytes('RGBA', (width, height), byteFrame)
         self.staticFrame = image
         return self.staticFrame
 
@@ -80,7 +76,7 @@ class Component(__base__.Component):
     def pickVideo(self):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
         filename = QtGui.QFileDialog.getOpenFileName(self.page,
-            "Choose Video", imgDir, "Video Files (*.mp4)")
+            "Choose Video", imgDir, "Video Files (*.mp4 *.mov)")
         if filename: 
             self.settings.setValue("backgroundDir", os.path.dirname(filename))
             self.page.lineEdit_video.setText(filename)
@@ -97,10 +93,11 @@ class Component(__base__.Component):
         
         # get a preview frame
         subprocess.call( \
-         '%s -i "%s" -y %s "%s"' % ( \
+         '%s -i "%s" -y %s %s "%s"' % ( \
             self.parent.core.FFMPEG_BIN,
             self.videoPath,
             '-ss 10 -vframes 1',
+            '-filter:v scale='+str(self.width)+':'+str(self.height),
             os.path.join(self.parent.core.tempDir, filename)
          ),
          shell=True
@@ -114,16 +111,18 @@ class Component(__base__.Component):
         
         command = [
             self.parent.core.FFMPEG_BIN,
+            '-thread_queue_size', '512',
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
+            '-filter:v', 'scale='+str(self.width)+':'+str(self.height),
             '-vcodec', 'rawvideo', '-',
         ]
         
         # pipe in video frames from ffmpeg
         in_pipe = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**8)
-        width, height = self.realSize
-        self.chunkSize = 4*width*height
+        #width, height = self.realSize
+        self.chunkSize = 4*self.width*self.height
 
         return in_pipe
 

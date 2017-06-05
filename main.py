@@ -243,7 +243,7 @@ class Main(QtCore.QObject):
     inputDir = self.settings.value("inputDir", expanduser("~"))
 
     fileName = QtGui.QFileDialog.getOpenFileName(self.window,
-       "Open Music File", inputDir, "Music Files (*.mp3 *.wav *.ogg *.flac)");
+       "Open Music File", inputDir, "Music Files (*.mp3 *.wav *.ogg *.fla *.aac)");
 
     if not fileName == "": 
       self.settings.setValue("inputDir", os.path.dirname(fileName))
@@ -253,7 +253,7 @@ class Main(QtCore.QObject):
     outputDir = self.settings.value("outputDir", expanduser("~"))
 
     fileName = QtGui.QFileDialog.getSaveFileName(self.window,
-       "Set Output Video File", outputDir, "Video Files (*.mkv *.mp4)");
+       "Set Output Video File", outputDir, "Video Files (*.mp4 *.mov *.mkv *.avi *.webm *.flv)");
 
     if not fileName == "": 
       self.settings.setValue("outputDir", os.path.dirname(fileName))

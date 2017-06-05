@@ -37,20 +37,19 @@ class Worker(QtCore.QObject):
     def renderNode(self):
         while not self.stopped:
             i = self.compositeQueue.get()
-
-            frame = Image.new(
-                "RGBA",
-                (self.width, self.height),
-                (0, 0, 0, 0)
-            )
+            frame = None
 
             for compNo, comp in reversed(list(enumerate(self.components))):
                 if compNo in self.staticComponents and self.staticComponents[compNo] != None:
-                    frame = Image.alpha_composite(frame, self.staticComponents[compNo])
+                    if frame is None:
+                        frame = self.staticComponents[compNo]
+                    else:
+                        frame = Image.alpha_composite(frame, self.staticComponents[compNo])
                 else:
-                    frame = Image.alpha_composite(frame, comp.frameRender(compNo, i[0], i[1]))
-
-                # frame.paste(compFrame, mask=compFrame)
+                    if frame is None:
+                        frame = comp.frameRender(compNo, i[0], i[1])
+                    else:
+                        frame = Image.alpha_composite(frame, comp.frameRender(compNo, i[0], i[1]))
 
             self.renderQueue.put([i[0], frame])
             self.compositeQueue.task_done()
@@ -98,6 +97,7 @@ class Worker(QtCore.QObject):
 
         ffmpegCommand = [
             self.core.FFMPEG_BIN,
+            '-thread_queue_size', '512',
             '-y',  # (optional) means overwrite the output file if it already exists.
             '-f', 'rawvideo',
             '-vcodec', 'rawvideo',
