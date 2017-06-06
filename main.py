@@ -1,4 +1,4 @@
-import sys, io, os, shutil, atexit, string, signal, filecmp
+import sys, io, os, shutil, atexit, string, signal, filecmp, time
 from os.path import expanduser
 from queue import Queue
 from importlib import import_module
@@ -133,9 +133,9 @@ class PreviewWindow(QtGui.QLabel):
 
 class Main(QtCore.QObject):
 
-  newTask = QtCore.pyqtSignal(str, list)
+  newTask = QtCore.pyqtSignal(list)
   processTask = QtCore.pyqtSignal()
-  videoTask = QtCore.pyqtSignal(str, str, str, list)
+  videoTask = QtCore.pyqtSignal(str, str, list)
 
   def __init__(self, window):
     QtCore.QObject.__init__(self)
@@ -145,6 +145,7 @@ class Main(QtCore.QObject):
     self.core = core.Core()
     self.pages = []
     self.selectedComponents = []
+    self.lastAutosave = time.time()
 
     # create data directory, load/create settings
     self.dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
@@ -172,14 +173,13 @@ class Main(QtCore.QObject):
 
     # begin decorating the window and connecting events
     window.toolButton_selectAudioFile.clicked.connect(self.openInputFileDialog)
-    window.toolButton_selectBackground.clicked.connect(self.openBackgroundFileDialog)
     window.toolButton_selectOutputFile.clicked.connect(self.openOutputFileDialog)
     window.progressBar_createVideo.setValue(0)
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
     window.pushButton_Cancel.clicked.connect(self.stopVideo)
     window.setWindowTitle("Audio Visualizer")
 
-    self.previewWindow = PreviewWindow(self, os.path.join(os.path.dirname(os.path.realpath(__file__)), "background.jpg"))
+    self.previewWindow = PreviewWindow(self, os.path.join(os.path.dirname(os.path.realpath(__file__)), "background.png"))
     window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
     
     self.modules = self.findComponents()
@@ -236,15 +236,17 @@ class Main(QtCore.QObject):
     self.autosave()
     
   def autosave(self):
-    if os.path.exists(self.autosavePath):
-        os.remove(self.autosavePath)
-    self.createProjectFile(self.autosavePath)
+    if time.time() - self.lastAutosave >= 1.0:
+        if os.path.exists(self.autosavePath):
+            os.remove(self.autosavePath)
+        self.createProjectFile(self.autosavePath)
+        self.lastAutosave = time.time()
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
 
     fileName = QtGui.QFileDialog.getOpenFileName(self.window,
-       "Open Music File", inputDir, "Music Files (*.mp3 *.wav *.ogg *.flac)");
+       "Open Music File", inputDir, "Music Files (*.mp3 *.wav *.ogg *.fla *.aac)");
 
     if not fileName == "": 
       self.settings.setValue("inputDir", os.path.dirname(fileName))
@@ -254,22 +256,11 @@ class Main(QtCore.QObject):
     outputDir = self.settings.value("outputDir", expanduser("~"))
 
     fileName = QtGui.QFileDialog.getSaveFileName(self.window,
-       "Set Output Video File", outputDir, "Video Files (*.mkv)");
+       "Set Output Video File", outputDir, "Video Files (*.mp4 *.mov *.mkv *.avi *.webm *.flv)");
 
     if not fileName == "": 
       self.settings.setValue("outputDir", os.path.dirname(fileName))
       self.window.lineEdit_outputFile.setText(fileName)
-
-  def openBackgroundFileDialog(self):
-    backgroundDir = self.settings.value("backgroundDir", expanduser("~"))
-
-    fileName = QtGui.QFileDialog.getOpenFileName(self.window,
-       "Open Background Image", backgroundDir, "Image Files (*.jpg *.png);; Video Files (*.mp4)");
-
-    if not fileName == "": 
-      self.settings.setValue("backgroundDir", os.path.dirname(fileName))
-      self.window.lineEdit_background.setText(fileName)
-    self.drawPreview()
 
   def stopVideo(self):
       print('stop')
@@ -291,8 +282,7 @@ class Main(QtCore.QObject):
         self.videoWorker.imageCreated.connect(self.showPreviewImage)
         self.videoWorker.encoding.connect(self.changeEncodingStatus)
         self.videoThread.start()
-        self.videoTask.emit(self.window.lineEdit_background.text(),
-          self.window.lineEdit_audioFile.text(),
+        self.videoTask.emit(self.window.lineEdit_audioFile.text(),
           self.window.lineEdit_outputFile.text(),
           self.selectedComponents)
     else:
@@ -323,10 +313,6 @@ class Main(QtCore.QObject):
       self.window.pushButton_savePreset.setEnabled(False)
       self.window.pushButton_openProject.setEnabled(False)
       self.window.listWidget_componentList.setEnabled(False)
-
-      self.window.label_background.setEnabled(False)
-      self.window.lineEdit_background.setEnabled(False)
-      self.window.toolButton_selectBackground.setEnabled(False)
     else:
       self.window.pushButton_createVideo.setEnabled(True)
       self.window.pushButton_Cancel.setEnabled(False)
@@ -349,12 +335,6 @@ class Main(QtCore.QObject):
       self.window.pushButton_openProject.setEnabled(True)
       self.window.listWidget_componentList.setEnabled(True)
 
-      self.window.label_background.setEnabled(True)
-      self.window.lineEdit_background.setEnabled(True)
-      self.window.toolButton_selectBackground.setEnabled(True)
-      
-
-
   def progressBarSetText(self, value):
     self.window.progressBar_createVideo.setFormat(value)
 
@@ -370,7 +350,7 @@ class Main(QtCore.QObject):
     self.drawPreview()
 
   def drawPreview(self):
-    self.newTask.emit(self.window.lineEdit_background.text(), self.selectedComponents)
+    self.newTask.emit(self.selectedComponents)
     # self.processTask.emit()
     self.autosave()
 
@@ -381,7 +361,7 @@ class Main(QtCore.QObject):
     def findComponents():
         srcPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'components')
         if os.path.exists(srcPath):
-            for f in os.listdir(srcPath):
+            for f in sorted(os.listdir(srcPath)):
                 name, ext = os.path.splitext(f)
                 if name.startswith("__"):
                     continue
@@ -446,7 +426,7 @@ class Main(QtCore.QObject):
 
   def moveComponentDown(self):
     row = self.window.listWidget_componentList.currentRow()
-    if row < len(self.pages) + 1:
+    if row != -1 and row < len(self.pages)+1:
       module = self.selectedComponents[row]
       self.selectedComponents.pop(row)
       self.selectedComponents.insert(row + 1,module)
@@ -507,7 +487,7 @@ class Main(QtCore.QObject):
             if self.window.comboBox_openPreset.itemText(i) == filename:
                 self.window.comboBox_openPreset.removeItem(i)
     with open(filepath, 'w') as f:
-        f.write(core.Core.sortedStringDict(saveValueStore))
+        f.write(core.Core.stringOrderedDict(saveValueStore))
     self.window.comboBox_openPreset.addItem(filename)
     self.window.comboBox_openPreset.setCurrentIndex(self.window.comboBox_openPreset.count()-1)
 
@@ -550,12 +530,13 @@ class Main(QtCore.QObject):
     if not filepath.endswith(".avp"):
         filepath += '.avp'
     with open(filepath, 'w') as f:
+        print('creating %s' % filepath)
         f.write('[Components]\n')
         for comp in self.selectedComponents:
             saveValueStore = comp.savePreset()
             f.write('%s\n' % str(comp))
             f.write('%s\n' % str(comp.version()))
-            f.write('%s\n' % core.Core.sortedStringDict(saveValueStore))
+            f.write('%s\n' % core.Core.stringOrderedDict(saveValueStore))
     if filepath != self.autosavePath:
         self.settings.setValue("projectDir", os.path.dirname(filepath))
         self.settings.setValue("currentProject", filepath)
@@ -604,14 +585,18 @@ class Main(QtCore.QObject):
                         saveValueStore = dict(eval(line))
                         self.selectedComponents[-1].loadPreset(saveValueStore)
                         i = 0
-    except:
+    except (IndexError, ValueError, KeyError, NameError, SyntaxError, AttributeError, TypeError) as e:
         self.clear()
-        self.showMessage("Project file '%s' is corrupted." % filepath)
+        typ, value, _ = sys.exc_info()
+        msg = '%s: %s' % (typ.__name__, value)
+        self.showMessage("Project file '%s' is corrupted." % filepath, False,
+            QtGui.QMessageBox.Warning, msg)
 
-  def showMessage(self, string, showCancel=False, icon=QtGui.QMessageBox.Information):
+  def showMessage(self, string, showCancel=False, icon=QtGui.QMessageBox.Information, detail=None):
     msg = QtGui.QMessageBox()
     msg.setIcon(icon)
     msg.setText(string)
+    msg.setDetailedText(detail)
     if showCancel:
         msg.setStandardButtons(QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel)
     else:

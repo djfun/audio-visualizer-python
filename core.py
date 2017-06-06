@@ -13,11 +13,10 @@ from collections import OrderedDict
 class Core():
 
   def __init__(self):
-    self.lastBackgroundImage = ""
-    self._image = None
-
     self.FFMPEG_BIN = self.findFfmpeg()
-    self.tempDir = None
+    self.tempDir = os.path.join(tempfile.gettempdir(), 'audio-visualizer-python-data')
+    if not os.path.exists(self.tempDir):
+        os.makedirs(self.tempDir)
     atexit.register(self.deleteTempDir)
 
   def findFfmpeg(self):
@@ -30,31 +29,6 @@ class Core():
         return "ffmpeg"
       except:
         return "avconv"
-
-  def parseBaseImage(self, backgroundImage, preview=False):
-      ''' determines if the base image is a single frame or list of frames '''
-      if backgroundImage == "":
-         return ['']
-      else:
-         _, bgExt = os.path.splitext(backgroundImage)
-         if not bgExt == '.mp4':
-            return [backgroundImage]
-         else:
-            return self.getVideoFrames(backgroundImage, preview)
-
-  def drawBaseImage(self, backgroundFile):
-    if backgroundFile == '':
-       im = Image.new("RGB", (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), "black")
-    else:
-       im = Image.open(backgroundFile)
-
-    if self._image == None or not self.lastBackgroundImage == backgroundFile:
-      self.lastBackgroundImage = backgroundFile
-      # resize if necessary
-      if not im.size == (int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))):
-        im = im.resize((int(self.settings.value('outputWidth')), int(self.settings.value('outputHeight'))), Image.ANTIALIAS)
-        
-    return im
 
   def readAudioFile(self, filename, parent):
     command = [ self.FFMPEG_BIN,
@@ -121,30 +95,10 @@ class Core():
     return completeAudioArray
 
   def deleteTempDir(self):
-     if self.tempDir and os.path.exists(self.tempDir):
-         rmtree(self.tempDir)
-
-  def getVideoFrames(self, videoPath, firstOnly=False):
-      self.tempDir = os.path.join(tempfile.gettempdir(), 'audio-visualizer-python-data')
-      # recreate the temporary directory so it is empty
-      self.deleteTempDir()
-      os.mkdir(self.tempDir)
-      if firstOnly:
-         filename = 'preview%s.jpg' % os.path.basename(videoPath).split('.', 1)[0]
-         options = '-ss 10 -vframes 1'
-      else:
-         filename = '$frame%05d.jpg'
-         options = ''
-      sp.call( \
-         '%s -i "%s" -y %s "%s"' % ( \
-            self.FFMPEG_BIN,
-            videoPath,
-            options,
-            os.path.join(self.tempDir, filename)
-         ),
-         shell=True
-      )
-      return sorted([os.path.join(self.tempDir, f) for f in os.listdir(self.tempDir)])
+    try:
+        rmtree(self.tempDir)
+    except FileNotFoundError:
+        pass
 
   def cancel(self):
     self.canceled = True
@@ -153,6 +107,6 @@ class Core():
     self.canceled = False
     
   @staticmethod
-  def sortedStringDict(dictionary):
+  def stringOrderedDict(dictionary):
     sorted_ = OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
     return repr(sorted_)

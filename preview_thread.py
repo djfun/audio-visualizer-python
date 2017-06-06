@@ -22,10 +22,9 @@ class Worker(QtCore.QObject):
 
 
   @pyqtSlot(str, list)
-  def createPreviewImage(self, backgroundImage, components):
+  def createPreviewImage(self, components):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     dic = {
-      "backgroundImage": backgroundImage,
       "components": components,
     }
     self.queue.put(dic)
@@ -40,25 +39,14 @@ class Worker(QtCore.QObject):
         except Empty:
           continue
 
-      bgImage = self.core.parseBaseImage(\
-                   nextPreviewInformation["backgroundImage"],
-                   preview=True
-                )
-      if bgImage == []:
-        bgImage = ''
-      else:
-        bgImage = bgImage[0]
-
-      im = self.core.drawBaseImage(bgImage)
       width = int(self.core.settings.value('outputWidth'))
       height = int(self.core.settings.value('outputHeight'))
-      frame = Image.new("RGBA", (width, height),(0,0,0,255))
-      frame.paste(im)
+      frame = Image.new("RGBA", (width, height),(0,0,0,0))
 
       components = nextPreviewInformation["components"]
       for component in reversed(components):
-        newFrame = Image.alpha_composite(frame,component.previewRender(self))
-        frame = Image.alpha_composite(frame,newFrame)
+        #newFrame = Image.alpha_composite(frame,)
+        frame = Image.alpha_composite(frame,component.previewRender(self))
 
       self._image = ImageQt(frame)
       self.imageCreated.emit(QtGui.QImage(self._image))

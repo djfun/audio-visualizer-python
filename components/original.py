@@ -58,6 +58,8 @@ class Component(__base__.Component):
         self.smoothConstantUp = 0.8
         self.lastSpectrum = None
         self.spectrumArray = {}
+        self.width = int(self.worker.core.settings.value('outputWidth'))
+        self.height = int(self.worker.core.settings.value('outputHeight'))
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
             if self.canceled:
@@ -72,12 +74,9 @@ class Component(__base__.Component):
             pStr = "Analyzing audio: "+ str(progress) +'%'
             self.progressBarSetText.emit(pStr)
             self.progressBarUpdate.emit(int(progress))
-
-
-    def frameRender(self, moduleNo, frameNo):
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
-        return self.drawBars(width, height, self.spectrumArray[frameNo], self.visColor, self.layout)
+        
+    def frameRender(self, moduleNo, arrayNo, frameNo):
+        return self.drawBars(self.width, self.height, self.spectrumArray[arrayNo], self.visColor, self.layout)
 
     def pickColor(self):
         RGBstring, btnStyle = super().pickColor()
@@ -153,13 +152,4 @@ class Component(__base__.Component):
             im.paste(imTop, (0, y), mask=imTop)
 
         return im
-
-    def cancel(self):
-        self.canceled = True
-
-    def reset(self):
-        self.canceled = False
-
-    
-
 
