@@ -1,15 +1,56 @@
 from PIL import Image, ImageDraw
 from PyQt4 import uic, QtGui, QtCore
-import os, subprocess
-import numpy
+import os, subprocess, threading
+from queue import PriorityQueue
 from . import __base__
+
+class Video:
+    '''Video Component Frame-Fetcher'''
+    def __init__(self, ffmpeg, videoPath, width, height, frameRate, chunkSize, parent):
+        self.parent = parent
+        self.chunkSize = chunkSize
+        self.size = (width, height)
+        self.frameNo = -1
+        self.command = [
+            ffmpeg,
+            '-thread_queue_size', '512',
+            '-r', frameRate,
+            '-i', videoPath,
+            '-f', 'image2pipe',
+            '-pix_fmt', 'rgba',
+            '-filter:v', 'scale='+str(width)+':'+str(height),
+            '-vcodec', 'rawvideo', '-',
+        ]
+        
+        self.frameBuffer = PriorityQueue()
+        self.frameBuffer.maxsize = int(frameRate)
+        self.finishedFrames = {}
+        
+        self.thread = threading.Thread(target=self.fillBuffer, name=self.__doc__)
+        self.thread.daemon = True
+        self.thread.start()
+        
+    def frame(self, num):
+        while True:
+            if num in self.finishedFrames:
+                image = self.finishedFrames.pop(num)
+                return Image.frombytes('RGBA', self.size, image)
+            i, image = self.frameBuffer.get()
+            self.finishedFrames[i] = image
+            self.frameBuffer.task_done()
+    
+    def fillBuffer(self):        
+        self.pipe = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**8)
+        while True:
+            if self.parent.canceled:
+                break
+            self.frameNo += 1
+            image = self.pipe.stdout.read(self.chunkSize)
+            print('creating frame #%s' % str(self.frameNo))
+            self.frameBuffer.put((self.frameNo, image))
 
 class Component(__base__.Component):
     '''Video'''
-    def __init__(self):
-        super().__init__()
-        self.working = False
-        
     def widget(self, parent):
         self.parent = parent
         self.settings = parent.settings
@@ -29,41 +70,22 @@ class Component(__base__.Component):
         self.parent.drawPreview()
         
     def previewRender(self, previewWorker):
-        self.width = int(previewWorker.core.settings.value('outputWidth'))
-        self.height = int(previewWorker.core.settings.value('outputHeight'))
-        frame1 = self.getPreviewFrame()
-        if not hasattr(self, 'staticFrame') or not self.working and frame1:
-            frame = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
-            if frame1:
-                im = Image.open(frame1)
-                frame.paste(im)
-            if not self.working:
-                self.staticFrame = frame
-        return self.staticFrame
+        width = int(previewWorker.core.settings.value('outputWidth'))
+        height = int(previewWorker.core.settings.value('outputHeight'))
+        self.chunkSize = 4*width*height
+        return self.getPreviewFrame(width, height)
     
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
-        self.width = int(self.worker.core.settings.value('outputWidth'))
-        self.height = int(self.worker.core.settings.value('outputHeight'))
-        self.working = True
-        self.frames = self.getVideoFrames()
+        width = int(self.worker.core.settings.value('outputWidth'))
+        height = int(self.worker.core.settings.value('outputHeight'))
+        self.chunkSize = 4*width*height
+        self.video = Video(self.parent.core.FFMPEG_BIN, self.videoPath,
+            width, height, self.settings.value("outputFrameRate"),
+            self.chunkSize, self.parent)
         
     def frameRender(self, moduleNo, arrayNo, frameNo):
-        # don't make a new frame
-        if not self.working:
-            return self.staticFrame
-        byteFrame = self.frames.stdout.read(self.chunkSize)
-        if len(byteFrame) == 0:
-            self.working = False
-            self.frames.kill()
-            return self.staticFrame
-            
-        # make a new frame
-        width = self.width
-        height = self.height
-        image = Image.frombytes('RGBA', (width, height), byteFrame)
-        self.staticFrame = image
-        return self.staticFrame
+        return self.video.frame(frameNo)
 
     def loadPreset(self, pr):
         self.page.lineEdit_video.setText(pr['video'])
@@ -82,51 +104,21 @@ class Component(__base__.Component):
             self.page.lineEdit_video.setText(filename)
             self.update()
     
-    def getPreviewFrame(self):
-        if not self.videoPath:
-            return
-        name = os.path.basename(self.videoPath).split('.', 1)[0]
-        filename = 'preview%s.jpg' % name
-        if os.path.exists(os.path.join(self.parent.core.tempDir, filename)):
-            # no, we don't need a new preview frame
-            return False
-        
-        # get a preview frame
-        subprocess.call( \
-         '%s -i "%s" -y %s %s "%s"' % ( \
-            self.parent.core.FFMPEG_BIN,
-            self.videoPath,
-            '-ss 10 -vframes 1',
-            '-filter:v scale='+str(self.width)+':'+str(self.height),
-            os.path.join(self.parent.core.tempDir, filename)
-         ),
-         shell=True
-        )
-        print('### Got Preview Frame From %s ###' % name)
-        return os.path.join(self.parent.core.tempDir, filename)
-    
-    def getVideoFrames(self):
-        if not self.videoPath:
-            return
-        
+    def getPreviewFrame(self, width, height):
         command = [
             self.parent.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
-            '-filter:v', 'scale='+str(self.width)+':'+str(self.height),
+            '-filter:v', 'scale='+str(width)+':'+str(height),
             '-vcodec', 'rawvideo', '-',
+            '-ss', '90',
+            '-vframes', '1',
         ]
-        
-        # pipe in video frames from ffmpeg
-        in_pipe = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**8)
-        #width, height = self.realSize
-        self.chunkSize = 4*self.width*self.height
-
-        return in_pipe
-
-    def resize(self, im):
-        if im.size != (self.width, self.height):
-            im = im.resize((self.width, self.height), Image.ANTIALIAS)
-        return im
+        pipe = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**8)
+        byteFrame = pipe.stdout.read(self.chunkSize)
+        image = Image.frombytes('RGBA', (width, height), byteFrame)
+        pipe.stdout.close()
+        pipe.kill()
+        return image

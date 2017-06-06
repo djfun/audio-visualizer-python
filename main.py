@@ -1,4 +1,4 @@
-import sys, io, os, shutil, atexit, string, signal, filecmp
+import sys, io, os, shutil, atexit, string, signal, filecmp, time
 from os.path import expanduser
 from queue import Queue
 from importlib import import_module
@@ -145,6 +145,7 @@ class Main(QtCore.QObject):
     self.core = core.Core()
     self.pages = []
     self.selectedComponents = []
+    self.lastAutosave = time.time()
 
     # create data directory, load/create settings
     self.dataDir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
@@ -235,9 +236,11 @@ class Main(QtCore.QObject):
     self.autosave()
     
   def autosave(self):
-    if os.path.exists(self.autosavePath):
-        os.remove(self.autosavePath)
-    self.createProjectFile(self.autosavePath)
+    if time.time() - self.lastAutosave >= 1.0:
+        if os.path.exists(self.autosavePath):
+            os.remove(self.autosavePath)
+        self.createProjectFile(self.autosavePath)
+        self.lastAutosave = time.time()
 
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -423,7 +426,7 @@ class Main(QtCore.QObject):
 
   def moveComponentDown(self):
     row = self.window.listWidget_componentList.currentRow()
-    if row < len(self.pages) + 1:
+    if row != -1 and row < len(self.pages)+1:
       module = self.selectedComponents[row]
       self.selectedComponents.pop(row)
       self.selectedComponents.insert(row + 1,module)
