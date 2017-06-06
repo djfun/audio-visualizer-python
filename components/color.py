@@ -4,31 +4,39 @@ from PyQt4.QtGui import QColor
 import os
 from . import __base__
 
+
 class Component(__base__.Component):
     '''Color'''
     def widget(self, parent):
         self.parent = parent
-        page = uic.loadUi(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'color.ui'))
-        
-        self.color1 = (0,0,0)
-        self.color2 = (133,133,133)
+        page = uic.loadUi(os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), 'color.ui'))
+
+        self.color1 = (0, 0, 0)
+        self.color2 = (133, 133, 133)
         self.x = 0
         self.y = 0
-        
+
         page.lineEdit_color1.setText('%s,%s,%s' % self.color1)
         page.lineEdit_color2.setText('%s,%s,%s' % self.color2)
-        page.pushButton_color1.clicked.connect(lambda: self.pickColor(1))
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.color1).name()
+
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+            % QColor(*self.color1).name()
+
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+            % QColor(*self.color2).name()
+
         page.pushButton_color1.setStyleSheet(btnStyle)
-        page.pushButton_color2.clicked.connect(lambda: self.pickColor(2))
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*self.color2).name()
         page.pushButton_color2.setStyleSheet(btnStyle)
+        page.pushButton_color1.clicked.connect(lambda: self.pickColor(1))
+        page.pushButton_color2.clicked.connect(lambda: self.pickColor(2))
+
         # disable color #2 until non-default 'fill' option gets changed
         page.lineEdit_color2.setDisabled(True)
         page.pushButton_color2.setDisabled(True)
         page.spinBox_x.setValue(self.x)
         page.spinBox_x.setValue(self.y)
-        
+
         page.lineEdit_color1.textChanged.connect(self.update)
         page.lineEdit_color2.textChanged.connect(self.update)
         page.spinBox_x.valueChanged.connect(self.update)
@@ -42,39 +50,44 @@ class Component(__base__.Component):
         self.x = self.page.spinBox_x.value()
         self.y = self.page.spinBox_y.value()
         self.parent.drawPreview()
-    
+
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
-    
+
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
         return ['static']
-    
+
     def frameRender(self, moduleNo, arrayNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
-        
+
     def drawFrame(self, width, height):
-        r,g,b = self.color1
+        r, g, b = self.color1
         return Image.new("RGBA", (width, height), (r, g, b, 255))
 
     def loadPreset(self, pr):
         self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
         self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*pr['color1']).name()
+
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+            % QColor(*pr['color1']).name()
+
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+            % QColor(*pr['color2']).name()
+
         self.page.pushButton_color1.setStyleSheet(btnStyle)
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" % QColor(*pr['color2']).name()
         self.page.pushButton_color2.setStyleSheet(btnStyle)
-        
+
     def savePreset(self):
         return {
-            'color1' : self.color1,
-            'color2' : self.color2,
+            'color1': self.color1,
+            'color2': self.color2,
         }
-        
+
     def pickColor(self, num):
         RGBstring, btnStyle = super().pickColor()
         if not RGBstring:

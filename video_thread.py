@@ -13,6 +13,7 @@ import time
 from copy import copy
 import signal
 
+
 class Worker(QtCore.QObject):
 
     imageCreated = pyqtSignal(['QImage'])
@@ -40,16 +41,19 @@ class Worker(QtCore.QObject):
             frame = None
 
             for compNo, comp in reversed(list(enumerate(self.components))):
-                if compNo in self.staticComponents and self.staticComponents[compNo] != None:
+                if compNo in self.staticComponents and \
+                        self.staticComponents[compNo] is not None:
                     if frame is None:
                         frame = self.staticComponents[compNo]
                     else:
-                        frame = Image.alpha_composite(frame, self.staticComponents[compNo])
+                        frame = Image.alpha_composite(
+                            frame, self.staticComponents[compNo])
                 else:
                     if frame is None:
                         frame = comp.frameRender(compNo, i[0], i[1])
                     else:
-                        frame = Image.alpha_composite(frame, comp.frameRender(compNo, i[0], i[1]))
+                        frame = Image.alpha_composite(
+                            frame, comp.frameRender(compNo, i[0], i[1]))
 
             self.renderQueue.put([i[0], frame])
             self.compositeQueue.task_done()
@@ -63,8 +67,9 @@ class Worker(QtCore.QObject):
             self.bgI += 1
 
     def previewDispatch(self):
-        background = Image.new("RGBA", (1920, 1080),(0,0,0,0))
-        background.paste(Image.open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "background.png")))
+        background = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+        background.paste(Image.open(os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "background.png")))
         background = background.resize((self.width, self.height))
 
         while not self.stopped:
@@ -83,11 +88,10 @@ class Worker(QtCore.QObject):
         self.encoding.emit(True)
         self.components = components
         self.outputFile = outputFile
-        self.bgI = 0 # tracked video frame
+        self.bgI = 0  # tracked video frame
         self.reset()
         self.width = int(self.core.settings.value('outputWidth'))
         self.height = int(self.core.settings.value('outputHeight'))
-        # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
 
@@ -95,21 +99,24 @@ class Worker(QtCore.QObject):
         self.completeAudioArray = self.core.readAudioFile(inputFile, self)
 
         # test if user has libfdk_aac
-        encoders = sp.check_output(self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
+        encoders = sp.check_output(
+            self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
         acodec = self.core.settings.value('outputAudioCodec')
-        
+
         if b'libfdk_aac' in encoders and acodec == 'aac':
             acodec = 'libfdk_aac'
 
         ffmpegCommand = [
             self.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
-            '-y',  # (optional) means overwrite the output file if it already exists.
+            '-y',  # overwrite the output file if it already exists.
             '-f', 'rawvideo',
             '-vcodec', 'rawvideo',
             '-s', str(self.width)+'x'+str(self.height),  # size of one frame
             '-pix_fmt', 'rgba',
-            '-r', self.core.settings.value('outputFrameRate'),  # frames per second
+
+            # frames per second
+            '-r', self.core.settings.value('outputFrameRate'),
             '-i', '-',  # The input comes from a pipe
             '-an',
             '-i', inputFile,
@@ -126,14 +133,16 @@ class Worker(QtCore.QObject):
             ffmpegCommand.append('-2')
 
         ffmpegCommand.append(outputFile)
-        self.out_pipe = sp.Popen(ffmpegCommand, stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
+        self.out_pipe = sp.Popen(
+            ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout)
 
         # create video for output
         numpy.seterr(divide='ignore')
 
         # initialize components
         print('loaded components:',
-              ["%s%s" % (num, str(component)) for num, component in enumerate(self.components)])
+              ["%s%s" % (num, str(component)) for num,
+               component in enumerate(self.components)])
         self.staticComponents = {}
         numComps = len(self.components)
         for compNo, comp in enumerate(self.components):
@@ -149,7 +158,8 @@ class Worker(QtCore.QObject):
             )
 
             if properties and 'static' in properties:
-                self.staticComponents[compNo] = copy(comp.frameRender(compNo, 0, 0))
+                self.staticComponents[compNo] = copy(
+                    comp.frameRender(compNo, 0, 0))
             self.progressBarUpdate.emit(100)
 
         self.compositeQueue = Queue()
@@ -159,17 +169,20 @@ class Worker(QtCore.QObject):
         self.previewQueue = PriorityQueue()
 
         self.renderThreads = []
-        # create threads to render frames and send them back here for piping out
+        # Threads to render frames and send them back here for piping out
         for i in range(3):
-            self.renderThreads.append(Thread(target=self.renderNode, name="Render Thread"))
+            self.renderThreads.append(
+                Thread(target=self.renderNode, name="Render Thread"))
             self.renderThreads[i].daemon = True
             self.renderThreads[i].start()
 
-        self.dispatchThread = Thread(target=self.renderDispatch, name="Render Dispatch Thread")
+        self.dispatchThread = Thread(
+            target=self.renderDispatch, name="Render Dispatch Thread")
         self.dispatchThread.daemon = True
         self.dispatchThread.start()
 
-        self.previewDispatch = Thread(target=self.previewDispatch, name="Render Dispatch Thread")
+        self.previewDispatch = Thread(
+            target=self.previewDispatch, name="Render Dispatch Thread")
         self.previewDispatch.daemon = True
         self.previewDispatch.start()
 
@@ -197,10 +210,13 @@ class Worker(QtCore.QObject):
                     break
 
                 # increase progress bar value
-                if progressBarValue + 1 <= (i / len(self.completeAudioArray)) * 100:
-                    progressBarValue = numpy.floor((i / len(self.completeAudioArray)) * 100)
+                if progressBarValue + 1 <= (i / len(self.completeAudioArray)) \
+                        * 100:
+                    progressBarValue = numpy.floor(
+                        (i / len(self.completeAudioArray)) * 100)
                     self.progressBarUpdate.emit(progressBarValue)
-                    pStr = "Exporting video: " + str(int(progressBarValue)) + "%"
+                    pStr = "Exporting video: " + str(int(progressBarValue)) \
+                        + "%"
                     self.progressBarSetText.emit(pStr)
 
         numpy.seterr(all='print')
@@ -220,7 +236,7 @@ class Worker(QtCore.QObject):
                 pass
             self.progressBarUpdate.emit(0)
             self.progressBarSetText.emit('Export Canceled')
-            
+
         else:
             if self.error:
                 print("Export Failed")
@@ -230,14 +246,14 @@ class Worker(QtCore.QObject):
                 print("Export Complete")
                 self.progressBarUpdate.emit(100)
                 self.progressBarSetText.emit('Export Complete')
-            
+
         self.error = False
         self.canceled = False
         self.parent.drawPreview()
         self.stopped = True
         self.encoding.emit(False)
         self.videoCreated.emit()
-    
+
     def updateProgress(self, pStr, pVal):
         self.progressBarValue.emit(pVal)
         self.progressBarSetText.emit(pStr)
@@ -245,10 +261,10 @@ class Worker(QtCore.QObject):
     def cancel(self):
         self.canceled = True
         self.core.cancel()
-        
+
         for comp in self.components:
             comp.cancel()
-        
+
         try:
             self.out_pipe.send_signal(signal.SIGINT)
         except:

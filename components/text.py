@@ -25,9 +25,7 @@ class Component(__base__.Component):
         self.yPosition = height / 2 * 1.036
 
         page = uic.loadUi(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            'text.ui'
-        ))
+            os.path.dirname(os.path.realpath(__file__)), 'text.ui'))
         page.comboBox_textAlign.addItem("Left")
         page.comboBox_textAlign.addItem("Middle")
         page.comboBox_textAlign.addItem("Right")
@@ -61,7 +59,8 @@ class Component(__base__.Component):
         self.fontSize = self.page.spinBox_fontSize.value()
         self.xPosition = self.page.spinBox_xTextAlign.value()
         self.yPosition = self.page.spinBox_yTextAlign.value()
-        self.textColor = self.RGBFromString(self.page.lineEdit_textColor.text())
+        self.textColor = self.RGBFromString(
+            self.page.lineEdit_textColor.text())
         self.parent.drawPreview()
 
     def getXY(self):
@@ -95,14 +94,14 @@ class Component(__base__.Component):
 
     def savePreset(self):
         return {
-                'title': self.title,
-                'titleFont': self.titleFont.toString(),
-                'alignment': self.alignment,
-                'fontSize': self.fontSize,
-                'xPosition': self.xPosition,
-                'yPosition': self.yPosition,
-                'textColor': self.textColor
-                }
+            'title': self.title,
+            'titleFont': self.titleFont.toString(),
+            'alignment': self.alignment,
+            'fontSize': self.fontSize,
+            'xPosition': self.xPosition,
+            'yPosition': self.yPosition,
+            'textColor': self.textColor
+        }
 
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
