@@ -63,10 +63,16 @@ class Worker(QtCore.QObject):
             self.bgI += 1
 
     def previewDispatch(self):
+        background = Image.new("RGBA", (1920, 1080),(0,0,0,0))
+        background.paste(Image.open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "background.png")))
+        background = background.resize((self.width, self.height))
+
         while not self.stopped:
             i = self.previewQueue.get()
             if time.time() - self.lastPreview >= 0.06 or i[0] == 0:
-                self._image = ImageQt(i[1])
+                image = copy(background)
+                image = Image.alpha_composite(image, i[1])
+                self._image = ImageQt(image)
                 self.imageCreated.emit(QtGui.QImage(self._image))
                 self.lastPreview = time.time()
 

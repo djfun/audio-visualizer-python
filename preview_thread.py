@@ -6,6 +6,8 @@ import core
 import time
 from queue import Queue, Empty
 import numpy
+import os
+from copy import copy
 
 class Worker(QtCore.QObject):
 
@@ -19,6 +21,9 @@ class Worker(QtCore.QObject):
     self.queue = queue
     self.core.settings = parent.settings
     self.stackedWidget = parent.window.stackedWidget
+    self.background = Image.new("RGBA", (1920, 1080),(0,0,0,0))
+    self.background.paste(Image.open(os.path.join(os.path.dirname(os.path.realpath(__file__)),"background.png")))
+    
 
 
   @pyqtSlot(str, list)
@@ -41,7 +46,8 @@ class Worker(QtCore.QObject):
 
       width = int(self.core.settings.value('outputWidth'))
       height = int(self.core.settings.value('outputHeight'))
-      frame = Image.new("RGBA", (width, height),(0,0,0,0))
+      frame = copy(self.background)
+      frame = frame.resize((width,height))
 
       components = nextPreviewInformation["components"]
       for component in reversed(components):
