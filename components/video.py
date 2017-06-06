@@ -90,7 +90,11 @@ class Component(__base__.Component):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         self.chunkSize = 4*width*height
-        return self.getPreviewFrame(width, height)
+        frame = self.getPreviewFrame(width, height)
+        if not frame:
+            return Image.new("RGBA", (width, height),(0,0,0,0))
+        else:
+            return frame
     
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
@@ -122,6 +126,8 @@ class Component(__base__.Component):
             self.update()
     
     def getPreviewFrame(self, width, height):
+        if not self.videoPath or not os.path.exists(self.videoPath):
+            return
         command = [
             self.parent.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
