@@ -6,15 +6,21 @@ from . import __base__
 
 class Video:
     '''Video Component Frame-Fetcher'''
-    def __init__(self, ffmpeg, videoPath, width, height, frameRate, chunkSize, parent):
+    def __init__(self, ffmpeg, videoPath, width, height, frameRate, chunkSize, parent, loopVideo):
         self.parent = parent
         self.chunkSize = chunkSize
         self.size = (width, height)
         self.frameNo = -1
+        self.currentFrame = 'None'
+        if loopVideo:
+            self.loopValue = '-1'
+        else:
+            self.loopValue = '0'
         self.command = [
             ffmpeg,
             '-thread_queue_size', '512',
             '-r', frameRate,
+            '-stream_loop', self.loopValue,
             '-i', videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
@@ -45,9 +51,17 @@ class Video:
             if self.parent.canceled:
                 break
             self.frameNo += 1
-            image = self.pipe.stdout.read(self.chunkSize)
-            print('creating frame #%s' % str(self.frameNo))
-            self.frameBuffer.put((self.frameNo, image))
+
+            # If we run out of frames, use the last good frame and loop.
+            if len(self.currentFrame) == 0:
+                self.frameBuffer.put((self.frameNo-1, self.lastFrame))
+                continue
+
+            self.currentFrame = self.pipe.stdout.read(self.chunkSize)
+            #print('creating frame #%s' % str(self.frameNo))
+            if len(self.currentFrame) != 0:
+                self.frameBuffer.put((self.frameNo, self.currentFrame))
+                self.lastFrame = self.currentFrame
 
 class Component(__base__.Component):
     '''Video'''
@@ -58,15 +72,18 @@ class Component(__base__.Component):
         self.videoPath = ''
         self.x = 0
         self.y = 0
+        self.loopVideo = False
         
         page.lineEdit_video.textChanged.connect(self.update)
         page.pushButton_video.clicked.connect(self.pickVideo)
+        page.checkBox_loop.stateChanged.connect(self.update)
         
         self.page = page
         return page
 
     def update(self):
         self.videoPath = self.page.lineEdit_video.text()
+        self.loopVideo = self.page.checkBox_loop.isChecked()
         self.parent.drawPreview()
         
     def previewRender(self, previewWorker):
@@ -82,7 +99,7 @@ class Component(__base__.Component):
         self.chunkSize = 4*width*height
         self.video = Video(self.parent.core.FFMPEG_BIN, self.videoPath,
             width, height, self.settings.value("outputFrameRate"),
-            self.chunkSize, self.parent)
+            self.chunkSize, self.parent, self.loopVideo)
         
     def frameRender(self, moduleNo, arrayNo, frameNo):
         return self.video.frame(frameNo)
