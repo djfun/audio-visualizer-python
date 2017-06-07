@@ -109,7 +109,7 @@
     ],
     "video-codecs":{
         "H264": ["libx264"],
-        "H264 (nvenc)": ["nvenc_264"],
+        "H264 (nvenc)": ["h264_nvenc", "nvenc_h264"],
         "MPEG4": ["mpeg4"],
         "VP9": ["libvpx-vp9"],
         "VP8": ["libvpx"],
@@ -120,7 +120,7 @@
         "WMV": ["wmv2"]
     },
     "audio-codecs": {
-        "AAC": ["libfdk_aac","aac"],
+        "AAC": ["libfdk_aac", "aac"],
         "AC3": ["ac3"],
         "MP3": ["libmp3lame"],
         "PCM s16 LE": ["pcm_s16le"],

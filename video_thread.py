@@ -109,7 +109,9 @@ class Worker(QtCore.QObject):
         options = self.core.encoder_options
         containerName = self.core.settings.value('outputContainer')
         vcodec = self.core.settings.value('outputVideoCodec')
+        vbitrate = str(self.core.settings.value('outputVideoBitrate'))+'k'
         acodec = self.core.settings.value('outputAudioCodec')
+        abitrate = str(self.core.settings.value('outputAudioBitrate'))+'k'
 
         for cont in options['containers']:
             if cont['name'] == containerName:
@@ -147,7 +149,8 @@ class Worker(QtCore.QObject):
             '-i', inputFile,
             '-vcodec', vencoder,
             '-acodec', aencoder,  # output audio codec
-            '-b:a', self.core.settings.value('outputAudioBitrate'),
+            '-b:v', vbitrate,
+            '-b:a', abitrate,
             '-pix_fmt', self.core.settings.value('outputVideoFormat'),
             '-preset', self.core.settings.value('outputPreset'),
             '-f', container

@@ -132,6 +132,16 @@ class MainWindow(QtCore.QObject):
             self.updateCodecSettings
         )
 
+        vBitrate = int(self.settings.value('outputVideoBitrate'))
+        aBitrate = int(self.settings.value('outputAudioBitrate'))
+
+        window.spinBox_vBitrate.setValue(vBitrate)
+        window.spinBox_aBitrate.setValue(aBitrate)
+
+        window.spinBox_vBitrate.valueChanged.connect(self.updateCodecSettings)
+        window.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
+
+
         self.previewWindow = PreviewWindow(self, os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
@@ -159,6 +169,8 @@ class MainWindow(QtCore.QObject):
                 window.comboBox_resolution.setCurrentIndex(currentRes)
                 window.comboBox_resolution.currentIndexChanged.connect(
                     self.updateResolution)
+        
+
 
         self.window.pushButton_listMoveUp.clicked.connect(
             self.moveComponentUp)
@@ -222,13 +234,19 @@ class MainWindow(QtCore.QObject):
 
     def updateCodecSettings(self):
         vCodecWidget = self.window.comboBox_videoCodec
+        vBitrateWidget = self.window.spinBox_vBitrate
+        aBitrateWidget = self.window.spinBox_aBitrate
         aCodecWidget = self.window.comboBox_audioCodec
         currentVideoCodec = vCodecWidget.currentIndex()
         currentVideoCodec = vCodecWidget.itemText(currentVideoCodec)
+        currentVideoBitrate = vBitrateWidget.value()
         currentAudioCodec = aCodecWidget.currentIndex()
         currentAudioCodec = aCodecWidget.itemText(currentAudioCodec)
+        currentAudioBitrate = aBitrateWidget.value()
         self.settings.setValue('outputVideoCodec', currentVideoCodec)
         self.settings.setValue('outputAudioCodec', currentAudioCodec)
+        self.settings.setValue('outputVideoBitrate', currentVideoBitrate)
+        self.settings.setValue('outputAudioBitrate', currentAudioBitrate)
 
     def autosave(self):
         if time.time() - self.lastAutosave >= 1.0:

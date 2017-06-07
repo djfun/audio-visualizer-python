@@ -697,12 +697,16 @@
                </sizepolicy>
               </property>
               <property name="text">
-               <string>Video Bitrate</string>
+               <string>Video Bitrate (Kbps)</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QSpinBox" name="spinBox_vBitrate"/>
+             <widget class="QSpinBox" name="spinBox_vBitrate">
+              <property name="maximum">
+               <number>99999</number>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -762,12 +766,16 @@
                </sizepolicy>
               </property>
               <property name="text">
-               <string>Audio Bitrate</string>
+               <string>Audio Bitrate (Kbps)</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QSpinBox" name="spinBox_aBitrate"/>
+             <widget class="QSpinBox" name="spinBox_aBitrate">
+              <property name="maximum">
+               <number>9999</number>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
