@@ -25,12 +25,13 @@ def LoadDefaultSettings(self):
         "outputWidth": 1280,
         "outputHeight": 720,
         "outputFrameRate": 30,
-        "outputAudioCodec": "aac",
+        "outputAudioCodec": "AAC",
         "outputAudioBitrate": "192k",
-        "outputVideoCodec": "libx264",
+        "outputVideoCodec": "H264",
         "outputVideoFormat": "yuv420p",
         "outputPreset": "medium",
         "outputFormat": "mp4",
+        "outputContainer": "MP4",
         "projectDir": os.path.join(self.dataDir, 'projects'),
     }
 

@@ -101,6 +101,37 @@ class MainWindow(QtCore.QObject):
         window.pushButton_Cancel.clicked.connect(self.stopVideo)
         window.setWindowTitle("Audio Visualizer")
 
+        for i, container in enumerate(self.core.encoder_options['containers']):
+            window.comboBox_videoContainer.addItem(container['name'])
+            if container['name'] == self.settings.value('outputContainer'):
+                selectedContainer = i
+
+        window.comboBox_videoContainer.setCurrentIndex(selectedContainer)
+        window.comboBox_videoContainer.currentIndexChanged.connect(
+            self.updateCodecs
+        )
+
+        self.updateCodecs()
+
+        for i in range(window.comboBox_videoCodec.count()):
+            codec = window.comboBox_videoCodec.itemText(i)
+            if codec == self.settings.value('outputVideoCodec'):
+                window.comboBox_videoCodec.setCurrentIndex(i)
+                print(codec)
+
+        for i in range(window.comboBox_audioCodec.count()):
+            codec = window.comboBox_audioCodec.itemText(i)
+            if codec == self.settings.value('outputAudioCodec'):
+                window.comboBox_audioCodec.setCurrentIndex(i)
+
+        window.comboBox_videoCodec.currentIndexChanged.connect(
+            self.updateCodecSettings
+        )
+
+        window.comboBox_audioCodec.currentIndexChanged.connect(
+            self.updateCodecSettings
+        )
+
         self.previewWindow = PreviewWindow(self, os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
@@ -123,11 +154,11 @@ class MainWindow(QtCore.QObject):
             str(self.settings.value('outputHeight'))
         for i, res in enumerate(self.resolutions):
             window.comboBox_resolution.addItem(res)
-        if res == currentRes:
-            currentRes = i
-            window.comboBox_resolution.setCurrentIndex(currentRes)
-            window.comboBox_resolution.currentIndexChanged.connect(
-                self.updateResolution)
+            if res == currentRes:
+                currentRes = i
+                window.comboBox_resolution.setCurrentIndex(currentRes)
+                window.comboBox_resolution.currentIndexChanged.connect(
+                    self.updateResolution)
 
         self.window.pushButton_listMoveUp.clicked.connect(
             self.moveComponentUp)
@@ -170,6 +201,34 @@ class MainWindow(QtCore.QObject):
         self.previewThread.quit()
         self.previewThread.wait()
         self.autosave()
+
+    def updateCodecs(self):
+        containerWidget = self.window.comboBox_videoContainer
+        vCodecWidget = self.window.comboBox_videoCodec
+        aCodecWidget = self.window.comboBox_audioCodec
+        index = containerWidget.currentIndex()
+        name = containerWidget.itemText(index)
+        self.settings.setValue('outputContainer', name)
+
+        vCodecWidget.clear()
+        aCodecWidget.clear()
+
+        for container in self.core.encoder_options['containers']:
+            if container['name'] == name:
+                for vCodec in container['video-codecs']:
+                    vCodecWidget.addItem(vCodec)
+                for aCodec in container['audio-codecs']:
+                    aCodecWidget.addItem(aCodec)
+
+    def updateCodecSettings(self):
+        vCodecWidget = self.window.comboBox_videoCodec
+        aCodecWidget = self.window.comboBox_audioCodec
+        currentVideoCodec = vCodecWidget.currentIndex()
+        currentVideoCodec = vCodecWidget.itemText(currentVideoCodec)
+        currentAudioCodec = aCodecWidget.currentIndex()
+        currentAudioCodec = aCodecWidget.itemText(currentAudioCodec)
+        self.settings.setValue('outputVideoCodec', currentVideoCodec)
+        self.settings.setValue('outputAudioCodec', currentAudioCodec)
 
     def autosave(self):
         if time.time() - self.lastAutosave >= 1.0:
@@ -285,7 +344,7 @@ class MainWindow(QtCore.QObject):
         self.videoThread.wait()
 
     def updateResolution(self):
-        resIndex = int(window.comboBox_resolution.currentIndex())
+        resIndex = int(self.window.comboBox_resolution.currentIndex())
         res = self.resolutions[resIndex].split('x')
         self.settings.setValue('outputWidth', res[0])
         self.settings.setValue('outputHeight', res[1])

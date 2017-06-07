@@ -11,6 +11,7 @@ from shutil import rmtree
 import atexit
 import time
 from collections import OrderedDict
+import json
 
 
 class Core():
@@ -22,6 +23,13 @@ class Core():
         if not os.path.exists(self.tempDir):
             os.makedirs(self.tempDir)
         atexit.register(self.deleteTempDir)
+        self.wd = os.path.dirname(os.path.realpath(__file__))
+        self.loadEncoderOptions()
+
+    def loadEncoderOptions(self):
+        file_path = os.path.join(self.wd, 'encoder-options.json')
+        with open(file_path) as json_file:
+            self.encoder_options = json.load(json_file)
 
     def findFfmpeg(self):
         if sys.platform == "win32":

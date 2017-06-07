@@ -6,32 +6,14 @@
             "default-vcodec": "H264",
             "default-acodec": "AAC",
             "video-codecs": [
-                {
-                    "name": "H264",
-                    "encoders": ["libx264"]
-                },
-                {
-                    "name": "H264 (nvenc)",
-                    "encoders": ["nvenc_264"]
-                },
-                {
-                    "name": "MPEG4",
-                    "encoders": ["mpeg4"]
-                }
+                "H264",
+                "H264 (nvenc)",
+                "MPEG4"
             ],
             "audio-codecs": [
-                {
-                    "name": "AAC",
-                    "encoders": ["libfdk_aac","aac"]
-                },
-                {
-                    "name": "AC3",
-                    "encoders": ["ac3"]
-                },
-                {
-                    "name": "MP3",
-                    "encoders": ["libmp3lame"]
-                }
+                "AAC",
+                "AC3",
+                "MP3"
             ]
         },
         {
@@ -40,40 +22,37 @@
             "default-vcodec": "H264",
             "default-acodec": "AAC",
             "video-codecs": [
-                {
-                    "name": "H264",
-                    "encoders": ["libx264"]
-                },
-                {
-                    "name": "H264 (nvenc)",
-                    "encoders": ["nvenc_264"]
-                },
-                {
-                    "name": "MPEG4",
-                    "encoders": ["mpeg4"]
-                },
-                {
-                    "name": "XVID",
-                    "encoders": ["libxvid"]
-                }
+                "H264",
+                "H264 (nvenc)",
+                "MPEG4",
+                "XVID"
             ],
             "audio-codecs": [
-                {
-                    "name": "AAC",
-                    "encoders": ["libfdk_aac","aac"]
-                },
-                {
-                    "name": "AC3",
-                    "encoders": ["ac3"]
-                },
-                {
-                    "name": "MP3",
-                    "encoders": ["libmp3lame"]
-                },
-                {
-                    "name": "PCM s16 LE",
-                    "encoders": ["pcm_s16le"]
-                }
+                "AAC",
+                "AC3",
+                "MP3",
+                "PCM s16 LE"
+            ]
+        },
+        {
+            "name": "MKV",
+            "container": "matroska",
+            "default-vcodec": "H264",
+            "default-acodec": "AAC",
+            "video-codecs": [
+                "H264",
+                "H264 (nvenc)",
+                "MPEG4",
+                "MPEG2",
+                "DV",
+                "WMV"
+            ],
+            "audio-codecs": [
+                "AAC",
+                "AC3",
+                "MP3",
+                "PCM s16 LE",
+                "WMA"
             ]
         },
         {
@@ -82,52 +61,19 @@
             "default-vcodec": "H264",
             "default-acodec": "AAC",
             "video-codecs": [
-                {
-                    "name": "H264",
-                    "encoders": ["libx264"]
-                },
-                {
-                    "name": "H264 (nvenc)",
-                    "encoders": ["nvenc_264"]
-                },
-                {
-                    "name": "MPEG4",
-                    "encoders": ["mpeg4"]
-                },
-                {
-                    "name": "MPEG2",
-                    "encoders": ["mp2video"]
-                },
-                {
-                    "name": "DV",
-                    "encoders": ["dvvideo"]
-                },
-                {
-                    "name": "WMV",
-                    "encoders": ["wmv2"]
-                }
+                "H264",
+                "H264 (nvenc)",
+                "MPEG4",
+                "MPEG2",
+                "DV",
+                "WMV"
             ],
             "audio-codecs": [
-                {
-                    "name": "AAC",
-                    "encoders": ["libfdk_aac","aac"]
-                },
-                {
-                    "name": "AC3",
-                    "encoders": ["ac3"]
-                },
-                {
-                    "name": "WMA",
-                    "encoders": ["wmav2"]
-                },
-                {
-                    "name": "MP3",
-                    "encoders": ["libmp3lame"]
-                },
-                {
-                    "name": "PCM s16 LE",
-                    "encoders": ["pcm_s16le"]
-                }
+                "AAC",
+                "AC3",
+                "MP3",
+                "PCM s16 LE",
+                "WMA"
             ]
         },
         {
@@ -136,20 +82,11 @@
             "default-vcodec": "VP9",
             "default-acodec": "Vorbis",
             "video-codecs": [
-                {
-                    "name": "VP9",
-                    "encoders": ["libvpx-vp9"]
-                },
-                {
-                    "name": "VP8",
-                    "encoders": ["libvpx"]
-                }
+                "VP9",
+                "VP8"
             ],
             "audio-codecs": [
-                {
-                    "name": "Vorbis",
-                    "encoders": ["vorbis"]
-                }
+                "Vorbis"
             ]
         },
         {
@@ -158,34 +95,36 @@
             "default-vcodec": "FLV",
             "default-acodec": "Vorbis",
             "video-codecs": [
-                {
-                    "name": "Sorenson (flv)",
-                    "encoders": ["flv"]
-                },
-                {
-                    "name": "H264",
-                    "encoders": ["libx264"]
-                },
-                {
-                    "name": "MPEG4",
-                    "encoders": ["mpeg4"]
-                }
+                "Sorenson (flv)",
+                "H264",
+                "H264 (nvenc)",
+                "MPEG4"
             ],
             "audio-codecs": [
-                {
-                    "name": "MP3",
-                    "encoders": ["libmp3lame"]
-                },
-                {
-                    "name": "Vorbis",
-                    "encoders": ["vorbis"]
-                },
-                {
-                    "name": "PCM s16 LE",
-                    "encoders": ["pcm_s16le"]
-                }
+                "MP3",
+                "PCM s16 LE",
+                "Vorbis"
             ]
         }
-    ]
-    
+    ],
+    "video-codecs":{
+        "H264": ["libx264"],
+        "H264 (nvenc)": ["nvenc_264"],
+        "MPEG4": ["mpeg4"],
+        "VP9": ["libvpx-vp9"],
+        "VP8": ["libvpx"],
+        "XVID": ["libxvid"],
+        "Sorenson (flv)": ["flv"],
+        "MPEG2": ["mp2video"],
+        "DV": ["dvvideo"],
+        "WMV": ["wmv2"]
+    },
+    "audio-codecs": {
+        "AAC": ["libfdk_aac","aac"],
+        "AC3": ["ac3"],
+        "MP3": ["libmp3lame"],
+        "PCM s16 LE": ["pcm_s16le"],
+        "WMA": ["wmav2"],
+        "Vorbis": ["libvorbis"]
+    }
 }

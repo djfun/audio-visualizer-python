@@ -101,10 +101,35 @@ class Worker(QtCore.QObject):
         # test if user has libfdk_aac
         encoders = sp.check_output(
             self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
+
+        encoders = encoders.decode("utf-8")
+
         acodec = self.core.settings.value('outputAudioCodec')
 
-        if b'libfdk_aac' in encoders and acodec == 'aac':
-            acodec = 'libfdk_aac'
+        options = self.core.encoder_options
+        containerName = self.core.settings.value('outputContainer')
+        vcodec = self.core.settings.value('outputVideoCodec')
+        acodec = self.core.settings.value('outputAudioCodec')
+
+        for cont in options['containers']:
+            if cont['name'] == containerName:
+                container = cont['container']
+
+        vencoders = options['video-codecs'][vcodec]
+        aencoders = options['audio-codecs'][acodec]
+
+        print(encoders)
+        for encoder in vencoders:
+            print(encoder)
+            if encoder in encoders:
+                vencoder = encoder
+                break
+
+        for encoder in aencoders:
+            print(encoder)
+            if encoder in encoders:
+                aencoder = encoder
+                break
 
         ffmpegCommand = [
             self.core.FFMPEG_BIN,
@@ -120,12 +145,12 @@ class Worker(QtCore.QObject):
             '-i', '-',  # The input comes from a pipe
             '-an',
             '-i', inputFile,
-            '-acodec', acodec,  # output audio codec
+            '-vcodec', vencoder,
+            '-acodec', aencoder,  # output audio codec
             '-b:a', self.core.settings.value('outputAudioBitrate'),
-            '-vcodec', self.core.settings.value('outputVideoCodec'),
             '-pix_fmt', self.core.settings.value('outputVideoFormat'),
             '-preset', self.core.settings.value('outputPreset'),
-            '-f', self.core.settings.value('outputFormat')
+            '-f', container
         ]
 
         if acodec == 'aac':
