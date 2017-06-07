@@ -141,7 +141,6 @@ class MainWindow(QtCore.QObject):
         window.spinBox_vBitrate.valueChanged.connect(self.updateCodecSettings)
         window.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
 
-
         self.previewWindow = PreviewWindow(self, os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
@@ -169,23 +168,44 @@ class MainWindow(QtCore.QObject):
                 window.comboBox_resolution.setCurrentIndex(currentRes)
                 window.comboBox_resolution.currentIndexChanged.connect(
                     self.updateResolution)
-        
-
 
         self.window.pushButton_listMoveUp.clicked.connect(
             self.moveComponentUp)
         self.window.pushButton_listMoveDown.clicked.connect(
             self.moveComponentDown)
-        self.window.pushButton_savePreset.clicked.connect(
+
+        '''self.window.pushButton_savePreset.clicked.connect(
             self.openSavePresetDialog)
         self.window.comboBox_openPreset.currentIndexChanged.connect(
-            self.openPreset)
-        self.window.pushButton_saveAs.clicked.connect(
+            self.openPreset)'''
+
+        # Configure the Projects Menu
+        self.projectMenu = QMenu()
+        action = self.projectMenu.addAction("New Project")
+        action.triggered[()].connect(self.createNewProject)
+
+        action = self.projectMenu.addAction("Open Project")
+        action.triggered[()].connect(self.openOpenProjectDialog)
+
+        action = self.projectMenu.addAction("Save Project")
+        action.triggered[()].connect(self.saveCurrentProject)
+
+        action = self.projectMenu.addAction("Save Project As")
+        action.triggered[()].connect(self.openSaveProjectDialog)
+
+        self.window.pushButton_projects.setMenu(self.projectMenu)
+
+        # Configure the Presets Button
+        self.window.pushButton_presets.clicked.connect(
+            self.openPresetManager
+        )
+
+        '''self.window.pushButton_saveAs.clicked.connect(
             self.openSaveProjectDialog)
         self.window.pushButton_saveProject.clicked.connect(
             self.saveCurrentProject)
         self.window.pushButton_openProject.clicked.connect(
-            self.openOpenProjectDialog)
+            self.openOpenProjectDialog)'''
 
         # show the window and load current project
         window.show()
@@ -327,10 +347,8 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_removeComponent.setEnabled(False)
             self.window.pushButton_listMoveDown.setEnabled(False)
             self.window.pushButton_listMoveUp.setEnabled(False)
-            self.window.comboBox_openPreset.setEnabled(False)
-            self.window.pushButton_removePreset.setEnabled(False)
-            self.window.pushButton_savePreset.setEnabled(False)
-            self.window.pushButton_openProject.setEnabled(False)
+            self.window.comboBox_Presets.setEnabled(False)
+            '''self.window.pushButton_openProject.setEnabled(False)'''
             self.window.listWidget_componentList.setEnabled(False)
         else:
             self.window.pushButton_createVideo.setEnabled(True)
@@ -348,10 +366,8 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_removeComponent.setEnabled(True)
             self.window.pushButton_listMoveDown.setEnabled(True)
             self.window.pushButton_listMoveUp.setEnabled(True)
-            self.window.comboBox_openPreset.setEnabled(True)
-            self.window.pushButton_removePreset.setEnabled(True)
-            self.window.pushButton_savePreset.setEnabled(True)
-            self.window.pushButton_openProject.setEnabled(True)
+            self.window.comboBox_Presets.setEnabled(True)
+            '''self.window.pushButton_openProject.setEnabled(True)'''
             self.window.listWidget_componentList.setEnabled(True)
 
     def progressBarSetText(self, value):
@@ -401,7 +417,7 @@ class MainWindow(QtCore.QObject):
         self.window.stackedWidget.addWidget(self.pages[-1])
         self.window.stackedWidget.setCurrentIndex(index)
         self.selectedComponents[-1].update()
-        self.updateOpenPresetComboBox(self.selectedComponents[-1])
+        '''self.updateOpenPresetComboBox(self.selectedComponents[-1])'''
 
     def insertComponent(self, moduleIndex):
         self.selectedComponents.insert(
@@ -413,7 +429,7 @@ class MainWindow(QtCore.QObject):
         self.window.stackedWidget.insertWidget(0, self.pages[0])
         self.window.stackedWidget.setCurrentIndex(0)
         self.selectedComponents[0].update()
-        self.updateOpenPresetComboBox(self.selectedComponents[0])
+        '''self.updateOpenPresetComboBox(self.selectedComponents[0])'''
 
     def removeComponent(self):
         for selected in self.window.listWidget_componentList.selectedItems():
@@ -430,7 +446,7 @@ class MainWindow(QtCore.QObject):
         if selected:
             index = self.window.listWidget_componentList.row(selected[0])
             self.window.stackedWidget.setCurrentIndex(index)
-            self.updateOpenPresetComboBox(self.selectedComponents[index])
+            '''self.updateOpenPresetComboBox(self.selectedComponents[index])'''
 
     def moveComponentUp(self):
         row = self.window.listWidget_componentList.currentRow()
@@ -465,6 +481,11 @@ class MainWindow(QtCore.QObject):
             self.window.listWidget_componentList.setCurrentRow(row + 1)
             self.window.stackedWidget.setCurrentIndex(row + 1)
             self.drawPreview()
+
+    # Preset manager for importing, exporting, renaming,
+    # and deleting presets.
+    def openPresetManager(self):
+        return
 
     def updateOpenPresetComboBox(self, component):
         self.window.comboBox_openPreset.clear()
@@ -546,6 +567,9 @@ class MainWindow(QtCore.QObject):
                 break
         self.selectedComponents[index].loadPreset(saveValueStore)
         self.drawPreview()
+
+    def createNewProject(self):
+        return
 
     def saveCurrentProject(self):
         if self.currentProject:
