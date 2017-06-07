@@ -133,7 +133,7 @@ class MainWindow(QtCore.QObject):
         )
 
         vBitrate = int(self.settings.value('outputVideoBitrate'))
-        aBitrate = int(self.settings.value('outputAudioBitrate'))
+        aBitrate = int(self.settings.value('outputAudioBitrate')[:-1])
 
         window.spinBox_vBitrate.setValue(vBitrate)
         window.spinBox_aBitrate.setValue(aBitrate)
@@ -269,7 +269,7 @@ class MainWindow(QtCore.QObject):
         self.settings.setValue('outputAudioBitrate', currentAudioBitrate)
 
     def autosave(self):
-        if time.time() - self.lastAutosave >= 1.0:
+        if time.time() - self.lastAutosave >= 2.0:
             if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
             self.createProjectFile(self.autosavePath)
@@ -347,8 +347,7 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_removeComponent.setEnabled(False)
             self.window.pushButton_listMoveDown.setEnabled(False)
             self.window.pushButton_listMoveUp.setEnabled(False)
-            self.window.comboBox_Presets.setEnabled(False)
-            '''self.window.pushButton_openProject.setEnabled(False)'''
+            self.window.pushButton_presets.setEnabled(False)
             self.window.listWidget_componentList.setEnabled(False)
         else:
             self.window.pushButton_createVideo.setEnabled(True)
@@ -366,8 +365,7 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_removeComponent.setEnabled(True)
             self.window.pushButton_listMoveDown.setEnabled(True)
             self.window.pushButton_listMoveUp.setEnabled(True)
-            self.window.comboBox_Presets.setEnabled(True)
-            '''self.window.pushButton_openProject.setEnabled(True)'''
+            self.window.pushButton_presets.setEnabled(True)
             self.window.listWidget_componentList.setEnabled(True)
 
     def progressBarSetText(self, value):
@@ -569,7 +567,14 @@ class MainWindow(QtCore.QObject):
         self.drawPreview()
 
     def createNewProject(self):
-        return
+        self.currentProject = None
+        self.selectedComponents = []
+        self.window.listWidget_componentList.clear()
+        for widget in self.pages:
+            self.window.stackedWidget.removeWidget(widget)
+        self.pages = []
+        self.settings.setValue("currentProject", None)
+        self.drawPreview()
 
     def saveCurrentProject(self):
         if self.currentProject:
@@ -613,7 +618,7 @@ class MainWindow(QtCore.QObject):
         if not filepath or not os.path.exists(filepath) \
           or not filepath.endswith('.avp'):
             return
-        self.clear()
+        self.createNewProject()
         self.currentProject = filepath
         self.settings.setValue("currentProject", filepath)
         self.settings.setValue("projectDir", os.path.dirname(filepath))
@@ -652,14 +657,17 @@ class MainWindow(QtCore.QObject):
                             self.selectedComponents[-1].loadPreset(
                                 saveValueStore)
                             i = 0
-        except (IndexError, ValueError, KeyError, NameError,
-                SyntaxError, AttributeError, TypeError) as e:
-            self.clear()
+        except (IndexError, ValueError, NameError, SyntaxError,
+            AttributeError, TypeError) as e:
+            self.createNewProject()
             typ, value, _ = sys.exc_info()
             msg = '%s: %s' % (typ.__name__, value)
             self.showMessage(
                 "Project file '%s' is corrupted." % filepath, False,
                 QtGui.QMessageBox.Warning, msg)
+        except KeyError as e:
+            # probably just an old version, still loadable
+            print('project file missing value: %s' % e)
 
     def showMessage(
             self, string, showCancel=False,
@@ -677,11 +685,3 @@ class MainWindow(QtCore.QObject):
         if ch == 1024:
             return True
         return False
-
-    def clear(self):
-        ''' empty out all components and fields, get a blank slate '''
-        self.selectedComponents = []
-        self.window.listWidget_componentList.clear()
-        for widget in self.pages:
-            self.window.stackedWidget.removeWidget(widget)
-        self.pages = []

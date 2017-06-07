@@ -5,7 +5,8 @@ import subprocess
 import threading
 from queue import PriorityQueue
 from . import __base__
-        
+
+
 class Video:
     '''Video Component Frame-Fetcher'''
     def __init__(self, **kwargs):
@@ -129,10 +130,12 @@ class Component(__base__.Component):
 
     def loadPreset(self, pr):
         self.page.lineEdit_video.setText(pr['video'])
+        self.page.checkBox_loop.setChecked(pr['loop'])
 
     def savePreset(self):
         return {
             'video': self.videoPath,
+            'loop': self.loopVideo,
         }
 
     def pickVideo(self):
