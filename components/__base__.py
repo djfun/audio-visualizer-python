@@ -84,3 +84,13 @@ class Component:
     def reset(self):
         self.canceled = False
     '''
+
+class BadComponentInit(Exception):
+    def __init__(self, arg, name):
+        string = \
+'''################################
+Mandatory argument "%s" not specified
+  in %s instance initialization
+###################################'''
+        print(string % (arg, name))
+        quit()
