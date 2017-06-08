@@ -10,7 +10,8 @@ class PresetManager(QtGui.QDialog):
     def __init__(self, window, parent):
         super().__init__()
         self.parent = parent
-        self.presetDir = os.path.join(self.parent.dataDir, 'presets')
+        self.core = self.parent.core
+        self.presetDir = self.core.presetDir
         self.window = window
         self.findPresets()
         self.lastFilter = '*'
@@ -83,11 +84,14 @@ class PresetManager(QtGui.QDialog):
 
     def openSavePresetDialog(self):
         window = self.parent.window
-        if window.listWidget_componentList.currentRow() == -1:
+        self.selectedComponents = self.parent.core.selectedComponents
+        componentList = window.listWidget_componentList
+
+        if componentList.currentRow() == -1:
             return
         while True:
-            index = window.listWidget_componentList.currentRow()
-            currentPreset = self.parent.selectedComponents[index].currentPreset
+            index = componentList.currentRow()
+            currentPreset = self.selectedComponents[index].currentPreset
             newName, OK = QtGui.QInputDialog.getText(
                 self.parent.window,
                 'Audio Visualizer',
@@ -109,35 +113,34 @@ class PresetManager(QtGui.QDialog):
                 if newName:
                     if index != -1:
                         saveValueStore = \
-                            self.parent.selectedComponents[index].savePreset()
-                        componentName = str(self.parent.selectedComponents[index]).strip()
-                        vers = self.parent.selectedComponents[index].version()
+                            self.selectedComponents[index].savePreset()
+                        componentName = str(self.selectedComponents[index]).strip()
+                        vers = self.selectedComponents[index].version()
                         self.createPresetFile(
                             componentName, vers, saveValueStore, newName)
-                        self.parent.selectedComponents[index].currentPreset = newName
+                        self.selectedComponents[index].currentPreset = newName
             break
 
     def createPresetFile(self, compName, vers, saveValueStore, filename):
-        dirname = os.path.join(self.presetDir, compName, str(vers))
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        filepath = os.path.join(dirname, filename)
-        if os.path.exists(filepath):
+        path = os.path.join(self.presetDir, compName, str(vers), filename)
+        if os.path.exists(path):
             ch = self.parent.showMessage(
                 msg="%s already exists! Overwrite it?" % filename,
                 showCancel=True, icon=QtGui.QMessageBox.Warning)
             if not ch:
                 return
-        with open(filepath, 'w') as f:
-            f.write(core.Core.stringOrderedDict(saveValueStore))
+        self.core.createPresetFile(compName, vers, saveValueStore, filename)
         self.drawPresetList()
 
     def openPreset(self, presetName):
-        index = self.parent.window.listWidget_componentList.currentRow()
+        componentList = self.parent.window.listWidget_componentList
+        selectedComponents = self.parent.core.selectedComponents
+
+        index = componentList.currentRow()
         if index == -1:
             return
-        componentName = str(self.parent.selectedComponents[index]).strip()
-        version = self.parent.selectedComponents[index].version()
+        componentName = str(selectedComponents[index]).strip()
+        version = selectedComponents[index].version()
         dirname = os.path.join(self.presetDir, componentName, str(version))
         filepath = os.path.join(dirname, presetName)
         if not os.path.exists(filepath):
@@ -146,9 +149,10 @@ class PresetManager(QtGui.QDialog):
             for line in f:
                 saveValueStore = dict(eval(line.strip()))
                 break
-        self.parent.selectedComponents[index].loadPreset(
+        selectedComponents[index].loadPreset(
             saveValueStore,
             presetName
         )
+        self.parent.updateComponentTitle(index)
         self.parent.drawPreview()
 

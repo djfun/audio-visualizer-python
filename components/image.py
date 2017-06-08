@@ -49,11 +49,12 @@ class Component(__base__.Component):
         return frame
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName
+        self.currentPreset = presetName if presetName else pr['preset']
         self.page.lineEdit_image.setText(pr['image'])
 
     def savePreset(self):
         return {
+            'preset': self.currentPreset,
             'image': self.imagePath,
         }
 

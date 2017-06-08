@@ -129,12 +129,13 @@ class Component(__base__.Component):
         return self.video.frame(frameNo)
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName
+        self.currentPreset = presetName if presetName else pr['preset']
         self.page.lineEdit_video.setText(pr['video'])
         self.page.checkBox_loop.setChecked(pr['loop'])
 
     def savePreset(self):
         return {
+            'preset': self.currentPreset,
             'video': self.videoPath,
             'loop': self.loopVideo,
         }

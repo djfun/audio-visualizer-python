@@ -70,7 +70,7 @@ class Component(__base__.Component):
         return Image.new("RGBA", (width, height), (r, g, b, 255))
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName
+        self.currentPreset = presetName if presetName else pr['preset']
         self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
         self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
 
@@ -85,6 +85,7 @@ class Component(__base__.Component):
 
     def savePreset(self):
         return {
+            'preset': self.currentPreset,
             'color1': self.color1,
             'color2': self.color2,
         }

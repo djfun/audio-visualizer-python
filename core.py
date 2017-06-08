@@ -6,29 +6,34 @@ from os.path import expanduser
 import subprocess as sp
 import numpy
 from PIL import Image
-import tempfile
+#import tempfile
 from shutil import rmtree
-import atexit
+#import atexit
 import time
 from collections import OrderedDict
 import json
 from importlib import import_module
+from PyQt4.QtGui import QDesktopServices
 
 
 class Core():
 
     def __init__(self):
         self.FFMPEG_BIN = self.findFfmpeg()
-        self.tempDir = os.path.join(
-            tempfile.gettempdir(), 'audio-visualizer-python-data')
-        if not os.path.exists(self.tempDir):
-            os.makedirs(self.tempDir)
-        atexit.register(self.deleteTempDir)
+        #self.tempDir = os.path.join(
+        #    tempfile.gettempdir(), 'audio-visualizer-python-data')
+        #if not os.path.exists(self.tempDir):
+        #    os.makedirs(self.tempDir)
+        #atexit.register(self.deleteTempDir)
+        self.dataDir = QDesktopServices.storageLocation(
+            QDesktopServices.DataLocation)
+        self.presetDir = os.path.join(self.dataDir, 'presets')
         self.wd = os.path.dirname(os.path.realpath(__file__))
         self.loadEncoderOptions()
 
         self.modules = self.findComponents()
         self.selectedComponents = []
+        self.selectedModules = []
 
     def findComponents(self):
         def findComponents():
@@ -45,18 +50,39 @@ class Core():
             for name in findComponents()]
 
     def insertComponent(self, compPos, moduleIndex):
+        if compPos < 0:
+            compPos = len(self.selectedComponents) -1
         self.selectedComponents.insert(
             compPos,
-            self.modules[moduleIndex].Component())
-        return compPos #if compPos > -1 else len(self.selectedComponents)-1
+            self.modules[moduleIndex].Component()
+        )
+        self.selectedModules.insert(
+            compPos,
+            moduleIndex
+        )
+        return compPos
 
     def moveComponent(self, startI, endI):
         comp = self.selectedComponents.pop(startI)
-        i = self.selectedComponents.insert(endI, comp)
-        return i
+        self.selectedComponents.insert(endI, comp)
+        i = self.selectedModules.pop(startI)
+        self.selectedModules.insert(endI, i)
+        return endI
 
     def updateComponent(self, i):
+        print('updating %s' % self.selectedComponents[i])
         self.selectedComponents[i].update()
+
+    def moduleIndexFor(self, compIndex):
+        return self.selectedModules[compIndex]
+
+    def createPresetFile(self, compName, vers, saveValueStore, filename):
+        dirname = os.path.join(self.presetDir, compName, str(vers))
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        filepath = os.path.join(dirname, filename)
+        with open(filepath, 'w') as f:
+            f.write(Core.stringOrderedDict(saveValueStore))
 
     def loadEncoderOptions(self):
         file_path = os.path.join(self.wd, 'encoder-options.json')
@@ -139,11 +165,11 @@ class Core():
 
         return completeAudioArray
 
-    def deleteTempDir(self):
-        try:
-            rmtree(self.tempDir)
-        except FileNotFoundError:
-            pass
+    #def deleteTempDir(self):
+    #    try:
+    #        rmtree(self.tempDir)
+    #    except FileNotFoundError:
+    #        pass
 
     def cancel(self):
         self.canceled = True

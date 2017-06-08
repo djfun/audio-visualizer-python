@@ -79,7 +79,7 @@ class Component(__base__.Component):
         return x, self.yPosition
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName
+        self.currentPreset = presetName if presetName else pr['preset']
         self.page.lineEdit_title.setText(pr['title'])
         font = QFont()
         font.fromString(pr['titleFont'])
@@ -95,6 +95,7 @@ class Component(__base__.Component):
 
     def savePreset(self):
         return {
+            'preset': self.currentPreset,
             'title': self.title,
             'titleFont': self.titleFont.toString(),
             'alignment': self.alignment,
