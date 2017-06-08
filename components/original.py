@@ -37,7 +37,8 @@ class Component(__base__.Component):
         self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
 
-    def loadPreset(self, pr):
+    def loadPreset(self, pr, presetName=None):
+        self.currentPreset = presetName
         self.page.lineEdit_visColor.setText('%s,%s,%s' % pr['visColor'])
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['visColor']).name()

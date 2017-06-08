@@ -6,9 +6,7 @@ from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, Qt
 from PyQt4.QtGui import QDesktopServices, QMenu
 import sys
-import io
 import os
-import string
 import signal
 import filecmp
 import time
@@ -63,23 +61,21 @@ class MainWindow(QtCore.QObject):
         # Create data directory, load/create settings
         self.dataDir = QDesktopServices.storageLocation(
             QDesktopServices.DataLocation)
+        self.presetManager = PresetManager(
+            uic.loadUi(
+                os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                'presetmanager.ui')),
+            self)
         self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
-        self.presetDir = os.path.join(self.dataDir, 'presets')
         self.settings = QSettings(
             os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
         LoadDefaultSettings(self)
         if not os.path.exists(self.dataDir):
             os.makedirs(self.dataDir)
         for neededDirectory in (
-          self.presetDir, self.settings.value("projectDir")):
+          self.presetManager.presetDir, self.settings.value("projectDir")):
             if not os.path.exists(neededDirectory):
                 os.mkdir(neededDirectory)
-
-        self.presetManager = PresetManager(
-            uic.loadUi(
-                os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                'presetmanager.ui')),
-            self)
 
         # Make queues/timers for the preview thread
         self.previewQueue = Queue()
@@ -140,7 +136,7 @@ class MainWindow(QtCore.QObject):
         )
 
         vBitrate = int(self.settings.value('outputVideoBitrate'))
-        aBitrate = int(self.settings.value('outputAudioBitrate')[:-1])
+        aBitrate = int(self.settings.value('outputAudioBitrate'))
 
         window.spinBox_vBitrate.setValue(vBitrate)
         window.spinBox_aBitrate.setValue(aBitrate)
@@ -420,7 +416,6 @@ class MainWindow(QtCore.QObject):
         self.window.stackedWidget.addWidget(self.pages[-1])
         self.window.stackedWidget.setCurrentIndex(index)
         self.selectedComponents[-1].update()
-        '''self.updateOpenPresetComboBox(self.selectedComponents[-1])'''
 
     def insertComponent(self, moduleIndex):
         self.selectedComponents.insert(
@@ -432,7 +427,6 @@ class MainWindow(QtCore.QObject):
         self.window.stackedWidget.insertWidget(0, self.pages[0])
         self.window.stackedWidget.setCurrentIndex(0)
         self.selectedComponents[0].update()
-        '''self.updateOpenPresetComboBox(self.selectedComponents[0])'''
 
     def removeComponent(self):
         for selected in self.window.listWidget_componentList.selectedItems():
@@ -449,7 +443,6 @@ class MainWindow(QtCore.QObject):
         if selected:
             index = self.window.listWidget_componentList.row(selected[0])
             self.window.stackedWidget.setCurrentIndex(index)
-            '''self.updateOpenPresetComboBox(self.selectedComponents[index])'''
 
     def moveComponentUp(self):
         row = self.window.listWidget_componentList.currentRow()
@@ -488,87 +481,6 @@ class MainWindow(QtCore.QObject):
     def openPresetManager(self):
         '''Preset manager for importing, exporting, renaming, deleting'''
         self.presetManager.show()
-
-    def updateOpenPresetComboBox(self, component):
-        self.window.comboBox_openPreset.clear()
-        self.window.comboBox_openPreset.addItem("Component Presets")
-        destination = os.path.join(
-            self.presetDir, str(component).strip(), str(component.version()))
-        if not os.path.exists(destination):
-            os.makedirs(destination)
-        for f in os.listdir(destination):
-            self.window.comboBox_openPreset.addItem(f)
-
-    def openSavePresetDialog(self):
-        if self.window.listWidget_componentList.currentRow() == -1:
-            return
-        while True:
-            newName, OK = QtGui.QInputDialog.getText(
-                QtGui.QWidget(), 'Audio Visualizer', 'New Preset Name:')
-            badName = False
-            for letter in newName:
-                if letter in string.punctuation:
-                    badName = True
-            if badName:
-                # some filesystems don't like bizarre characters
-                self.showMessage(msg="Preset names must contain only \
-                letters, numbers, and spaces.")
-                continue
-            if OK and newName:
-                index = self.window.listWidget_componentList.currentRow()
-                if index != -1:
-                    saveValueStore = \
-                        self.selectedComponents[index].savePreset()
-                    componentName = str(self.selectedComponents[index]).strip()
-                    vers = self.selectedComponents[index].version()
-                    self.createPresetFile(
-                        componentName, vers, saveValueStore, newName)
-            break
-
-    def createPresetFile(
-      self, componentName, version, saveValueStore, filename):
-        dirname = os.path.join(self.presetDir, componentName, str(version))
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        filepath = os.path.join(dirname, filename)
-        if os.path.exists(filepath):
-            ch = self.showMessage(
-                msg="%s already exists! Overwrite it?" % filename,
-                showCancel=True, icon=QtGui.QMessageBox.Warning)
-            if not ch:
-                return
-            # remove old copies of the preset
-            for i in range(0, self.window.comboBox_openPreset.count()):
-                if self.window.comboBox_openPreset.itemText(i) == filename:
-                    self.window.comboBox_openPreset.removeItem(i)
-        with open(filepath, 'w') as f:
-            f.write(core.Core.stringOrderedDict(saveValueStore))
-        self.window.comboBox_openPreset.addItem(filename)
-        self.window.comboBox_openPreset.setCurrentIndex(
-            self.window.comboBox_openPreset.count()-1)
-
-    def openPreset(self):
-        if self.window.comboBox_openPreset.currentIndex() < 1:
-            return
-        index = self.window.listWidget_componentList.currentRow()
-        if index == -1:
-            return
-        filename = self.window.comboBox_openPreset.itemText(
-            self.window.comboBox_openPreset.currentIndex())
-        componentName = str(self.selectedComponents[index]).strip()
-        version = self.selectedComponents[index].version()
-        dirname = os.path.join(self.presetDir, componentName, str(version))
-        filepath = os.path.join(dirname, filename)
-        if not os.path.exists(filepath):
-            self.window.comboBox_openPreset.removeItem(
-                self.window.comboBox_openPreset.currentIndex())
-            return
-        with open(filepath, 'r') as f:
-            for line in f:
-                saveValueStore = dict(eval(line.strip()))
-                break
-        self.selectedComponents[index].loadPreset(saveValueStore)
-        self.drawPreview()
 
     def createNewProject(self):
         self.currentProject = None
@@ -678,7 +590,8 @@ class MainWindow(QtCore.QObject):
     def showMessage(self, **kwargs):
         msg = QtGui.QMessageBox()
         msg.setText(kwargs['msg'])
-        msg.setIcon(kwargs['icon'] if 'icon' in kwargs else QtGui.QMessageBox.Information)
+        msg.setIcon(
+            kwargs['icon'] if 'icon' in kwargs else QtGui.QMessageBox.Information)
         msg.setDetailedText(kwargs['detail'] if 'detail' in kwargs else None)
         if 'showCancel'in kwargs and kwargs['showCancel']:
             msg.setStandardButtons(
@@ -691,13 +604,36 @@ class MainWindow(QtCore.QObject):
         return False
 
     def componentContextMenu(self, QPos):
+        '''Appears when right-clicking a component in the list'''
+        if not self.window.listWidget_componentList.selectedItems():
+            return
+
+        self.presetManager.findPresets()
         self.menu = QtGui.QMenu()
         menuItem = self.menu.addAction("Save Preset")
-        self.connect(menuItem, QtCore.SIGNAL("triggered()"), self.openSavePresetDialog)
+        self.connect(
+            menuItem,
+            QtCore.SIGNAL("triggered()"),
+            self.presetManager.openSavePresetDialog
+        )
+
+        # submenu for opening presets
+        index = self.window.listWidget_componentList.currentRow()
+        try:
+            presets = self.presetManager.presets[str(self.selectedComponents[index])]
+            self.submenu = QtGui.QMenu("Open Preset")
+            self.menu.addMenu(self.submenu)
+
+            for version, presetName in presets:
+                menuItem = self.submenu.addAction(presetName)
+                self.connect(
+                    menuItem,
+                    QtCore.SIGNAL("triggered()"),
+                    lambda presetName=presetName:
+                        self.presetManager.openPreset(presetName)
+                )
+        except KeyError as e:
+            print(e)
         parentPosition = self.window.listWidget_componentList.mapToGlobal(QtCore.QPoint(0, 0))
         self.menu.move(parentPosition + QPos)
         self.menu.show()
-
-    def menuItemClicked(self):
-        currentItemName=str(self.window.listWidget_componentList.currentItem().text() )
-        print(currentItemName)

@@ -2,6 +2,9 @@ from PyQt4 import QtGui
 
 
 class Component:
+    def __init__(self):
+        self.currentPreset = None
+
     def __str__(self):
         return self.__doc__
 
@@ -72,7 +75,8 @@ class Component:
         image = Image.new("RGBA", (width, height), (0,0,0,0))
         return image
 
-    def loadPreset(self, presetDict):
+    def loadPreset(self, presetDict, presetName=None):
+        self.currentPreset = presetName
         # update widgets using a preset dict
 
     def savePreset(self):

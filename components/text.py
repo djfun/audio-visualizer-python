@@ -78,7 +78,8 @@ class Component(__base__.Component):
             x = self.xPosition - offset
         return x, self.yPosition
 
-    def loadPreset(self, pr):
+    def loadPreset(self, pr, presetName=None):
+        self.currentPreset = presetName
         self.page.lineEdit_title.setText(pr['title'])
         font = QFont()
         font.fromString(pr['titleFont'])

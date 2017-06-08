@@ -1,14 +1,19 @@
 from PyQt4 import QtGui
-#import sys
+from collections import OrderedDict
+import string
 import os
+
+import core
+
 
 class PresetManager(QtGui.QDialog):
     def __init__(self, window, parent):
         super().__init__()
         self.parent = parent
-        self.presetDir = parent.presetDir
+        self.presetDir = os.path.join(self.parent.dataDir, 'presets')
         self.window = window
-        self.presets = self.findPresets()
+        self.findPresets()
+        self.lastFilter = '*'
 
         # create filter box and preset list
         self.drawFilterList()
@@ -29,7 +34,7 @@ class PresetManager(QtGui.QDialog):
             for preset in presetList:
                 presetNames.append(preset[1])
         self.autocomplete.setStringList(presetNames)
-        self.presets = self.findPresets()
+        self.findPresets()
         self.drawFilterList()
         self.drawPresetList('*')
         self.window.show()
@@ -47,16 +52,23 @@ class PresetManager(QtGui.QDialog):
                     parseList.append((compName, int(compVers), preset))
                 except ValueError:
                     continue
-        return { compName : \
-                    [ (vers, preset) \
-                        for name, vers, preset in parseList \
-                        if name == compName \
-                    ] \
-                for compName, _, __ in parseList \
-                }
+        self.presets =\
+            {
+            compName : \
+                [
+                (vers, preset) \
+                    for name, vers, preset in parseList \
+                    if name == compName \
+                ] \
+            for compName, _, __ in parseList \
+            }
 
-    def drawPresetList(self, filter):
+    def drawPresetList(self, filter=None):
         self.window.listWidget_presets.clear()
+        if filter:
+            self.lastFilter = str(filter)
+        else:
+            filter = str(self.lastFilter)
         for component, presets in self.presets.items():
             if filter != '*' and component != filter:
                 continue
@@ -68,3 +80,65 @@ class PresetManager(QtGui.QDialog):
         self.window.comboBox_filter.addItem('*')
         for component in self.presets:
             self.window.comboBox_filter.addItem(component)
+
+    def openSavePresetDialog(self):
+        window = self.parent.window
+        if window.listWidget_componentList.currentRow() == -1:
+            return
+        while True:
+            dialog = QtGui.QInputDialog(
+                QtGui.QWidget(), 'Audio Visualizer', 'New Preset Name:')
+            dialog.setTextValue()
+            newName, OK = dialog.getText()
+            badName = False
+            for letter in newName:
+                if letter in string.punctuation:
+                    badName = True
+            if badName:
+                # some filesystems don't like bizarre characters
+                self.parent.showMessage(msg=\
+'''Preset names must contain only letters, numbers, and spaces.''')
+                continue
+            if OK and newName:
+                index = window.listWidget_componentList.currentRow()
+                if index != -1:
+                    saveValueStore = \
+                        self.parent.selectedComponents[index].savePreset()
+                    componentName = str(self.parent.selectedComponents[index]).strip()
+                    vers = self.parent.selectedComponents[index].version()
+                    self.createPresetFile(
+                        componentName, vers, saveValueStore, newName)
+            break
+
+    def createPresetFile(self, compName, vers, saveValueStore, filename):
+        dirname = os.path.join(self.presetDir, compName, str(vers))
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        filepath = os.path.join(dirname, filename)
+        if os.path.exists(filepath):
+            ch = self.parent.showMessage(
+                msg="%s already exists! Overwrite it?" % filename,
+                showCancel=True, icon=QtGui.QMessageBox.Warning)
+            if not ch:
+                return
+        with open(filepath, 'w') as f:
+            f.write(core.Core.stringOrderedDict(saveValueStore))
+        self.drawPresetList()
+
+    def openPreset(self, presetName):
+        index = self.parent.window.listWidget_componentList.currentRow()
+        if index == -1:
+            return
+        componentName = str(self.parent.selectedComponents[index]).strip()
+        version = self.parent.selectedComponents[index].version()
+        dirname = os.path.join(self.presetDir, componentName, str(version))
+        filepath = os.path.join(dirname, presetName)
+        if not os.path.exists(filepath):
+            return
+        with open(filepath, 'r') as f:
+            for line in f:
+                saveValueStore = dict(eval(line.strip()))
+                break
+        self.parent.selectedComponents[index].loadPreset(saveValueStore)
+        self.parent.drawPreview()
+

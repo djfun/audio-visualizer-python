@@ -48,7 +48,8 @@ class Component(__base__.Component):
             frame.paste(image)
         return frame
 
-    def loadPreset(self, pr):
+    def loadPreset(self, pr, presetName=None):
+        self.currentPreset = presetName
         self.page.lineEdit_image.setText(pr['image'])
 
     def savePreset(self):
@@ -60,7 +61,7 @@ class Component(__base__.Component):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
         filename = QtGui.QFileDialog.getOpenFileName(
             self.page, "Choose Image", imgDir, "Image Files (*.jpg *.png)")
-        if filename: 
+        if filename:
             self.settings.setValue("backgroundDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)
             self.update()

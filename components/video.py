@@ -128,7 +128,8 @@ class Component(__base__.Component):
     def frameRender(self, moduleNo, arrayNo, frameNo):
         return self.video.frame(frameNo)
 
-    def loadPreset(self, pr):
+    def loadPreset(self, pr, presetName=None):
+        self.currentPreset = presetName
         self.page.lineEdit_video.setText(pr['video'])
         self.page.checkBox_loop.setChecked(pr['loop'])
 
@@ -144,7 +145,7 @@ class Component(__base__.Component):
             self.page, "Choose Video",
             imgDir, "Video Files (*.mp4 *.mov)"
         )
-        if filename: 
+        if filename:
             self.settings.setValue("backgroundDir", os.path.dirname(filename))
             self.page.lineEdit_video.setText(filename)
             self.update()
