@@ -2,7 +2,7 @@ from os.path import expanduser
 from queue import Queue
 from importlib import import_module
 from collections import OrderedDict
-from PyQt4 import QtCore, QtGui
+from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, Qt
 from PyQt4.QtGui import QDesktopServices, QMenu
 import sys
@@ -16,6 +16,7 @@ import time
 import core
 import preview_thread
 import video_thread
+from presetmanager import PresetManager
 from main import LoadDefaultSettings
 
 
@@ -59,7 +60,7 @@ class MainWindow(QtCore.QObject):
         self.selectedComponents = []
         self.lastAutosave = time.time()
 
-        # create data directory, load/create settings
+        # Create data directory, load/create settings
         self.dataDir = QDesktopServices.storageLocation(
             QDesktopServices.DataLocation)
         self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
@@ -74,7 +75,13 @@ class MainWindow(QtCore.QObject):
             if not os.path.exists(neededDirectory):
                 os.mkdir(neededDirectory)
 
-        #
+        self.presetManager = PresetManager(
+            uic.loadUi(
+                os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                'presetmanager.ui')),
+            self)
+
+        # Make queues/timers for the preview thread
         self.previewQueue = Queue()
         self.previewThread = QtCore.QThread(self)
         self.previewWorker = preview_thread.Worker(self, self.previewQueue)
@@ -86,7 +93,7 @@ class MainWindow(QtCore.QObject):
         self.timer.timeout.connect(self.processTask.emit)
         self.timer.start(500)
 
-        # begin decorating the window and connecting events
+        # Begin decorating the window and connecting events
         window.toolButton_selectAudioFile.clicked.connect(
             self.openInputFileDialog)
 
@@ -145,6 +152,7 @@ class MainWindow(QtCore.QObject):
             os.path.dirname(os.path.realpath(__file__)), "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
+        # Make component buttons
         self.modules = self.findComponents()
         self.compMenu = QMenu()
         for i, comp in enumerate(self.modules):
@@ -153,11 +161,19 @@ class MainWindow(QtCore.QObject):
                 lambda item=i: self.insertComponent(item))
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
+
         window.listWidget_componentList.clicked.connect(
             lambda _: self.changeComponentWidget())
 
         self.window.pushButton_removeComponent.clicked.connect(
             lambda _: self.removeComponent())
+
+        self.window.listWidget_componentList.setContextMenuPolicy(
+            QtCore.Qt.CustomContextMenu)
+        self.window.listWidget_componentList.connect(
+            self.window.listWidget_componentList,
+            QtCore.SIGNAL("customContextMenuRequested(QPoint)"),
+            self.componentContextMenu)
 
         currentRes = str(self.settings.value('outputWidth'))+'x' + \
             str(self.settings.value('outputHeight'))
@@ -173,11 +189,6 @@ class MainWindow(QtCore.QObject):
             self.moveComponentUp)
         self.window.pushButton_listMoveDown.clicked.connect(
             self.moveComponentDown)
-
-        '''self.window.pushButton_savePreset.clicked.connect(
-            self.openSavePresetDialog)
-        self.window.comboBox_openPreset.currentIndexChanged.connect(
-            self.openPreset)'''
 
         # Configure the Projects Menu
         self.projectMenu = QMenu()
@@ -200,14 +211,7 @@ class MainWindow(QtCore.QObject):
             self.openPresetManager
         )
 
-        '''self.window.pushButton_saveAs.clicked.connect(
-            self.openSaveProjectDialog)
-        self.window.pushButton_saveProject.clicked.connect(
-            self.saveCurrentProject)
-        self.window.pushButton_openProject.clicked.connect(
-            self.openOpenProjectDialog)'''
-
-        # show the window and load current project
+        # Show the window and load current project
         window.show()
         self.currentProject = self.settings.value("currentProject")
         if self.currentProject and os.path.exists(self.autosavePath) \
@@ -217,8 +221,9 @@ class MainWindow(QtCore.QObject):
 
         if self.currentProject and os.path.exists(self.autosavePath):
             ch = self.showMessage(
-                "Restore unsaved changes in project '%s'?"
-                % os.path.basename(self.currentProject)[:-4], True)
+                msg="Restore unsaved changes in project '%s'?"
+                % os.path.basename(self.currentProject)[:-4],
+                showCancel=True)
             if ch:
                 os.remove(self.currentProject)
                 os.rename(self.autosavePath, self.currentProject)
@@ -325,7 +330,7 @@ class MainWindow(QtCore.QObject):
                 self.selectedComponents)
         else:
             self.showMessage(
-                "You must select an audio file and output filename.")
+                msg="You must select an audio file and output filename.")
 
     def progressBarUpdated(self, value):
         self.window.progressBar_createVideo.setValue(value)
@@ -480,10 +485,9 @@ class MainWindow(QtCore.QObject):
             self.window.stackedWidget.setCurrentIndex(row + 1)
             self.drawPreview()
 
-    # Preset manager for importing, exporting, renaming,
-    # and deleting presets.
     def openPresetManager(self):
-        return
+        '''Preset manager for importing, exporting, renaming, deleting'''
+        self.presetManager.show()
 
     def updateOpenPresetComboBox(self, component):
         self.window.comboBox_openPreset.clear()
@@ -507,8 +511,8 @@ class MainWindow(QtCore.QObject):
                     badName = True
             if badName:
                 # some filesystems don't like bizarre characters
-                self.showMessage("Preset names must contain only letters, \
-                    numbers, and spaces.")
+                self.showMessage(msg="Preset names must contain only \
+                letters, numbers, and spaces.")
                 continue
             if OK and newName:
                 index = self.window.listWidget_componentList.currentRow()
@@ -529,8 +533,8 @@ class MainWindow(QtCore.QObject):
         filepath = os.path.join(dirname, filename)
         if os.path.exists(filepath):
             ch = self.showMessage(
-                "%s already exists! Overwrite it?" % filename,
-                True, QtGui.QMessageBox.Warning)
+                msg="%s already exists! Overwrite it?" % filename,
+                showCancel=True, icon=QtGui.QMessageBox.Warning)
             if not ch:
                 return
             # remove old copies of the preset
@@ -663,20 +667,20 @@ class MainWindow(QtCore.QObject):
             typ, value, _ = sys.exc_info()
             msg = '%s: %s' % (typ.__name__, value)
             self.showMessage(
-                "Project file '%s' is corrupted." % filepath, False,
-                QtGui.QMessageBox.Warning, msg)
+                msg="Project file '%s' is corrupted." % filepath,
+                showCancel=False,
+                icon=QtGui.QMessageBox.Warning,
+                detail=msg)
         except KeyError as e:
             # probably just an old version, still loadable
             print('project file missing value: %s' % e)
 
-    def showMessage(
-            self, string, showCancel=False,
-            icon=QtGui.QMessageBox.Information, detail=None):
+    def showMessage(self, **kwargs):
         msg = QtGui.QMessageBox()
-        msg.setIcon(icon)
-        msg.setText(string)
-        msg.setDetailedText(detail)
-        if showCancel:
+        msg.setText(kwargs['msg'])
+        msg.setIcon(kwargs['icon'] if 'icon' in kwargs else QtGui.QMessageBox.Information)
+        msg.setDetailedText(kwargs['detail'] if 'detail' in kwargs else None)
+        if 'showCancel'in kwargs and kwargs['showCancel']:
             msg.setStandardButtons(
                 QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel)
         else:
@@ -685,3 +689,15 @@ class MainWindow(QtCore.QObject):
         if ch == 1024:
             return True
         return False
+
+    def componentContextMenu(self, QPos):
+        self.menu = QtGui.QMenu()
+        menuItem = self.menu.addAction("Save Preset")
+        self.connect(menuItem, QtCore.SIGNAL("triggered()"), self.openSavePresetDialog)
+        parentPosition = self.window.listWidget_componentList.mapToGlobal(QtCore.QPoint(0, 0))
+        self.menu.move(parentPosition + QPos)
+        self.menu.show()
+
+    def menuItemClicked(self):
+        currentItemName=str(self.window.listWidget_componentList.currentItem().text() )
+        print(currentItemName)
