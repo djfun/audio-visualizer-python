@@ -12,6 +12,7 @@ import atexit
 import time
 from collections import OrderedDict
 import json
+from importlib import import_module
 
 
 class Core():
@@ -25,6 +26,37 @@ class Core():
         atexit.register(self.deleteTempDir)
         self.wd = os.path.dirname(os.path.realpath(__file__))
         self.loadEncoderOptions()
+
+        self.modules = self.findComponents()
+        self.selectedComponents = []
+
+    def findComponents(self):
+        def findComponents():
+            srcPath = os.path.join(self.wd, 'components')
+            if os.path.exists(srcPath):
+                for f in sorted(os.listdir(srcPath)):
+                    name, ext = os.path.splitext(f)
+                    if name.startswith("__"):
+                        continue
+                    elif ext == '.py':
+                        yield name
+        return [
+            import_module('components.%s' % name)
+            for name in findComponents()]
+
+    def insertComponent(self, compPos, moduleIndex):
+        self.selectedComponents.insert(
+            compPos,
+            self.modules[moduleIndex].Component())
+        return compPos #if compPos > -1 else len(self.selectedComponents)-1
+
+    def moveComponent(self, startI, endI):
+        comp = self.selectedComponents.pop(startI)
+        i = self.selectedComponents.insert(endI, comp)
+        return i
+
+    def updateComponent(self, i):
+        self.selectedComponents[i].update()
 
     def loadEncoderOptions(self):
         file_path = os.path.join(self.wd, 'encoder-options.json')

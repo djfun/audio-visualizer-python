@@ -184,17 +184,20 @@
             <property name="lineWidth">
              <number>1</number>
             </property>
-            <property name="showDropIndicator" stdset="0">
-             <bool>false</bool>
+            <property name="tabKeyNavigation">
+             <bool>true</bool>
             </property>
             <property name="dragEnabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="dragDropOverwriteMode">
              <bool>false</bool>
             </property>
             <property name="dragDropMode">
-             <enum>QAbstractItemView::NoDragDrop</enum>
+             <enum>QAbstractItemView::InternalMove</enum>
+            </property>
+            <property name="defaultDropAction">
+             <enum>Qt::MoveAction</enum>
             </property>
            </widget>
           </item>

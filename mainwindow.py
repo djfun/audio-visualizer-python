@@ -1,6 +1,5 @@
 from os.path import expanduser
 from queue import Queue
-from importlib import import_module
 from collections import OrderedDict
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, Qt
@@ -54,8 +53,9 @@ class MainWindow(QtCore.QObject):
         # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
         self.window = window
         self.core = core.Core()
-        self.pages = []
-        self.selectedComponents = []
+
+        self.pages = []  # widgets of component settings
+        self.componentRows = {}  # QListWidgetItems
         self.lastAutosave = time.time()
 
         # Create data directory, load/create settings
@@ -149,16 +149,16 @@ class MainWindow(QtCore.QObject):
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
         # Make component buttons
-        self.modules = self.findComponents()
         self.compMenu = QMenu()
-        for i, comp in enumerate(self.modules):
+        for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.__doc__)
             action.triggered[()].connect(
                 lambda item=i: self.insertComponent(item))
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
 
-        window.listWidget_componentList.clicked.connect(
+        self.window.listWidget_componentList.dropEvent = self.componentMoved
+        self.window.listWidget_componentList.clicked.connect(
             lambda _: self.changeComponentWidget())
 
         self.window.pushButton_removeComponent.clicked.connect(
@@ -183,8 +183,8 @@ class MainWindow(QtCore.QObject):
 
         self.window.pushButton_listMoveUp.clicked.connect(
             self.moveComponentUp)
-        self.window.pushButton_listMoveDown.clicked.connect(
-            self.moveComponentDown)
+        #self.window.pushButton_listMoveDown.clicked.connect(
+        #    self.moveComponentDown)
 
         # Configure the Projects Menu
         self.projectMenu = QMenu()
@@ -323,7 +323,7 @@ class MainWindow(QtCore.QObject):
             self.videoTask.emit(
                 self.window.lineEdit_audioFile.text(),
                 self.window.lineEdit_outputFile.text(),
-                self.selectedComponents)
+                self.core.selectedComponents)
         else:
             self.showMessage(
                 msg="You must select an audio file and output filename.")
@@ -384,56 +384,35 @@ class MainWindow(QtCore.QObject):
         self.drawPreview()
 
     def drawPreview(self):
-        self.newTask.emit(self.selectedComponents)
+        self.newTask.emit(self.core.selectedComponents)
         # self.processTask.emit()
         self.autosave()
 
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
 
-    def findComponents(self):
-        def findComponents():
-            srcPath = os.path.join(
-                os.path.dirname(os.path.realpath(__file__)), 'components')
-            if os.path.exists(srcPath):
-                for f in sorted(os.listdir(srcPath)):
-                    name, ext = os.path.splitext(f)
-                    if name.startswith("__"):
-                        continue
-                    elif ext == '.py':
-                        yield name
-        return [
-            import_module('components.%s' % name)
-            for name in findComponents()]
+    def insertComponent(self, moduleIndex, compPos=0):
+        componentList = self.window.listWidget_componentList
 
-    def addComponent(self, moduleIndex):
-        index = len(self.pages)
-        self.selectedComponents.append(self.modules[moduleIndex].Component())
-        self.window.listWidget_componentList.addItem(
-            self.selectedComponents[-1].__doc__)
-        self.pages.append(self.selectedComponents[-1].widget(self))
-        self.window.listWidget_componentList.setCurrentRow(index)
-        self.window.stackedWidget.addWidget(self.pages[-1])
+        index = self.core.insertComponent(
+            compPos, moduleIndex)
+        row = componentList.insertItem(
+            index,
+            self.core.selectedComponents[index].__doc__)
+        self.componentRows[index] = componentList.row(row)
+        componentList.setCurrentRow(index)
+
+        self.pages.insert(index, self.core.selectedComponents[index].widget(self))
+        self.window.stackedWidget.insertWidget(index, self.pages[index])
         self.window.stackedWidget.setCurrentIndex(index)
-        self.selectedComponents[-1].update()
-
-    def insertComponent(self, moduleIndex):
-        self.selectedComponents.insert(
-            0, self.modules[moduleIndex].Component())
-        self.window.listWidget_componentList.insertItem(
-            0, self.selectedComponents[0].__doc__)
-        self.pages.insert(0, self.selectedComponents[0].widget(self))
-        self.window.listWidget_componentList.setCurrentRow(0)
-        self.window.stackedWidget.insertWidget(0, self.pages[0])
-        self.window.stackedWidget.setCurrentIndex(0)
-        self.selectedComponents[0].update()
+        self.core.updateComponent(index)
 
     def removeComponent(self):
         for selected in self.window.listWidget_componentList.selectedItems():
             index = self.window.listWidget_componentList.row(selected)
             self.window.stackedWidget.removeWidget(self.pages[index])
             self.window.listWidget_componentList.takeItem(index)
-            self.selectedComponents.pop(index)
+            self.core.selectedComponents.pop(index)
             self.pages.pop(index)
             self.changeComponentWidget()
         self.drawPreview()
@@ -447,20 +426,21 @@ class MainWindow(QtCore.QObject):
     def moveComponentUp(self):
         row = self.window.listWidget_componentList.currentRow()
         if row > 0:
-            module = self.selectedComponents[row]
-            self.selectedComponents.pop(row)
-            self.selectedComponents.insert(row - 1, module)
-            page = self.pages[row]
-            self.pages.pop(row)
+            self.core.moveComponent(row, row - 1)
+            page = self.pages.pop(row)
             self.pages.insert(row - 1, page)
-            item = self.window.listWidget_componentList.takeItem(row)
-            self.window.listWidget_componentList.insertItem(row - 1, item)
-            widget = self.window.stackedWidget.removeWidget(page)
-            self.window.stackedWidget.insertWidget(row - 1, page)
-            self.window.listWidget_componentList.setCurrentRow(row - 1)
-            self.window.stackedWidget.setCurrentIndex(row - 1)
-            self.drawPreview()
 
+            # update widgets
+            componentList = self.window.listWidget_componentList
+            stackedWidget = self.window.stackedWidget
+            item = componentList.takeItem(row)
+            componentList.insertItem(row - 1, item)
+            widget = stackedWidget.removeWidget(page)
+            stackedWidget.insertWidget(row - 1, page)
+            componentList.setCurrentRow(row - 1)
+            stackedWidget.setCurrentIndex(row - 1)
+            self.drawPreview()
+    '''
     def moveComponentDown(self):
         row = self.window.listWidget_componentList.currentRow()
         if row != -1 and row < len(self.pages)+1:
@@ -477,6 +457,12 @@ class MainWindow(QtCore.QObject):
             self.window.listWidget_componentList.setCurrentRow(row + 1)
             self.window.stackedWidget.setCurrentIndex(row + 1)
             self.drawPreview()
+    '''
+    def componentMoved(self, event):
+        widget = self.window.listWidget_componentList
+        for i in range(widget.count()):
+            pass
+            #print(widget.item(i) == self.componentRows[i])
 
     def openPresetManager(self):
         '''Preset manager for importing, exporting, renaming, deleting'''
@@ -484,7 +470,7 @@ class MainWindow(QtCore.QObject):
 
     def createNewProject(self):
         self.currentProject = None
-        self.selectedComponents = []
+        self.core.selectedComponents = []
         self.window.listWidget_componentList.clear()
         for widget in self.pages:
             self.window.stackedWidget.removeWidget(widget)
@@ -513,7 +499,7 @@ class MainWindow(QtCore.QObject):
         with open(filepath, 'w') as f:
             print('creating %s' % filepath)
             f.write('[Components]\n')
-            for comp in self.selectedComponents:
+            for comp in self.core.selectedComponents:
                 saveValueStore = comp.savePreset()
                 f.write('%s\n' % str(comp))
                 f.write('%s\n' % str(comp.version()))
@@ -538,7 +524,7 @@ class MainWindow(QtCore.QObject):
         self.currentProject = filepath
         self.settings.setValue("currentProject", filepath)
         self.settings.setValue("projectDir", os.path.dirname(filepath))
-        compNames = [mod.Component.__doc__ for mod in self.modules]
+        compNames = [mod.Component.__doc__ for mod in self.core.modules]
         try:
             with open(filepath, 'r') as f:
                 validSections = ('Components')
@@ -563,14 +549,14 @@ class MainWindow(QtCore.QObject):
                     if line and section == 'Components':
                         if i == 0:
                             compIndex = compNames.index(line)
-                            self.addComponent(compIndex)
+                            self.insertComponent(compIndex, -1)
                             i += 1
                         elif i == 1:
                             # version, not used yet
                             i += 1
                         elif i == 2:
                             saveValueStore = dict(eval(line))
-                            self.selectedComponents[-1].loadPreset(
+                            self.core.selectedComponents[-1].loadPreset(
                                 saveValueStore)
                             i = 0
         except (IndexError, ValueError, NameError, SyntaxError,
@@ -620,7 +606,7 @@ class MainWindow(QtCore.QObject):
         # submenu for opening presets
         index = self.window.listWidget_componentList.currentRow()
         try:
-            presets = self.presetManager.presets[str(self.selectedComponents[index])]
+            presets = self.presetManager.presets[str(self.core.selectedComponents[index])]
             self.submenu = QtGui.QMenu("Open Preset")
             self.menu.addMenu(self.submenu)
 

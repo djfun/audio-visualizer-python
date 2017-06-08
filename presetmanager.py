@@ -86,28 +86,35 @@ class PresetManager(QtGui.QDialog):
         if window.listWidget_componentList.currentRow() == -1:
             return
         while True:
-            dialog = QtGui.QInputDialog(
-                QtGui.QWidget(), 'Audio Visualizer', 'New Preset Name:')
-            dialog.setTextValue()
-            newName, OK = dialog.getText()
-            badName = False
-            for letter in newName:
-                if letter in string.punctuation:
-                    badName = True
-            if badName:
-                # some filesystems don't like bizarre characters
-                self.parent.showMessage(msg=\
-'''Preset names must contain only letters, numbers, and spaces.''')
-                continue
-            if OK and newName:
-                index = window.listWidget_componentList.currentRow()
-                if index != -1:
-                    saveValueStore = \
-                        self.parent.selectedComponents[index].savePreset()
-                    componentName = str(self.parent.selectedComponents[index]).strip()
-                    vers = self.parent.selectedComponents[index].version()
-                    self.createPresetFile(
-                        componentName, vers, saveValueStore, newName)
+            index = window.listWidget_componentList.currentRow()
+            currentPreset = self.parent.selectedComponents[index].currentPreset
+            newName, OK = QtGui.QInputDialog.getText(
+                self.parent.window,
+                'Audio Visualizer',
+                'New Preset Name:',
+                QtGui.QLineEdit.Normal,
+                currentPreset
+            )
+            if OK:
+                badName = False
+                for letter in newName:
+                    if letter in string.punctuation:
+                        badName = True
+                if badName:
+                    # some filesystems don't like bizarre characters
+                    self.parent.showMessage(
+                        msg='Preset names must contain only letters,'
+                            'numbers, and spaces.')
+                    continue
+                if newName:
+                    if index != -1:
+                        saveValueStore = \
+                            self.parent.selectedComponents[index].savePreset()
+                        componentName = str(self.parent.selectedComponents[index]).strip()
+                        vers = self.parent.selectedComponents[index].version()
+                        self.createPresetFile(
+                            componentName, vers, saveValueStore, newName)
+                        self.parent.selectedComponents[index].currentPreset = newName
             break
 
     def createPresetFile(self, compName, vers, saveValueStore, filename):
@@ -139,6 +146,9 @@ class PresetManager(QtGui.QDialog):
             for line in f:
                 saveValueStore = dict(eval(line.strip()))
                 break
-        self.parent.selectedComponents[index].loadPreset(saveValueStore)
+        self.parent.selectedComponents[index].loadPreset(
+            saveValueStore,
+            presetName
+        )
         self.parent.drawPreview()
 
