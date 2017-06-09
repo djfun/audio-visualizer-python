@@ -20,14 +20,14 @@ class Component(__base__.Component):
         page.lineEdit_color1.setText('%s,%s,%s' % self.color1)
         page.lineEdit_color2.setText('%s,%s,%s' % self.color2)
 
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+        btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.color1).name()
 
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+        btnStyle2 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.color2).name()
 
-        page.pushButton_color1.setStyleSheet(btnStyle)
-        page.pushButton_color2.setStyleSheet(btnStyle)
+        page.pushButton_color1.setStyleSheet(btnStyle1)
+        page.pushButton_color2.setStyleSheet(btnStyle2)
         page.pushButton_color1.clicked.connect(lambda: self.pickColor(1))
         page.pushButton_color2.clicked.connect(lambda: self.pickColor(2))
 
@@ -74,14 +74,14 @@ class Component(__base__.Component):
         self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
         self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
 
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+        btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['color1']).name()
 
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+        btnStyle2 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['color2']).name()
 
-        self.page.pushButton_color1.setStyleSheet(btnStyle)
-        self.page.pushButton_color2.setStyleSheet(btnStyle)
+        self.page.pushButton_color1.setStyleSheet(btnStyle1)
+        self.page.pushButton_color2.setStyleSheet(btnStyle2)
 
     def savePreset(self):
         return {

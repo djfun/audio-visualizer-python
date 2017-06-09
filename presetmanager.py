@@ -15,6 +15,11 @@ class PresetManager(QtGui.QDialog):
         self.window = window
         self.findPresets()
         self.lastFilter = '*'
+        self.presetRows = [] # list of (comp, vers, name) tuples
+
+        # connect button signals
+        self.window.pushButton_delete.clicked.connect(self.openDeletePresetDialog)
+        self.window.pushButton_rename.clicked.connect(self.openRenamePresetDialog)
 
         # create filter box and preset list
         self.drawFilterList()
@@ -30,6 +35,7 @@ class PresetManager(QtGui.QDialog):
         self.window.lineEdit_search.setCompleter(completer)
 
     def show(self):
+        '''Open a new preset manager window from the mainwindow'''
         presetNames = []
         for presetList in self.presets.values():
             for preset in presetList:
@@ -70,11 +76,13 @@ class PresetManager(QtGui.QDialog):
             self.lastFilter = str(filter)
         else:
             filter = str(self.lastFilter)
+        self.presetRows = []
         for component, presets in self.presets.items():
             if filter != '*' and component != filter:
                 continue
             for vers, preset in presets:
                 self.window.listWidget_presets.addItem('%s: %s' % (component, preset))
+                self.presetRows.append((component, vers, preset))
 
     def drawFilterList(self):
         self.window.comboBox_filter.clear()
@@ -83,9 +91,10 @@ class PresetManager(QtGui.QDialog):
             self.window.comboBox_filter.addItem(component)
 
     def openSavePresetDialog(self):
+        '''Functions on mainwindow level from the context menu'''
         window = self.parent.window
         self.selectedComponents = self.parent.core.selectedComponents
-        componentList = window.listWidget_componentList
+        componentList = self.parent.window.listWidget_componentList
 
         if componentList.currentRow() == -1:
             return
@@ -100,15 +109,8 @@ class PresetManager(QtGui.QDialog):
                 currentPreset
             )
             if OK:
-                badName = False
-                for letter in newName:
-                    if letter in string.punctuation:
-                        badName = True
-                if badName:
-                    # some filesystems don't like bizarre characters
-                    self.parent.showMessage(
-                        msg='Preset names must contain only letters,'
-                            'numbers, and spaces.')
+                if core.Core.badName(newName):
+                    self.warnMessage()
                     continue
                 if newName:
                     if index != -1:
@@ -116,21 +118,30 @@ class PresetManager(QtGui.QDialog):
                             self.selectedComponents[index].savePreset()
                         componentName = str(self.selectedComponents[index]).strip()
                         vers = self.selectedComponents[index].version()
-                        self.createPresetFile(
+                        self.createNewPreset(
                             componentName, vers, saveValueStore, newName)
                         self.selectedComponents[index].currentPreset = newName
+                        self.findPresets()
+                        self.drawPresetList()
             break
 
-    def createPresetFile(self, compName, vers, saveValueStore, filename):
+    def createNewPreset(self, compName, vers, saveValueStore, filename):
         path = os.path.join(self.presetDir, compName, str(vers), filename)
+        if self.presetExists(path):
+            return
+        self.core.createPresetFile(compName, vers, saveValueStore, filename)
+
+    def presetExists(self, path):
         if os.path.exists(path):
             ch = self.parent.showMessage(
-                msg="%s already exists! Overwrite it?" % filename,
+                msg="%s already exists! Overwrite it?" %
+                    os.path.basename(path),
                 showCancel=True, icon=QtGui.QMessageBox.Warning)
             if not ch:
-                return
-        self.core.createPresetFile(compName, vers, saveValueStore, filename)
-        self.drawPresetList()
+                # user clicked cancel
+                return True
+
+        return False
 
     def openPreset(self, presetName):
         componentList = self.parent.window.listWidget_componentList
@@ -155,4 +166,77 @@ class PresetManager(QtGui.QDialog):
         )
         self.parent.updateComponentTitle(index)
         self.parent.drawPreview()
+
+    def openDeletePresetDialog(self):
+        selected = self.window.listWidget_presets.selectedItems()
+        if not selected:
+            return
+        row = self.window.listWidget_presets.row(selected[0])
+        comp, vers, name = self.presetRows[row]
+        ch = self.parent.showMessage(
+            msg='Really delete %s?' % name,
+            showCancel=True, icon=QtGui.QMessageBox.Warning
+        )
+        if not ch:
+            return
+        self.deletePreset(comp, vers, name)
+        self.findPresets()
+        self.drawPresetList()
+
+    def deletePreset(self, comp, vers, name):
+        filepath = os.path.join(self.presetDir, comp, str(vers), name)
+        os.remove(filepath)
+
+    def warnMessage(self):
+        self.parent.showMessage(
+            msg='Preset names must contain only letters, '
+            'numbers, and spaces.')
+
+    def openRenamePresetDialog(self):
+        presetList = self.window.listWidget_presets
+        if presetList.currentRow() == -1:
+            return
+
+        while True:
+            index = presetList.currentRow()
+            newName, OK = QtGui.QInputDialog.getText(
+                self.window,
+                'Preset Manager',
+                'Rename Preset:',
+                QtGui.QLineEdit.Normal,
+                self.presetRows[index][2]
+            )
+            if OK:
+                if core.Core.badName(newName):
+                    self.warnMessage()
+                    continue
+                if newName:
+                    comp, vers, oldName = self.presetRows[index]
+                    path = os.path.join(
+                        self.presetDir, comp, str(vers))
+                    newPath = os.path.join(path, newName)
+                    oldPath = os.path.join(path, oldName)
+                    if self.presetExists(newPath):
+                        return
+                    if os.path.exists(newPath):
+                        os.remove(newPath)
+                    os.rename(oldPath, newPath)
+                    self.findPresets()
+                    self.drawPresetList()
+            break
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

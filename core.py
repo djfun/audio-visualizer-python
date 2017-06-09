@@ -14,6 +14,7 @@ from collections import OrderedDict
 import json
 from importlib import import_module
 from PyQt4.QtGui import QDesktopServices
+import string
 
 
 class Core():
@@ -176,6 +177,15 @@ class Core():
 
     def reset(self):
         self.canceled = False
+
+    @staticmethod
+    def badName(name):
+        '''Returns whether a name contains non-alphanumeric chars'''
+        badName = False
+        for letter in name:
+            if letter in string.punctuation:
+                badName = True
+        return badName
 
     @staticmethod
     def stringOrderedDict(dictionary):
