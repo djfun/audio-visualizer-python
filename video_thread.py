@@ -26,7 +26,7 @@ class Worker(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.core = core.Core()
         self.core.settings = parent.settings
-        self.modules = parent.modules
+        self.modules = parent.core.modules
         self.stackedWidget = parent.window.stackedWidget
         self.parent = parent
         parent.videoTask.connect(self.createVideo)

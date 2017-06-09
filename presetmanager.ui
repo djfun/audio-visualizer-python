@@ -2,6 +2,9 @@
 <ui version="4.0">
  <class>presetmanager</class>
  <widget class="QWidget" name="presetmanager">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -22,7 +25,7 @@
         <string/>
        </property>
        <property name="placeholderText">
-        <string>Search</string>
+        <string>Filter by name</string>
        </property>
       </widget>
      </item>
@@ -47,6 +50,9 @@
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="tabKeyNavigation">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -95,6 +101,24 @@
       <widget class="QPushButton" name="pushButton_delete">
        <property name="text">
         <string>Delete</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_close">
+       <property name="text">
+        <string>Close</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <item alignment="Qt::AlignRight">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Right-click components in the list to create presets.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
       </widget>
      </item>

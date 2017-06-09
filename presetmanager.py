@@ -8,7 +8,7 @@ import core
 
 class PresetManager(QtGui.QDialog):
     def __init__(self, window, parent):
-        super().__init__()
+        super().__init__(parent.window)
         self.parent = parent
         self.core = self.parent.core
         self.presetDir = self.core.presetDir
@@ -20,27 +20,30 @@ class PresetManager(QtGui.QDialog):
         # connect button signals
         self.window.pushButton_delete.clicked.connect(self.openDeletePresetDialog)
         self.window.pushButton_rename.clicked.connect(self.openRenamePresetDialog)
+        self.window.pushButton_close.clicked.connect(self.close)
 
         # create filter box and preset list
         self.drawFilterList()
         self.window.comboBox_filter.currentIndexChanged.connect(
-            lambda: self.drawPresetList(self.window.comboBox_filter.currentText())
+            lambda: self.drawPresetList(
+                self.window.comboBox_filter.currentText(), self.window.lineEdit_search.text()
+            )
         )
-        self.drawPresetList('*')
 
         # make auto-completion for search bar
         self.autocomplete = QtGui.QStringListModel()
         completer = QtGui.QCompleter()
         completer.setModel(self.autocomplete)
         self.window.lineEdit_search.setCompleter(completer)
+        self.window.lineEdit_search.textChanged.connect(
+            lambda: self.drawPresetList(
+                self.window.comboBox_filter.currentText(), self.window.lineEdit_search.text()
+            )
+        )
+        self.drawPresetList('*')
 
     def show(self):
         '''Open a new preset manager window from the mainwindow'''
-        presetNames = []
-        for presetList in self.presets.values():
-            for preset in presetList:
-                presetNames.append(preset[1])
-        self.autocomplete.setStringList(presetNames)
         self.findPresets()
         self.drawFilterList()
         self.drawPresetList('*')
@@ -70,19 +73,23 @@ class PresetManager(QtGui.QDialog):
             for compName, _, __ in parseList \
             }
 
-    def drawPresetList(self, filter=None):
+    def drawPresetList(self, compFilter=None, presetFilter=''):
         self.window.listWidget_presets.clear()
-        if filter:
-            self.lastFilter = str(filter)
+        if compFilter:
+            self.lastFilter = str(compFilter)
         else:
-            filter = str(self.lastFilter)
+            compFilter = str(self.lastFilter)
         self.presetRows = []
+        presetNames = []
         for component, presets in self.presets.items():
-            if filter != '*' and component != filter:
+            if compFilter != '*' and component != compFilter:
                 continue
             for vers, preset in presets:
-                self.window.listWidget_presets.addItem('%s: %s' % (component, preset))
-                self.presetRows.append((component, vers, preset))
+                if not presetFilter or presetFilter in preset:
+                    self.window.listWidget_presets.addItem('%s: %s' % (component, preset))
+                    self.presetRows.append((component, vers, preset))
+                presetNames.append(preset)
+        self.autocomplete.setStringList(presetNames)
 
     def drawFilterList(self):
         self.window.comboBox_filter.clear()
@@ -224,19 +231,3 @@ class PresetManager(QtGui.QDialog):
                     self.findPresets()
                     self.drawPresetList()
             break
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
