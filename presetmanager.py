@@ -10,7 +10,8 @@ class PresetManager(QtGui.QDialog):
     def __init__(self, window, parent):
         super().__init__(parent.window)
         self.parent = parent
-        self.core = self.parent.core
+        self.core = parent.core
+        self.settings = parent.settings
         self.presetDir = self.core.presetDir
         self.window = window
         self.findPresets()
@@ -21,6 +22,8 @@ class PresetManager(QtGui.QDialog):
         self.window.pushButton_delete.clicked.connect(self.openDeletePresetDialog)
         self.window.pushButton_rename.clicked.connect(self.openRenamePresetDialog)
         self.window.pushButton_close.clicked.connect(self.close)
+        self.window.pushButton_import.clicked.connect(self.openImportDialog)
+        self.window.pushButton_export.clicked.connect(self.openExportDialog)
 
         # create filter box and preset list
         self.drawFilterList()
@@ -231,3 +234,21 @@ class PresetManager(QtGui.QDialog):
                     self.findPresets()
                     self.drawPresetList()
             break
+
+    def openImportDialog(self):
+        filename = QtGui.QFileDialog.getOpenFileName(
+            self.window, "Import Preset File",
+            self.settings.value("projectDir"),
+            "Preset Files (*.avl)")
+        if filename:
+            self.core.importPreset(filename)
+
+    def openExportDialog(self):
+        filename = QtGui.QFileDialog.getSaveFileName(
+            self.window, "Export Preset",
+            self.settings.value("projectDir"),
+            "Preset Files (*.avl)")
+        if filename:
+            index = self.window.listWidget_presets.currentRow()
+            comp, vers, name = self.presetRows[index]
+            self.core.exportPreset(filename, comp, vers, name)

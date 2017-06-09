@@ -60,15 +60,15 @@ class MainWindow(QtCore.QObject):
 
         # Create data directory, load/create settings
         self.dataDir = self.core.dataDir
+        self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
+        self.settings = QSettings(
+            os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
+        LoadDefaultSettings(self)
         self.presetManager = PresetManager(
             uic.loadUi(
                 os.path.join(os.path.dirname(os.path.realpath(__file__)),
                 'presetmanager.ui')),
             self)
-        self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
-        self.settings = QSettings(
-            os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
-        LoadDefaultSettings(self)
         if not os.path.exists(self.dataDir):
             os.makedirs(self.dataDir)
         for neededDirectory in (

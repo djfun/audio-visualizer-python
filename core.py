@@ -85,6 +85,12 @@ class Core():
         with open(filepath, 'w') as f:
             f.write(Core.stringOrderedDict(saveValueStore))
 
+    def importPreset(self, filepath):
+        print(filepath)
+
+    def exportPreset(self, exportName, compName, vers, origName):
+        pass
+
     def loadEncoderOptions(self):
         file_path = os.path.join(self.wd, 'encoder-options.json')
         with open(file_path) as json_file:
