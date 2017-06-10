@@ -1,4 +1,4 @@
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from collections import OrderedDict
 import string
 import os
@@ -13,10 +13,12 @@ class PresetManager(QtGui.QDialog):
         self.core = parent.core
         self.settings = parent.settings
         self.presetDir = self.core.presetDir
-        self.window = window
         self.findPresets()
+
         self.lastFilter = '*'
         self.presetRows = [] # list of (comp, vers, name) tuples
+        self.window = window
+        self.window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
         # connect button signals
         self.window.pushButton_delete.clicked.connect(self.openDeletePresetDialog)
@@ -130,17 +132,17 @@ class PresetManager(QtGui.QDialog):
                         componentName = str(self.selectedComponents[index]).strip()
                         vers = self.selectedComponents[index].version()
                         self.createNewPreset(
-                            componentName, vers, saveValueStore, newName)
+                            componentName, vers, newName, saveValueStore)
                         self.selectedComponents[index].currentPreset = newName
                         self.findPresets()
                         self.drawPresetList()
             break
 
-    def createNewPreset(self, compName, vers, saveValueStore, filename):
+    def createNewPreset(self, compName, vers, filename, saveValueStore):
         path = os.path.join(self.presetDir, compName, str(vers), filename)
         if self.presetExists(path):
             return
-        self.core.createPresetFile(compName, vers, saveValueStore, filename)
+        self.core.createPresetFile(compName, vers, filename, saveValueStore)
 
     def presetExists(self, path):
         if os.path.exists(path):

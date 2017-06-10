@@ -77,19 +77,69 @@ class Core():
     def moduleIndexFor(self, compIndex):
         return self.selectedModules[compIndex]
 
-    def createPresetFile(self, compName, vers, saveValueStore, filename):
-        dirname = os.path.join(self.presetDir, compName, str(vers))
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        filepath = os.path.join(dirname, filename)
-        with open(filepath, 'w') as f:
-            f.write(Core.stringOrderedDict(saveValueStore))
-
     def importPreset(self, filepath):
         print(filepath)
 
-    def exportPreset(self, exportName, compName, vers, origName):
-        pass
+    def exportPreset(self, exportPath, compName, vers, origName):
+        internalPath = os.path.join(self.presetDir, compName, str(vers), origName)
+        if not os.path.exists(internalPath):
+            return
+        if os.path.exists(exportPath):
+            os.remove(exportPath)
+        with open(internalPath, 'r') as f:
+            internalData = [line for line in f]
+        try:
+            saveValueStore = dict(eval(internalData[0].strip()))
+            self.createPresetFile(
+                compName, vers,
+                origName, saveValueStore,
+                exportPath
+            )
+        except:
+            # TODO: add proper warning message
+            print('couldn\'t export %s' % exportPath)
+
+    def createPresetFile(
+        self, compName, vers, presetName, saveValueStore, filepath=''):
+        '''Create a preset file (.avl) at filepath using args.
+           Or if filepath is empty, create an internal preset using
+           the args for the filepath.'''
+        if not filepath:
+            dirname = os.path.join(self.presetDir, compName, str(vers))
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+            filepath = os.path.join(dirname, presetName)
+            internal = True
+        else:
+            if not filepath.endswith('.avl'):
+                filepath += '.avl'
+            internal = False
+
+        with open(filepath, 'w') as f:
+            if not internal:
+                f.write('[Components]\n')
+                f.write('%s\n' % compName)
+                f.write('%s\n' % str(vers))
+            f.write(Core.stringOrderedDict(saveValueStore))
+
+    def createProjectFile(self, filepath):
+        '''Create a project file (.avp) using the current program state'''
+        try:
+            if not filepath.endswith(".avp"):
+                filepath += '.avp'
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            with open(filepath, 'w') as f:
+                print('creating %s' % filepath)
+                f.write('[Components]\n')
+                for comp in self.selectedComponents:
+                    saveValueStore = comp.savePreset()
+                    f.write('%s\n' % str(comp))
+                    f.write('%s\n' % str(comp.version()))
+                    f.write('%s\n' % Core.stringOrderedDict(saveValueStore))
+            return True
+        except:
+            return False
 
     def loadEncoderOptions(self):
         file_path = os.path.join(self.wd, 'encoder-options.json')

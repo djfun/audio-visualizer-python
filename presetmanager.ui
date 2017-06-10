@@ -3,7 +3,10 @@
  <class>presetmanager</class>
  <widget class="QWidget" name="presetmanager">
   <property name="windowModality">
-   <enum>Qt::ApplicationModal</enum>
+   <enum>Qt::NonModal</enum>
+  </property>
+  <property name="enabled">
+   <bool>true</bool>
   </property>
   <property name="geometry">
    <rect>
@@ -92,6 +95,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="pushButton_rename">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
        <property name="text">
         <string>Rename</string>
        </property>

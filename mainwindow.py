@@ -284,7 +284,7 @@ class MainWindow(QtCore.QObject):
             if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
         elif time.time() - self.lastAutosave >= 2.0:
-            self.createProjectFile(self.autosavePath)
+            self.core.createProjectFile(self.autosavePath)
             self.lastAutosave = time.time()
 
     def autosaveExists(self):
@@ -504,7 +504,7 @@ class MainWindow(QtCore.QObject):
 
     def saveCurrentProject(self):
         if self.currentProject:
-            self.createProjectFile(self.currentProject)
+            self.core.createProjectFile(self.currentProject)
         else:
             self.openSaveProjectDialog()
 
@@ -515,25 +515,11 @@ class MainWindow(QtCore.QObject):
             "Project Files (*.avp)")
         if not filename:
             return
-        self.createProjectFile(filename)
+        self.settings.setValue("projectDir", os.path.dirname(filename))
+        self.settings.setValue("currentProject", filename)
+        self.currentProject = filename
 
-    def createProjectFile(self, filepath):
-        if not filepath.endswith(".avp"):
-            filepath += '.avp'
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        with open(filepath, 'w') as f:
-            print('creating %s' % filepath)
-            f.write('[Components]\n')
-            for comp in self.core.selectedComponents:
-                saveValueStore = comp.savePreset()
-                f.write('%s\n' % str(comp))
-                f.write('%s\n' % str(comp.version()))
-                f.write('%s\n' % core.Core.stringOrderedDict(saveValueStore))
-        if filepath != self.autosavePath:
-            self.settings.setValue("projectDir", os.path.dirname(filepath))
-            self.settings.setValue("currentProject", filepath)
-            self.currentProject = filepath
+        self.core.createProjectFile(filename)
 
     def openOpenProjectDialog(self):
         filename = QtGui.QFileDialog.getOpenFileName(
