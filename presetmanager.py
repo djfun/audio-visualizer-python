@@ -21,9 +21,9 @@ class PresetManager(QtGui.QDialog):
         # connect button signals
         self.window.pushButton_delete.clicked.connect(self.openDeletePresetDialog)
         self.window.pushButton_rename.clicked.connect(self.openRenamePresetDialog)
-        self.window.pushButton_close.clicked.connect(self.close)
         self.window.pushButton_import.clicked.connect(self.openImportDialog)
         self.window.pushButton_export.clicked.connect(self.openExportDialog)
+        self.window.pushButton_close.clicked.connect(self.window.close)
 
         # create filter box and preset list
         self.drawFilterList()
@@ -91,7 +91,8 @@ class PresetManager(QtGui.QDialog):
                 if not presetFilter or presetFilter in preset:
                     self.window.listWidget_presets.addItem('%s: %s' % (component, preset))
                     self.presetRows.append((component, vers, preset))
-                presetNames.append(preset)
+                if preset not in presetNames:
+                    presetNames.append(preset)
         self.autocomplete.setStringList(presetNames)
 
     def drawFilterList(self):
@@ -120,7 +121,7 @@ class PresetManager(QtGui.QDialog):
             )
             if OK:
                 if core.Core.badName(newName):
-                    self.warnMessage()
+                    self.warnMessage(self.parent.window)
                     continue
                 if newName:
                     if index != -1:
@@ -185,7 +186,9 @@ class PresetManager(QtGui.QDialog):
         comp, vers, name = self.presetRows[row]
         ch = self.parent.showMessage(
             msg='Really delete %s?' % name,
-            showCancel=True, icon=QtGui.QMessageBox.Warning
+            showCancel=True,
+            icon=QtGui.QMessageBox.Warning,
+            parent=self.window
         )
         if not ch:
             return
@@ -197,10 +200,11 @@ class PresetManager(QtGui.QDialog):
         filepath = os.path.join(self.presetDir, comp, str(vers), name)
         os.remove(filepath)
 
-    def warnMessage(self):
+    def warnMessage(self, window=None):
         self.parent.showMessage(
             msg='Preset names must contain only letters, '
-            'numbers, and spaces.')
+            'numbers, and spaces.',
+            parent=window if window else self.window)
 
     def openRenamePresetDialog(self):
         presetList = self.window.listWidget_presets
@@ -242,6 +246,8 @@ class PresetManager(QtGui.QDialog):
             "Preset Files (*.avl)")
         if filename:
             self.core.importPreset(filename)
+            self.findPresets()
+            self.drawPresetList()
 
     def openExportDialog(self):
         filename = QtGui.QFileDialog.getSaveFileName(

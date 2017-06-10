@@ -601,7 +601,9 @@ class MainWindow(QtCore.QObject):
             print('project file missing value: %s' % e)
 
     def showMessage(self, **kwargs):
-        msg = QtGui.QMessageBox()
+        parent = kwargs['parent'] if 'parent' in kwargs else self.window
+        msg = QtGui.QMessageBox(parent)
+        msg.setModal(True)
         msg.setText(kwargs['msg'])
         msg.setIcon(
             kwargs['icon'] if 'icon' in kwargs else QtGui.QMessageBox.Information)
