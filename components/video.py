@@ -10,8 +10,15 @@ from . import __base__
 class Video:
     '''Video Component Frame-Fetcher'''
     def __init__(self, **kwargs):
-        mandatoryArgs = ['ffmpeg', 'videoPath', 'width', 'height',
-            'frameRate', 'chunkSize', 'parent']
+        mandatoryArgs = [
+            'ffmpeg',  # path to ffmpeg, usually core.FFMPEG_BIN
+            'videoPath',
+            'width',
+            'height',
+            'frameRate',  # frames per second
+            'chunkSize',  # number of bytes in one frame
+            'parent'
+        ]
         for arg in mandatoryArgs:
             try:
                 exec('self.%s = kwargs[arg]' % arg)

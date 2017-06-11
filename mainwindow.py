@@ -1,6 +1,5 @@
 from os.path import expanduser
 from queue import Queue
-from collections import OrderedDict
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, Qt
 from PyQt4.QtGui import QMenu
@@ -159,8 +158,8 @@ class MainWindow(QtCore.QObject):
         self.window.pushButton_addComponent.setMenu(self.compMenu)
 
         componentList.dropEvent = self.componentListChanged
-        componentList.clicked.connect(
-            lambda _: self.changeComponentWidget())
+        componentList.itemSelectionChanged.connect(
+            self.changeComponentWidget)
 
         self.window.pushButton_removeComponent.clicked.connect(
             lambda _: self.removeComponent())
@@ -567,7 +566,7 @@ class MainWindow(QtCore.QObject):
                             # version, not used yet
                             i += 1
                         elif i == 2:
-                            saveValueStore = dict(eval(line))
+                            saveValueStore = core.Core.presetFromString(line)
                             self.core.selectedComponents[-1].loadPreset(
                                 saveValueStore)
                             self.updateComponentTitle(-1)

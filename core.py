@@ -71,7 +71,7 @@ class Core():
         return endI
 
     def updateComponent(self, i):
-        print('updating %s' % self.selectedComponents[i])
+        # print('updating %s' % self.selectedComponents[i])
         self.selectedComponents[i].update()
 
     def moduleIndexFor(self, compIndex):
@@ -89,7 +89,7 @@ class Core():
         with open(internalPath, 'r') as f:
             internalData = [line for line in f]
         try:
-            saveValueStore = dict(eval(internalData[0].strip()))
+            saveValueStore = Core.presetFromString(internalData[0].strip())
             self.createPresetFile(
                 compName, vers,
                 origName, saveValueStore,
@@ -120,7 +120,7 @@ class Core():
                 f.write('[Components]\n')
                 f.write('%s\n' % compName)
                 f.write('%s\n' % str(vers))
-            f.write(Core.stringOrderedDict(saveValueStore))
+            f.write(Core.presetToString(saveValueStore))
 
     def createProjectFile(self, filepath):
         '''Create a project file (.avp) using the current program state'''
@@ -136,7 +136,7 @@ class Core():
                     saveValueStore = comp.savePreset()
                     f.write('%s\n' % str(comp))
                     f.write('%s\n' % str(comp.version()))
-                    f.write('%s\n' % Core.stringOrderedDict(saveValueStore))
+                    f.write('%s\n' % Core.presetToString(saveValueStore))
             return True
         except:
             return False
@@ -244,6 +244,10 @@ class Core():
         return badName
 
     @staticmethod
-    def stringOrderedDict(dictionary):
+    def presetToString(dictionary):
         sorted_ = OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
         return repr(sorted_)
+
+    @staticmethod
+    def presetFromString(string):
+        return dict(eval(string))

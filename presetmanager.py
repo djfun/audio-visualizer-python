@@ -1,5 +1,4 @@
 from PyQt4 import QtGui, QtCore
-from collections import OrderedDict
 import string
 import os
 
@@ -171,7 +170,7 @@ class PresetManager(QtGui.QDialog):
             return
         with open(filepath, 'r') as f:
             for line in f:
-                saveValueStore = dict(eval(line.strip()))
+                saveValueStore = core.Core.presetFromString(line.strip())
                 break
         selectedComponents[index].loadPreset(
             saveValueStore,
