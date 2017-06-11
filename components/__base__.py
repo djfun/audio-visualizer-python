@@ -24,7 +24,9 @@ class Component:
             exec('self.%s = value' % var)
 
     def pickColor(self):
-        color = QtGui.QColorDialog.getColor()
+        dialog = QtGui.QColorDialog()
+        dialog.setOption(QtGui.QColorDialog.ShowAlphaChannel, True)
+        color = dialog.getColor()
         if color.isValid():
             RGBstring = '%s,%s,%s' % (
                 str(color.red()), str(color.green()), str(color.blue()))

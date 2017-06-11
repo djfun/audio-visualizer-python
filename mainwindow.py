@@ -606,20 +606,25 @@ class MainWindow(QtCore.QObject):
 
     def componentContextMenu(self, QPos):
         '''Appears when right-clicking a component in the list'''
-        if not self.window.listWidget_componentList.selectedItems():
+        componentList = self.window.listWidget_componentList
+        if not componentList.selectedItems():
+            return
+
+        # don't show menu if clicking empty space
+        parentPosition = componentList.mapToGlobal(QtCore.QPoint(0, 0))
+        index = componentList.currentRow()
+        modelIndex = componentList.model().index(index)
+        if not componentList.visualRect(modelIndex).contains(QPos):
             return
 
         self.presetManager.findPresets()
         self.menu = QtGui.QMenu()
         menuItem = self.menu.addAction("Save Preset")
-        self.connect(
-            menuItem,
-            QtCore.SIGNAL("triggered()"),
+        menuItem.triggered.connect(
             self.presetManager.openSavePresetDialog
         )
 
         # submenu for opening presets
-        index = self.window.listWidget_componentList.currentRow()
         try:
             presets = self.presetManager.presets[str(self.core.selectedComponents[index])]
             self.submenu = QtGui.QMenu("Open Preset")
@@ -627,14 +632,12 @@ class MainWindow(QtCore.QObject):
 
             for version, presetName in presets:
                 menuItem = self.submenu.addAction(presetName)
-                self.connect(
-                    menuItem,
-                    QtCore.SIGNAL("triggered()"),
-                    lambda presetName=presetName:
+                menuItem.triggered.connect(
+                    lambda _, presetName=presetName:
                         self.presetManager.openPreset(presetName)
                 )
-        except KeyError as e:
-            print(e)
-        parentPosition = self.window.listWidget_componentList.mapToGlobal(QtCore.QPoint(0, 0))
+        except KeyError:
+            pass
+
         self.menu.move(parentPosition + QPos)
         self.menu.show()

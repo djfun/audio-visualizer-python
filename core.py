@@ -95,9 +95,9 @@ class Core():
                 origName, saveValueStore,
                 exportPath
             )
+            return True
         except:
-            # TODO: add proper warning message
-            print('couldn\'t export %s' % exportPath)
+            return False
 
     def createPresetFile(
         self, compName, vers, presetName, saveValueStore, filepath=''):

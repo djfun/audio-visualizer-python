@@ -31,7 +31,7 @@ class Component(__base__.Component):
         page.comboBox_textAlign.addItem("Right")
 
         page.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
-        page.pushButton_textColor.clicked.connect(lambda: self.pickColor())
+        page.pushButton_textColor.clicked.connect(self.pickColor)
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.textColor).name()
         page.pushButton_textColor.setStyleSheet(btnStyle)

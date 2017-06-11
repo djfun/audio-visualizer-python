@@ -259,4 +259,8 @@ class PresetManager(QtGui.QDialog):
         if filename:
             index = self.window.listWidget_presets.currentRow()
             comp, vers, name = self.presetRows[index]
-            self.core.exportPreset(filename, comp, vers, name)
+            if not self.core.exportPreset(filename, comp, vers, name):
+                self.parent.showMessage(
+                    msg='Couldn\'t export %s.' % filename,
+                    parent=self.window
+                )
