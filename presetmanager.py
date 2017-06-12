@@ -148,7 +148,9 @@ class PresetManager(QtGui.QDialog):
             ch = self.parent.showMessage(
                 msg="%s already exists! Overwrite it?" %
                     os.path.basename(path),
-                showCancel=True, icon=QtGui.QMessageBox.Warning)
+                showCancel=True,
+                icon=QtGui.QMessageBox.Warning,
+                parent=self.window)
             if not ch:
                 # user clicked cancel
                 return True
@@ -246,11 +248,23 @@ class PresetManager(QtGui.QDialog):
             self.settings.value("projectDir"),
             "Preset Files (*.avl)")
         if filename:
-            self.core.importPreset(filename)
+            path = ''
+            while True:
+                if path:
+                    if self.presetExists(path):
+                        break
+                    else:
+                        if os.path.exists(path):
+                            os.remove(path)
+                success, path = self.core.importPreset(filename)
+                if success:
+                    break
             self.findPresets()
             self.drawPresetList()
 
     def openExportDialog(self):
+        if not self.window.listWidget_presets.selectedItems():
+            return
         filename = QtGui.QFileDialog.getSaveFileName(
             self.window, "Export Preset",
             self.settings.value("projectDir"),

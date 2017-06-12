@@ -32,9 +32,8 @@ class Core():
         self.wd = os.path.dirname(os.path.realpath(__file__))
         self.loadEncoderOptions()
 
-        self.modules = self.findComponents()
+        self.findComponents()
         self.selectedComponents = []
-        self.selectedModules = []
 
     def findComponents(self):
         def findComponents():
@@ -46,9 +45,10 @@ class Core():
                         continue
                     elif ext == '.py':
                         yield name
-        return [
+        self.modules = [
             import_module('components.%s' % name)
             for name in findComponents()]
+        self.moduleIndexes = [i for i in range(len(self.modules))]
 
     def insertComponent(self, compPos, moduleIndex):
         if compPos < 0:
@@ -57,28 +57,114 @@ class Core():
             compPos,
             self.modules[moduleIndex].Component()
         )
-        self.selectedModules.insert(
-            compPos,
-            moduleIndex
-        )
         return compPos
 
     def moveComponent(self, startI, endI):
         comp = self.selectedComponents.pop(startI)
         self.selectedComponents.insert(endI, comp)
-        i = self.selectedModules.pop(startI)
-        self.selectedModules.insert(endI, i)
         return endI
 
     def updateComponent(self, i):
         # print('updating %s' % self.selectedComponents[i])
         self.selectedComponents[i].update()
 
-    def moduleIndexFor(self, compIndex):
-        return self.selectedModules[compIndex]
+    def moduleIndexFor(self, compName):
+        compNames = [mod.Component.__doc__ for mod in self.modules]
+        index = compNames.index(compName)
+        return self.moduleIndexes[index]
+
+    def openProject(self, loader, filepath):
+        '''loader is the object calling this method (mainwindow/command)
+        which implements an insertComponent method'''
+        errcode, data = self.parseAvFile(filepath)
+        if errcode == 0:
+            for name, vers, preset in data['Components']:
+                loader.insertComponent(
+                    self.moduleIndexFor(name), -1)
+                self.selectedComponents[-1].loadPreset(
+                    preset)
+        elif errcode == 1:
+            typ, value, _ = data
+            if typ.__name__ == KeyError:
+                # probably just an old version, still loadable
+                print('file missing value: %s' % value)
+                return
+            loader.createNewProject()
+            msg = '%s: %s' % (typ.__name__, value)
+            loader.showMessage(
+                msg="Project file '%s' is corrupted." % filepath,
+                showCancel=False,
+                icon=QtGui.QMessageBox.Warning,
+                detail=msg)
+
+    def parseAvFile(self, filepath):
+        '''Parses an avp (project) or avl (preset package) file.
+        Returns data usable by another method.'''
+        data = {}
+        try:
+            with open(filepath, 'r') as f:
+                def parseLine(line):
+                    '''Decides if a given avp or avl line is a section header'''
+                    validSections = ('Components')
+                    line = line.strip()
+                    newSection = ''
+
+                    if line.startswith('[') and line.endswith(']') \
+                            and line[1:-1] in validSections:
+                        newSection = line[1:-1]
+
+                    return line, newSection
+
+                section = ''
+                i = 0
+                for line in f:
+                    line, newSection = parseLine(line)
+                    if newSection:
+                        section = str(newSection)
+                        data[section] = []
+                        continue
+                    if line and section == 'Components':
+                        if i == 0:
+                            lastCompName = str(line)
+                            i += 1
+                        elif i == 1:
+                            lastCompVers = str(line)
+                            i += 1
+                        elif i == 2:
+                            lastCompPreset = Core.presetFromString(line)
+                            data[section].append(
+                                (lastCompName,
+                                lastCompVers,
+                                lastCompPreset)
+                            )
+                            i = 0
+            return 0, data
+        except:
+            return 1, sys.exc_info()
 
     def importPreset(self, filepath):
-        print(filepath)
+        errcode, data = self.parseAvFile(filepath)
+        returnList = []
+        if errcode == 0:
+            name, vers, preset = data['Components'][0]
+            presetName = preset['preset'] \
+                if preset['preset'] else os.path.basename(filepath)[:-4]
+            newPath = os.path.join(
+                self.presetDir,
+                name,
+                vers,
+                presetName
+            )
+            if os.path.exists(newPath):
+                return False, newPath
+            preset['preset'] = presetName
+            self.createPresetFile(
+                name, vers, presetName, preset
+            )
+            return True, presetName
+        elif errcode == 1:
+            # TODO: an error message
+            return False, ''
 
     def exportPreset(self, exportPath, compName, vers, origName):
         internalPath = os.path.join(self.presetDir, compName, str(vers), origName)
@@ -237,17 +323,14 @@ class Core():
     @staticmethod
     def badName(name):
         '''Returns whether a name contains non-alphanumeric chars'''
-        badName = False
-        for letter in name:
-            if letter in string.punctuation:
-                badName = True
-        return badName
+        return any([letter in string.punctuation for letter in name])
 
     @staticmethod
     def presetToString(dictionary):
-        sorted_ = OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
-        return repr(sorted_)
+        '''Alphabetizes a dict into OrderedDict & returns string repr'''
+        return repr(OrderedDict(sorted(dictionary.items(), key=lambda t: t[0])))
 
     @staticmethod
     def presetFromString(string):
+        '''Turns a string repr of OrderedDict into a regular dict'''
         return dict(eval(string))

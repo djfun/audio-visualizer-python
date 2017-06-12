@@ -54,7 +54,6 @@ class MainWindow(QtCore.QObject):
         self.core = core.Core()
 
         self.pages = []  # widgets of component settings
-        self.componentRows = []  # (moduleIndex, QListWidgetItem) tuples
         self.lastAutosave = time.time()
 
         # Create data directory, load/create settings
@@ -419,7 +418,6 @@ class MainWindow(QtCore.QObject):
         row = componentList.insertItem(
             index,
             self.core.selectedComponents[index].__doc__)
-        self.componentRows.insert(compPos, (moduleIndex, row))
         componentList.setCurrentRow(index)
 
         self.pages.insert(index, self.core.selectedComponents[index].widget(self))
@@ -435,7 +433,6 @@ class MainWindow(QtCore.QObject):
             index = componentList.row(selected)
             self.window.stackedWidget.removeWidget(self.pages[index])
             componentList.takeItem(index)
-            self.componentRows.pop(index)
             self.core.selectedComponents.pop(index)
             self.pages.pop(index)
             self.changeComponentWidget()
@@ -460,8 +457,6 @@ class MainWindow(QtCore.QObject):
             stackedWidget.insertWidget(newRow, page)
             componentList.setCurrentRow(newRow)
             stackedWidget.setCurrentIndex(newRow)
-            self.componentRows.pop(row)
-            self.componentRows.insert(newRow, (self.core.moduleIndexFor(row), newItem))
             self.drawPreview()
 
     def componentListChanged(self, *args):
@@ -535,55 +530,12 @@ class MainWindow(QtCore.QObject):
         self.currentProject = filepath
         self.settings.setValue("currentProject", filepath)
         self.settings.setValue("projectDir", os.path.dirname(filepath))
-        compNames = [mod.Component.__doc__ for mod in self.core.modules]
-        try:
-            with open(filepath, 'r') as f:
-                validSections = ('Components')
-                section = ''
+        # actually load the project using core method
+        self.core.openProject(self, filepath)
 
-                def parseLine(line):
-                    line = line.strip()
-                    newSection = ''
-
-                    if line.startswith('[') and line.endswith(']') \
-                            and line[1:-1] in validSections:
-                        newSection = line[1:-1]
-
-                    return line, newSection
-
-                i = 0
-                for line in f:
-                    line, newSection = parseLine(line)
-                    if newSection:
-                        section = str(newSection)
-                        continue
-                    if line and section == 'Components':
-                        if i == 0:
-                            compIndex = compNames.index(line)
-                            self.insertComponent(compIndex, -1)
-                            i += 1
-                        elif i == 1:
-                            # version, not used yet
-                            i += 1
-                        elif i == 2:
-                            saveValueStore = core.Core.presetFromString(line)
-                            self.core.selectedComponents[-1].loadPreset(
-                                saveValueStore)
-                            self.updateComponentTitle(-1)
-                            i = 0
-        except (IndexError, ValueError, NameError, SyntaxError,
-            AttributeError, TypeError) as e:
-            self.createNewProject()
-            typ, value, _ = sys.exc_info()
-            msg = '%s: %s' % (typ.__name__, value)
-            self.showMessage(
-                msg="Project file '%s' is corrupted." % filepath,
-                showCancel=False,
-                icon=QtGui.QMessageBox.Warning,
-                detail=msg)
-        except KeyError as e:
-            # probably just an old version, still loadable
-            print('project file missing value: %s' % e)
+        for i in range(self.window.listWidget_componentList.count()):
+            # update listwidget titles to indicate loaded presets
+            self.updateComponentTitle(i)
 
     def showMessage(self, **kwargs):
         parent = kwargs['parent'] if 'parent' in kwargs else self.window
