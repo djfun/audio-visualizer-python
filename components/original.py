@@ -1,9 +1,8 @@
 import numpy
 from PIL import Image, ImageDraw
-from PyQt4 import uic, QtGui
+from PyQt4 import uic, QtGui, QtCore
 from PyQt4.QtGui import QColor
 import os
-import random
 from . import __base__
 import time
 from copy import copy
@@ -11,6 +10,9 @@ from copy import copy
 
 class Component(__base__.Component):
     '''Original Audio Visualization'''
+
+    modified = QtCore.pyqtSignal(int, bool)
+
     def widget(self, parent):
         self.parent = parent
         self.visColor = (255, 255, 255)
@@ -33,12 +35,14 @@ class Component(__base__.Component):
         return page
 
     def update(self):
+        super().update()
         self.layout = self.page.comboBox_visLayout.currentIndex()
         self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName if presetName else pr['preset']
+        super().loadPreset(pr, presetName)
+
         self.page.lineEdit_visColor.setText('%s,%s,%s' % pr['visColor'])
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['visColor']).name()

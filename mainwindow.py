@@ -235,13 +235,21 @@ class MainWindow(QtCore.QObject):
         self.previewThread.wait()
         self.autosave()
 
-    def updateComponentTitle(self, pos):
+    @QtCore.pyqtSlot(int, bool)
+    def updateComponentTitle(self, pos, modified=False):
+        #print(pos, modified)
         if pos < 0:
             pos = len(self.core.selectedComponents)-1
         title = str(self.core.selectedComponents[pos])
         if self.core.selectedComponents[pos].currentPreset:
             title += ' - %s' % self.core.selectedComponents[pos].currentPreset
+            if modified:
+                title += '*'
         self.window.listWidget_componentList.item(pos).setText(title)
+        if modified:
+            self.core.componentModified(pos)
+        else:
+            self.core.componentUnmodified(pos)
 
     def updateCodecs(self):
         containerWidget = self.window.comboBox_videoContainer
@@ -344,9 +352,6 @@ class MainWindow(QtCore.QObject):
             self.showMessage(
                 msg="You must select an audio file and output filename.")
 
-    def progressBarUpdated(self, value):
-        self.window.progressBar_createVideo.setValue(value)
-
     def changeEncodingStatus(self, status):
         if status:
             self.window.pushButton_createVideo.setEnabled(False)
@@ -385,6 +390,9 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_presets.setEnabled(True)
             self.window.listWidget_componentList.setEnabled(True)
 
+    def progressBarUpdated(self, value):
+        self.window.progressBar_createVideo.setValue(value)
+
     def progressBarSetText(self, value):
         self.window.progressBar_createVideo.setFormat(value)
 
@@ -420,6 +428,10 @@ class MainWindow(QtCore.QObject):
             self.core.selectedComponents[index].__doc__)
         componentList.setCurrentRow(index)
 
+        # connect to signal that adds an asterisk when modified
+        self.core.selectedComponents[index].modified.connect(
+            self.updateComponentTitle)
+
         self.pages.insert(index, self.core.selectedComponents[index].widget(self))
         stackedWidget.insertWidget(index, self.pages[index])
         stackedWidget.setCurrentIndex(index)
@@ -433,7 +445,7 @@ class MainWindow(QtCore.QObject):
             index = componentList.row(selected)
             self.window.stackedWidget.removeWidget(self.pages[index])
             componentList.takeItem(index)
-            self.core.selectedComponents.pop(index)
+            self.core.removeComponent(index)
             self.pages.pop(index)
             self.changeComponentWidget()
         self.drawPreview()
@@ -532,10 +544,6 @@ class MainWindow(QtCore.QObject):
         self.settings.setValue("projectDir", os.path.dirname(filepath))
         # actually load the project using core method
         self.core.openProject(self, filepath)
-
-        for i in range(self.window.listWidget_componentList.count()):
-            # update listwidget titles to indicate loaded presets
-            self.updateComponentTitle(i)
 
     def showMessage(self, **kwargs):
         parent = kwargs['parent'] if 'parent' in kwargs else self.window

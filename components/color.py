@@ -7,6 +7,9 @@ from . import __base__
 
 class Component(__base__.Component):
     '''Color'''
+
+    modified = QtCore.pyqtSignal(int, bool)
+
     def widget(self, parent):
         self.parent = parent
         page = uic.loadUi(os.path.join(
@@ -45,6 +48,7 @@ class Component(__base__.Component):
         return page
 
     def update(self):
+        super().update()
         self.color1 = self.RGBFromString(self.page.lineEdit_color1.text())
         self.color2 = self.RGBFromString(self.page.lineEdit_color2.text())
         self.x = self.page.spinBox_x.value()
@@ -70,7 +74,8 @@ class Component(__base__.Component):
         return Image.new("RGBA", (width, height), (r, g, b, 255))
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName if presetName else pr['preset']
+        super().loadPreset(pr, presetName)
+
         self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
         self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
 

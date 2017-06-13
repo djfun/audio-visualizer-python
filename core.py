@@ -34,6 +34,7 @@ class Core():
 
         self.findComponents()
         self.selectedComponents = []
+        self.modifiedComponents = {}
 
     def findComponents(self):
         def findComponents():
@@ -50,23 +51,85 @@ class Core():
             for name in findComponents()]
         self.moduleIndexes = [i for i in range(len(self.modules))]
 
+    def componentListChanged(self):
+        for i, component in enumerate(self.selectedComponents):
+            component.compPos = i
+        # print('Modified Components: ', self.modifiedComponents)
+
     def insertComponent(self, compPos, moduleIndex):
         if compPos < 0:
             compPos = len(self.selectedComponents) -1
+
+        component = self.modules[moduleIndex].Component(
+            moduleIndex, compPos)
         self.selectedComponents.insert(
             compPos,
-            self.modules[moduleIndex].Component()
-        )
+            component)
+
+        newDict = {}
+        for i, val in self.modifiedComponents.items():
+            if i >= compPos:
+                newDict[i+1] = bool(val)
+            else:
+                newDict[i] = bool(val)
+        self.modifiedComponents.clear()
+        self.modifiedComponents = newDict
+
+        self.componentListChanged()
         return compPos
 
     def moveComponent(self, startI, endI):
+        def insert(target, comp):
+            self.selectedComponents.insert(target, comp)
+
         comp = self.selectedComponents.pop(startI)
-        self.selectedComponents.insert(endI, comp)
+        insert(endI, comp)
+
+        try:
+            oldModified = self.modifiedComponents.pop(startI)
+            if endI in self.modifiedComponents:
+                self.modifiedComponents[startI] = \
+                    self.modifiedComponents.pop(endI)
+            self.modifiedComponents[endI] = oldModified
+        except KeyError:
+            pass
+
+        self.componentListChanged()
         return endI
+
+    def removeComponent(self, i):
+        self.selectedComponents.pop(i)
+        try:
+            self.modifiedComponents.pop(i)
+        except KeyError:
+            pass
+
+        newDict = {}
+        for index, val in self.modifiedComponents.items():
+            if index >= i:
+                newDict[index-1] = bool(val)
+            else:
+                newDict[index] = bool(val)
+        self.modifiedComponents.clear()
+        self.modifiedComponents = newDict
+
+        self.componentListChanged()
 
     def updateComponent(self, i):
         # print('updating %s' % self.selectedComponents[i])
         self.selectedComponents[i].update()
+
+    def componentModified(self, i):
+        '''Triggered by mainwindow.updateComponentTitle()
+        Tracks temporary state of whether components are modified or not
+        for retrieval upon loading a project file'''
+        self.modifiedComponents[i] = True
+
+    def componentUnmodified(self, i):
+        try:
+            self.modifiedComponents.pop(i)
+        except KeyError:
+            pass
 
     def moduleIndexFor(self, compName):
         compNames = [mod.Component.__doc__ for mod in self.modules]
@@ -78,11 +141,17 @@ class Core():
         which implements an insertComponent method'''
         errcode, data = self.parseAvFile(filepath)
         if errcode == 0:
-            for name, vers, preset in data['Components']:
+            for i, tup in enumerate(data['Components']):
+                name, vers, preset = tup
                 loader.insertComponent(
                     self.moduleIndexFor(name), -1)
                 self.selectedComponents[-1].loadPreset(
                     preset)
+                if data['Modified'][i] == True:
+                    self.componentModified(i)
+                    loader.updateComponentTitle(i, True)
+                else:
+                    loader.updateComponentTitle(i)
         elif errcode == 1:
             typ, value, _ = data
             if typ.__name__ == KeyError:
@@ -105,7 +174,7 @@ class Core():
             with open(filepath, 'r') as f:
                 def parseLine(line):
                     '''Decides if a given avp or avl line is a section header'''
-                    validSections = ('Components')
+                    validSections = ('Components', 'Modified')
                     line = line.strip()
                     newSection = ''
 
@@ -138,6 +207,8 @@ class Core():
                                 lastCompPreset)
                             )
                             i = 0
+                    if line and section == 'Modified':
+                        data[section].append(eval(line))
             return 0, data
         except:
             return 1, sys.exc_info()
@@ -223,6 +294,12 @@ class Core():
                     f.write('%s\n' % str(comp))
                     f.write('%s\n' % str(comp.version()))
                     f.write('%s\n' % Core.presetToString(saveValueStore))
+                f.write('[Modified]\n')
+                for i in range(len(self.selectedComponents)):
+                    if i in self.modifiedComponents:
+                        f.write('%s\n' % repr(True))
+                    else:
+                        f.write('%s\n' % repr(False))
             return True
         except:
             return False

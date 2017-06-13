@@ -86,6 +86,9 @@ class Video:
 
 class Component(__base__.Component):
     '''Video'''
+
+    modified = QtCore.pyqtSignal(int, bool)
+
     def widget(self, parent):
         self.parent = parent
         self.settings = parent.settings
@@ -106,6 +109,7 @@ class Component(__base__.Component):
         return page
 
     def update(self):
+        super().update()
         self.videoPath = self.page.lineEdit_video.text()
         self.loopVideo = self.page.checkBox_loop.isChecked()
         self.parent.drawPreview()
@@ -136,7 +140,7 @@ class Component(__base__.Component):
         return self.video.frame(frameNo)
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName if presetName else pr['preset']
+        super().loadPreset(pr, presetName)
         self.page.lineEdit_video.setText(pr['video'])
         self.page.checkBox_loop.setChecked(pr['loop'])
 

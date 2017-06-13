@@ -1,9 +1,15 @@
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 
+class Component(QtCore.QObject):
+    '''A base class for components to inherit from'''
 
-class Component:
-    def __init__(self):
+    # modified = QtCore.pyqtSignal(int, bool)
+
+    def __init__(self, moduleIndex, compPos):
+        super().__init__()
         self.currentPreset = None
+        self.moduleIndex = moduleIndex
+        self.compPos = compPos
 
     def __str__(self):
         return self.__doc__
@@ -13,11 +19,26 @@ class Component:
         return 1
 
     def cancel(self):
-        # make sure your component responds to these variables in frameRender()
+        # please stop any lengthy process in response to this variable
         self.canceled = True
 
     def reset(self):
         self.canceled = False
+
+    def update(self):
+        self.modified.emit(self.compPos, True)
+        # use super().update() then read your widget values here
+
+    def loadPreset(self, presetDict, presetName):
+        '''Children should take (presetDict, presetName=None) as args'''
+
+        # Use super().loadPreset(presetDict, presetName)
+        # Then update your widgets using the preset dict
+        self.currentPreset = presetName \
+            if presetName != None else presetDict['preset']
+
+    def savePreset(self):
+        return {}
 
     def preFrameRender(self, **kwargs):
         for var, value in kwargs.items():
@@ -62,7 +83,7 @@ class Component:
         return page
 
     def update(self):
-        # read widget values
+        super().update()
         self.parent.drawPreview()
 
     def previewRender(self, previewWorker):
@@ -76,13 +97,6 @@ class Component:
         height = int(self.worker.core.settings.value('outputHeight'))
         image = Image.new("RGBA", (width, height), (0,0,0,0))
         return image
-
-    def loadPreset(self, presetDict, presetName=None):
-        self.currentPreset = presetName
-        # update widgets using a preset dict
-
-    def savePreset(self):
-        return {}
 
     def cancel(self):
         self.canceled = True

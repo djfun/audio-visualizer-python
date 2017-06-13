@@ -6,6 +6,9 @@ from . import __base__
 
 class Component(__base__.Component):
     '''Image'''
+
+    modified = QtCore.pyqtSignal(int, bool)
+
     def widget(self, parent):
         self.parent = parent
         self.settings = parent.settings
@@ -22,6 +25,7 @@ class Component(__base__.Component):
         return page
 
     def update(self):
+        super().update()
         self.imagePath = self.page.lineEdit_image.text()
         self.parent.drawPreview()
 
@@ -49,7 +53,7 @@ class Component(__base__.Component):
         return frame
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName if presetName else pr['preset']
+        super().loadPreset(pr, presetName)
         self.page.lineEdit_image.setText(pr['image'])
 
     def savePreset(self):

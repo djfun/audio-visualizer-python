@@ -105,14 +105,14 @@ class PresetManager(QtGui.QDialog):
     def openSavePresetDialog(self):
         '''Functions on mainwindow level from the context menu'''
         window = self.parent.window
-        self.selectedComponents = self.parent.core.selectedComponents
+        selectedComponents = self.parent.core.selectedComponents
         componentList = self.parent.window.listWidget_componentList
 
         if componentList.currentRow() == -1:
             return
         while True:
             index = componentList.currentRow()
-            currentPreset = self.selectedComponents[index].currentPreset
+            currentPreset = selectedComponents[index].currentPreset
             newName, OK = QtGui.QInputDialog.getText(
                 self.parent.window,
                 'Audio Visualizer',
@@ -127,30 +127,35 @@ class PresetManager(QtGui.QDialog):
                 if newName:
                     if index != -1:
                         saveValueStore = \
-                            self.selectedComponents[index].savePreset()
-                        componentName = str(self.selectedComponents[index]).strip()
-                        vers = self.selectedComponents[index].version()
+                            selectedComponents[index].savePreset()
+                        componentName = str(selectedComponents[index]).strip()
+                        vers = selectedComponents[index].version()
                         self.createNewPreset(
-                            componentName, vers, newName, saveValueStore)
-                        self.selectedComponents[index].currentPreset = newName
-                        self.findPresets()
-                        self.drawPresetList()
+                            componentName, vers, newName,
+                            saveValueStore, window=self.parent.window)
+                        selectedComponents[index].currentPreset = newName
+                        #self.findPresets()
+                        #self.drawPresetList()
+                        self.parent.updateComponentTitle(index)
             break
 
-    def createNewPreset(self, compName, vers, filename, saveValueStore):
+    def createNewPreset(
+        self, compName, vers, filename, saveValueStore, **kwargs):
         path = os.path.join(self.presetDir, compName, str(vers), filename)
-        if self.presetExists(path):
+        if self.presetExists(path, **kwargs):
             return
         self.core.createPresetFile(compName, vers, filename, saveValueStore)
 
-    def presetExists(self, path):
+    def presetExists(self, path, **kwargs):
         if os.path.exists(path):
+            window = self.window \
+                if 'window' not in kwargs else kwargs['window']
             ch = self.parent.showMessage(
                 msg="%s already exists! Overwrite it?" %
                     os.path.basename(path),
                 showCancel=True,
                 icon=QtGui.QMessageBox.Warning,
-                parent=self.window)
+                parent=window)
             if not ch:
                 # user clicked cancel
                 return True
@@ -204,6 +209,7 @@ class PresetManager(QtGui.QDialog):
         os.remove(filepath)
 
     def warnMessage(self, window=None):
+        print(window)
         self.parent.showMessage(
             msg='Preset names must contain only letters, '
             'numbers, and spaces.',

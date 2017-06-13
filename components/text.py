@@ -9,8 +9,11 @@ from . import __base__
 
 class Component(__base__.Component):
     '''Title Text'''
-    def __init__(self):
-        super().__init__()
+
+    modified = QtCore.pyqtSignal(int, bool)
+
+    def __init__(self, *args):
+        super().__init__(*args)
         self.titleFont = QFont()
 
     def widget(self, parent):
@@ -53,6 +56,7 @@ class Component(__base__.Component):
         return page
 
     def update(self):
+        super().update()
         self.title = self.page.lineEdit_title.text()
         self.alignment = self.page.comboBox_textAlign.currentIndex()
         self.titleFont = self.page.fontComboBox_titleFont.currentFont()
@@ -79,7 +83,8 @@ class Component(__base__.Component):
         return x, self.yPosition
 
     def loadPreset(self, pr, presetName=None):
-        self.currentPreset = presetName if presetName else pr['preset']
+        super().loadPreset(pr, presetName)
+
         self.page.lineEdit_title.setText(pr['title'])
         font = QFont()
         font.fromString(pr['titleFont'])
