@@ -7,7 +7,7 @@ from . import __base__
 class Component(__base__.Component):
     '''Image'''
 
-    modified = QtCore.pyqtSignal(int, bool)
+    modified = QtCore.pyqtSignal(int, dict)
 
     def widget(self, parent):
         self.parent = parent
@@ -25,9 +25,9 @@ class Component(__base__.Component):
         return page
 
     def update(self):
-        super().update()
         self.imagePath = self.page.lineEdit_image.text()
         self.parent.drawPreview()
+        super().update()
 
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))

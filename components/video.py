@@ -87,7 +87,7 @@ class Video:
 class Component(__base__.Component):
     '''Video'''
 
-    modified = QtCore.pyqtSignal(int, bool)
+    modified = QtCore.pyqtSignal(int, dict)
 
     def widget(self, parent):
         self.parent = parent
@@ -109,10 +109,10 @@ class Component(__base__.Component):
         return page
 
     def update(self):
-        super().update()
         self.videoPath = self.page.lineEdit_video.text()
         self.loopVideo = self.page.checkBox_loop.isChecked()
         self.parent.drawPreview()
+        super().update()
 
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))

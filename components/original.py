@@ -11,7 +11,7 @@ from copy import copy
 class Component(__base__.Component):
     '''Original Audio Visualization'''
 
-    modified = QtCore.pyqtSignal(int, bool)
+    modified = QtCore.pyqtSignal(int, dict)
 
     def widget(self, parent):
         self.parent = parent
@@ -35,10 +35,10 @@ class Component(__base__.Component):
         return page
 
     def update(self):
-        super().update()
         self.layout = self.page.comboBox_visLayout.currentIndex()
         self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
+        super().update()
 
     def loadPreset(self, pr, presetName=None):
         super().loadPreset(pr, presetName)

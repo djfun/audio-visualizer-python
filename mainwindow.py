@@ -235,9 +235,17 @@ class MainWindow(QtCore.QObject):
         self.previewThread.wait()
         self.autosave()
 
-    @QtCore.pyqtSlot(int, bool)
-    def updateComponentTitle(self, pos, modified=False):
-        #print(pos, modified)
+    @QtCore.pyqtSlot(int, dict)
+    def updateComponentTitle(self, pos, presetStore=False):
+        if type(presetStore) == dict:
+            name = presetStore['preset']
+            if name == None:
+                modified = False
+            else:
+                modified = (presetStore != self.core.savedPresets[name])
+        else:
+            print(pos, presetStore)
+            modified = bool(presetStore)
         if pos < 0:
             pos = len(self.core.selectedComponents)-1
         title = str(self.core.selectedComponents[pos])
@@ -246,10 +254,6 @@ class MainWindow(QtCore.QObject):
             if modified:
                 title += '*'
         self.window.listWidget_componentList.item(pos).setText(title)
-        if modified:
-            self.core.componentModified(pos)
-        else:
-            self.core.componentUnmodified(pos)
 
     def updateCodecs(self):
         containerWidget = self.window.comboBox_videoContainer
@@ -521,6 +525,8 @@ class MainWindow(QtCore.QObject):
             "Project Files (*.avp)")
         if not filename:
             return
+        if not filename.endswith(".avp"):
+            filename += '.avp'
         self.settings.setValue("projectDir", os.path.dirname(filename))
         self.settings.setValue("currentProject", filename)
         self.currentProject = filename

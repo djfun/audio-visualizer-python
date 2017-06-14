@@ -8,7 +8,7 @@ from . import __base__
 class Component(__base__.Component):
     '''Color'''
 
-    modified = QtCore.pyqtSignal(int, bool)
+    modified = QtCore.pyqtSignal(int, dict)
 
     def widget(self, parent):
         self.parent = parent
@@ -48,12 +48,12 @@ class Component(__base__.Component):
         return page
 
     def update(self):
-        super().update()
         self.color1 = self.RGBFromString(self.page.lineEdit_color1.text())
         self.color2 = self.RGBFromString(self.page.lineEdit_color2.text())
         self.x = self.page.spinBox_x.value()
         self.y = self.page.spinBox_y.value()
         self.parent.drawPreview()
+        super().update()
 
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))

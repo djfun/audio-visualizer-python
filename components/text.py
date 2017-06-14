@@ -10,7 +10,7 @@ from . import __base__
 class Component(__base__.Component):
     '''Title Text'''
 
-    modified = QtCore.pyqtSignal(int, bool)
+    modified = QtCore.pyqtSignal(int, dict)
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -56,7 +56,6 @@ class Component(__base__.Component):
         return page
 
     def update(self):
-        super().update()
         self.title = self.page.lineEdit_title.text()
         self.alignment = self.page.comboBox_textAlign.currentIndex()
         self.titleFont = self.page.fontComboBox_titleFont.currentFont()
@@ -66,6 +65,7 @@ class Component(__base__.Component):
         self.textColor = self.RGBFromString(
             self.page.lineEdit_textColor.text())
         self.parent.drawPreview()
+        super().update()
 
     def getXY(self):
         '''Returns true x, y after considering alignment settings'''

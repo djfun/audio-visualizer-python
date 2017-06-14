@@ -1,5 +1,6 @@
 from PyQt4 import QtGui, QtCore
 
+
 class Component(QtCore.QObject):
     '''A base class for components to inherit from'''
 
@@ -26,8 +27,8 @@ class Component(QtCore.QObject):
         self.canceled = False
 
     def update(self):
-        self.modified.emit(self.compPos, True)
-        # use super().update() then read your widget values here
+        self.modified.emit(self.compPos, self.savePreset())
+        # read your widget values, then call super().update()
 
     def loadPreset(self, presetDict, presetName):
         '''Children should take (presetDict, presetName=None) as args'''
@@ -36,10 +37,10 @@ class Component(QtCore.QObject):
         # Then update your widgets using the preset dict
         self.currentPreset = presetName \
             if presetName != None else presetDict['preset']
-
+    '''
     def savePreset(self):
         return {}
-
+    '''
     def preFrameRender(self, **kwargs):
         for var, value in kwargs.items():
             exec('self.%s = value' % var)

@@ -14,6 +14,7 @@ class PresetManager(QtGui.QDialog):
         self.presetDir = self.core.presetDir
         self.findPresets()
 
+        # window
         self.lastFilter = '*'
         self.presetRows = [] # list of (comp, vers, name) tuples
         self.window = window
@@ -126,6 +127,7 @@ class PresetManager(QtGui.QDialog):
                     continue
                 if newName:
                     if index != -1:
+                        selectedComponents[index].currentPreset = newName
                         saveValueStore = \
                             selectedComponents[index].savePreset()
                         componentName = str(selectedComponents[index]).strip()
@@ -133,10 +135,7 @@ class PresetManager(QtGui.QDialog):
                         self.createNewPreset(
                             componentName, vers, newName,
                             saveValueStore, window=self.parent.window)
-                        selectedComponents[index].currentPreset = newName
-                        #self.findPresets()
-                        #self.drawPresetList()
-                        self.parent.updateComponentTitle(index)
+                        self.openPreset(newName)
             break
 
     def createNewPreset(
@@ -173,16 +172,8 @@ class PresetManager(QtGui.QDialog):
         version = selectedComponents[index].version()
         dirname = os.path.join(self.presetDir, componentName, str(version))
         filepath = os.path.join(dirname, presetName)
-        if not os.path.exists(filepath):
-            return
-        with open(filepath, 'r') as f:
-            for line in f:
-                saveValueStore = core.Core.presetFromString(line.strip())
-                break
-        selectedComponents[index].loadPreset(
-            saveValueStore,
-            presetName
-        )
+        self.core.openPreset(filepath, index, presetName)
+
         self.parent.updateComponentTitle(index)
         self.parent.drawPreview()
 
