@@ -124,16 +124,19 @@ class Core():
                 # insert component into the loader
                 loader.insertComponent(
                     self.moduleIndexFor(name), -1)
-
-                if 'preset' in preset and preset['preset'] != None:
-                    self.selectedComponents[-1].loadPreset(
-                        preset
-                    )
-                else:
-                    self.selectedComponents[-1].loadPreset(
-                        preset,
-                        preset['preset']
-                    )
+                try:
+                    if 'preset' in preset and preset['preset'] != None:
+                        self.selectedComponents[-1].loadPreset(
+                            preset
+                        )
+                    else:
+                        self.selectedComponents[-1].loadPreset(
+                            preset,
+                            preset['preset']
+                        )
+                except KeyError as e:
+                    print('%s missing value %s' %
+                        (self.selectedComponents[-1], e))
 
         elif errcode == 1:
             typ, value, _ = data

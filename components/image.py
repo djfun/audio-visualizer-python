@@ -20,12 +20,20 @@ class Component(__base__.Component):
 
         page.lineEdit_image.textChanged.connect(self.update)
         page.pushButton_image.clicked.connect(self.pickImage)
+        page.spinBox_scale.valueChanged.connect(self.update)
+        page.checkBox_stretch.stateChanged.connect(self.update)
+        page.spinBox_x.valueChanged.connect(self.update)
+        page.spinBox_y.valueChanged.connect(self.update)
 
         self.page = page
         return page
 
     def update(self):
         self.imagePath = self.page.lineEdit_image.text()
+        self.scale = self.page.spinBox_scale.value()
+        self.xPosition = self.page.spinBox_x.value()
+        self.yPosition = self.page.spinBox_y.value()
+        self.stretched = self.page.checkBox_stretch.isChecked()
         self.parent.drawPreview()
         super().update()
 
@@ -47,19 +55,31 @@ class Component(__base__.Component):
         frame = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         if self.imagePath and os.path.exists(self.imagePath):
             image = Image.open(self.imagePath)
-            if image.size != (width, height):
+            if self.stretched and image.size != (width, height):
                 image = image.resize((width, height), Image.ANTIALIAS)
-            frame.paste(image)
+            if self.scale != 100:
+                newHeight = int((image.height / 100) * self.scale)
+                newWidth = int((image.width / 100) * self.scale)
+                image = image.resize((newWidth, newHeight), Image.ANTIALIAS)
+            frame.paste(image, box=(self.xPosition, self.yPosition))
         return frame
 
     def loadPreset(self, pr, presetName=None):
         super().loadPreset(pr, presetName)
         self.page.lineEdit_image.setText(pr['image'])
+        self.page.spinBox_scale.setValue(pr['scale'])
+        self.page.spinBox_x.setValue(pr['x'])
+        self.page.spinBox_y.setValue(pr['y'])
+        self.page.checkBox_stretch.setChecked(pr['stretched'])
 
     def savePreset(self):
         return {
             'preset': self.currentPreset,
             'image': self.imagePath,
+            'scale': self.scale,
+            'stretched': self.stretched,
+            'x': self.xPosition,
+            'y': self.yPosition,
         }
 
     def pickImage(self):

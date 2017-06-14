@@ -111,7 +111,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="spinBox_x_2">
+        <widget class="QSpinBox" name="spinBox_x">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -124,8 +124,11 @@
            <height>16777215</height>
           </size>
          </property>
+         <property name="minimum">
+          <number>-10000</number>
+         </property>
          <property name="maximum">
-          <number>999999999</number>
+          <number>10000</number>
          </property>
         </widget>
        </item>
@@ -163,10 +166,10 @@
           </size>
          </property>
          <property name="minimum">
-          <number>0</number>
+          <number>-10000</number>
          </property>
          <property name="maximum">
-          <number>999999999</number>
+          <number>10000</number>
          </property>
          <property name="value">
           <number>0</number>
@@ -202,6 +205,35 @@
        </property>
       </spacer>
      </item>
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Scale</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="spinBox_scale">
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::UpDownArrows</enum>
+       </property>
+       <property name="suffix">
+        <string>%</string>
+       </property>
+       <property name="minimum">
+        <number>10</number>
+       </property>
+       <property name="maximum">
+        <number>200</number>
+       </property>
+       <property name="value">
+        <number>100</number>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>
@@ -216,6 +248,9 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget" native="true"/>
    </item>
   </layout>
  </widget>
