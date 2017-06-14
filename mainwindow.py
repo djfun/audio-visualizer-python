@@ -239,7 +239,7 @@ class MainWindow(QtCore.QObject):
     def updateComponentTitle(self, pos, presetStore=False):
         if type(presetStore) == dict:
             name = presetStore['preset']
-            if name == None:
+            if name == None or name not in self.core.savedPresets:
                 modified = False
             else:
                 modified = (presetStore != self.core.savedPresets[name])
