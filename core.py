@@ -82,6 +82,12 @@ class Core():
         index = compNames.index(compName)
         return self.moduleIndexes[index]
 
+    def clearPreset(self, compIndex, loader=None):
+        '''Clears a preset from a component'''
+        self.selectedComponents[compIndex].currentPreset = None
+        if loader:
+            loader.updateComponentTitle(compIndex)
+
     def openPreset(self, filepath, compIndex, presetName):
         '''Applies a preset to a specific component'''
         saveValueStore = self.getPreset(filepath)
@@ -112,6 +118,7 @@ class Core():
         if errcode == 0:
             for i, tup in enumerate(data['Components']):
                 name, vers, preset = tup
+                clearThis = False
 
                 # add loaded named presets to savedPresets dict
                 if 'preset' in preset and preset['preset'] != None:
@@ -119,7 +126,11 @@ class Core():
                     filepath2 = os.path.join(
                         self.presetDir, name, str(vers), nam)
                     origSaveValueStore = self.getPreset(filepath2)
-                    self.savedPresets[nam] = dict(origSaveValueStore)
+                    if origSaveValueStore:
+                        self.savedPresets[nam] = dict(origSaveValueStore)
+                    else:
+                        # saved preset was renamed or deleted
+                        clearThis = True
 
                 # insert component into the loader
                 loader.insertComponent(
@@ -137,6 +148,10 @@ class Core():
                 except KeyError as e:
                     print('%s missing value %s' %
                         (self.selectedComponents[-1], e))
+
+                if clearThis:
+                    self.clearPreset(-1, loader)
+
 
         elif errcode == 1:
             typ, value, _ = data

@@ -12,6 +12,11 @@ class PresetManager(QtGui.QDialog):
         self.core = parent.core
         self.settings = parent.settings
         self.presetDir = self.core.presetDir
+        if not self.settings.value('presetDir'):
+            self.settings.setValue(
+                "presetDir",
+                os.path.join(self.core.dataDir, 'projects'))
+
         self.findPresets()
 
         # window
@@ -103,10 +108,16 @@ class PresetManager(QtGui.QDialog):
         for component in self.presets:
             self.window.comboBox_filter.addItem(component)
 
+    def clearPreset(self, compI=None):
+        '''Functions on mainwindow level from the context menu'''
+        compI = self.parent.window.listWidget_componentList.currentRow()
+        self.core.clearPreset(compI, self)
+
+
     def openSavePresetDialog(self):
         '''Functions on mainwindow level from the context menu'''
         window = self.parent.window
-        selectedComponents = self.parent.core.selectedComponents
+        selectedComponents = self.core.selectedComponents
         componentList = self.parent.window.listWidget_componentList
 
         if componentList.currentRow() == -1:
@@ -242,9 +253,10 @@ class PresetManager(QtGui.QDialog):
     def openImportDialog(self):
         filename = QtGui.QFileDialog.getOpenFileName(
             self.window, "Import Preset File",
-            self.settings.value("projectDir"),
+            self.settings.value("presetDir"),
             "Preset Files (*.avl)")
         if filename:
+            # get installed path & ask user to overwrite if needed
             path = ''
             while True:
                 if path:
@@ -256,15 +268,17 @@ class PresetManager(QtGui.QDialog):
                 success, path = self.core.importPreset(filename)
                 if success:
                     break
+
             self.findPresets()
             self.drawPresetList()
+            self.settings.setValue("presetDir", os.path.dirname(filename))
 
     def openExportDialog(self):
         if not self.window.listWidget_presets.selectedItems():
             return
         filename = QtGui.QFileDialog.getSaveFileName(
             self.window, "Export Preset",
-            self.settings.value("projectDir"),
+            self.settings.value("presetDir"),
             "Preset Files (*.avl)")
         if filename:
             index = self.window.listWidget_presets.currentRow()
@@ -274,3 +288,4 @@ class PresetManager(QtGui.QDialog):
                     msg='Couldn\'t export %s.' % filename,
                     parent=self.window
                 )
+            self.settings.setValue("presetDir", os.path.dirname(filename))

@@ -67,6 +67,7 @@ class MainWindow(QtCore.QObject):
                 os.path.join(os.path.dirname(os.path.realpath(__file__)),
                 'presetmanager.ui')),
             self)
+
         if not os.path.exists(self.dataDir):
             os.makedirs(self.dataDir)
         for neededDirectory in (
@@ -189,11 +190,11 @@ class MainWindow(QtCore.QObject):
 
         # Configure the Projects Menu
         self.projectMenu = QMenu()
-        action = self.projectMenu.addAction("New Project")
-        action.triggered[()].connect(self.createNewProject)
+        self.ui_newProject = self.projectMenu.addAction("New Project")
+        self.ui_newProject.triggered[()].connect(self.createNewProject)
 
-        action = self.projectMenu.addAction("Open Project")
-        action.triggered[()].connect(self.openOpenProjectDialog)
+        self.ui_openProject = self.projectMenu.addAction("Open Project")
+        self.ui_openProject.triggered[()].connect(self.openOpenProjectDialog)
 
         action = self.projectMenu.addAction("Save Project")
         action.triggered[()].connect(self.saveCurrentProject)
@@ -373,8 +374,9 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_removeComponent.setEnabled(False)
             self.window.pushButton_listMoveDown.setEnabled(False)
             self.window.pushButton_listMoveUp.setEnabled(False)
-            self.window.pushButton_presets.setEnabled(False)
             self.window.listWidget_componentList.setEnabled(False)
+            self.ui_newProject.setEnabled(False)
+            self.ui_openProject.setEnabled(False)
         else:
             self.window.pushButton_createVideo.setEnabled(True)
             self.window.pushButton_Cancel.setEnabled(False)
@@ -391,8 +393,9 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_removeComponent.setEnabled(True)
             self.window.pushButton_listMoveDown.setEnabled(True)
             self.window.pushButton_listMoveUp.setEnabled(True)
-            self.window.pushButton_presets.setEnabled(True)
             self.window.listWidget_componentList.setEnabled(True)
+            self.ui_newProject.setEnabled(True)
+            self.ui_openProject.setEnabled(True)
 
     def progressBarUpdated(self, value):
         self.window.progressBar_createVideo.setValue(value)
@@ -603,6 +606,11 @@ class MainWindow(QtCore.QObject):
                 )
         except KeyError:
             pass
+
+        menuItem = self.menu.addAction("Clear Preset")
+        menuItem.triggered.connect(
+            self.presetManager.clearPreset
+        )
 
         self.menu.move(parentPosition + QPos)
         self.menu.show()
