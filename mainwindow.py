@@ -321,7 +321,8 @@ class MainWindow(QtCore.QObject):
 
         fileName = QtGui.QFileDialog.getSaveFileName(
             self.window, "Set Output Video File",
-            outputDir, "Video Files (*.mp4 *.mov *.mkv *.avi *.webm *.flv)")
+            outputDir,
+            "Video Files (*.mp4 *.mov *.mkv *.avi *.webm *.flv);; All Files (*)")
 
         if not fileName == "":
             self.settings.setValue("outputDir", os.path.dirname(fileName))

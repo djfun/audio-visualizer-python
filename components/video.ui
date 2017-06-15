@@ -206,6 +206,13 @@
       </spacer>
      </item>
      <item>
+      <widget class="QCheckBox" name="checkBox_distort">
+       <property name="text">
+        <string>Distort by scale</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="label">
        <property name="text">
         <string>Scale</string>
