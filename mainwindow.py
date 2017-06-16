@@ -157,7 +157,7 @@ class MainWindow(QtCore.QObject):
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
 
-        componentList.dropEvent = self.componentListChanged
+        componentList.dropEvent = self.dragComponent
         componentList.itemSelectionChanged.connect(
             self.changeComponentWidget)
 
@@ -479,9 +479,26 @@ class MainWindow(QtCore.QObject):
             stackedWidget.setCurrentIndex(newRow)
             self.drawPreview()
 
-    def componentListChanged(self, *args):
-        '''Update all our tracking variables to match the widget'''
-        pass
+    def dragComponent(self, event):
+        '''Drop event for the component listwidget'''
+        componentList = self.window.listWidget_componentList
+
+        modelIndexes = [ \
+            componentList.model().index(i) \
+                for i in range(componentList.count()) \
+        ]
+        rects = [ \
+            componentList.visualRect(modelIndex) \
+                for modelIndex in modelIndexes \
+        ]
+
+        rowPos = [rect.contains(event.pos()) for rect in rects]
+        if not any(rowPos):
+            return
+
+        i = rowPos.index(True)
+        change = (componentList.currentRow() - i) * -1
+        self.moveComponent(change)
 
     def changeComponentWidget(self):
         selected = self.window.listWidget_componentList.selectedItems()
@@ -608,10 +625,11 @@ class MainWindow(QtCore.QObject):
         except KeyError:
             pass
 
-        menuItem = self.menu.addAction("Clear Preset")
-        menuItem.triggered.connect(
-            self.presetManager.clearPreset
-        )
+        if self.core.selectedComponents[index].currentPreset:
+            menuItem = self.menu.addAction("Clear Preset")
+            menuItem.triggered.connect(
+                self.presetManager.clearPreset
+            )
 
         self.menu.move(parentPosition + QPos)
         self.menu.show()

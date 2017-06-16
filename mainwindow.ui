@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1008</width>
-    <height>575</height>
+    <width>1028</width>
+    <height>592</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -175,6 +175,9 @@
               <height>16777215</height>
              </size>
             </property>
+            <property name="acceptDrops">
+             <bool>true</bool>
+            </property>
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -188,7 +191,7 @@
              <bool>true</bool>
             </property>
             <property name="dragEnabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="dragDropOverwriteMode">
              <bool>false</bool>

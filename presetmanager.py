@@ -111,8 +111,7 @@ class PresetManager(QtGui.QDialog):
     def clearPreset(self, compI=None):
         '''Functions on mainwindow level from the context menu'''
         compI = self.parent.window.listWidget_componentList.currentRow()
-        self.core.clearPreset(compI, self)
-
+        self.core.clearPreset(compI, self.parent)
 
     def openSavePresetDialog(self):
         '''Functions on mainwindow level from the context menu'''

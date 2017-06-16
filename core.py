@@ -68,7 +68,8 @@ class Core():
                         yield name
         self.modules = [
             import_module('components.%s' % name)
-            for name in findComponents()]
+            for name in findComponents()
+        ]
         self.moduleIndexes = [i for i in range(len(self.modules))]
 
     def componentListChanged(self):
@@ -119,11 +120,14 @@ class Core():
         saveValueStore = self.getPreset(filepath)
         if not saveValueStore:
             return False
+        try:
+            self.selectedComponents[compIndex].loadPreset(
+                saveValueStore,
+                presetName
+            )
+        except KeyError as e:
+            print('preset missing value: %s' % e)
 
-        self.selectedComponents[compIndex].loadPreset(
-            saveValueStore,
-            presetName
-        )
         self.savedPresets[presetName] = dict(saveValueStore)
         return True
 
