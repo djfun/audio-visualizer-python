@@ -128,12 +128,13 @@ class Component(__base__.Component):
         super().update()
 
     def previewRender(self, previewWorker):
+        self.videoFormats = previewWorker.core.videoFormats
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         self.updateChunksize(width, height)
         frame = self.getPreviewFrame(width, height)
         if not frame:
-            return Image.new("RGBA", (width, height), (0, 0, 0, 0))
+            return self.blankFrame(width, height)
         else:
             return frame
 
@@ -141,6 +142,7 @@ class Component(__base__.Component):
         super().preFrameRender(**kwargs)
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
+        self.blankFrame_ = self.blankFrame(width, height)
         self.updateChunksize(width, height)
         self.video = Video(
             ffmpeg=self.parent.core.FFMPEG_BIN, videoPath=self.videoPath,
@@ -148,10 +150,13 @@ class Component(__base__.Component):
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, loopVideo=self.loopVideo,
             component=self, scale=self.scale
-        )
+        ) if os.path.exists(self.videoPath) else None
 
     def frameRender(self, moduleNo, arrayNo, frameNo):
-        return self.video.frame(frameNo)
+        if self.video:
+            return self.video.frame(frameNo)
+        else:
+            return self.blankFrame_
 
     def loadPreset(self, pr, presetName=None):
         super().loadPreset(pr, presetName)
@@ -177,7 +182,7 @@ class Component(__base__.Component):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
         filename = QtGui.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
-            imgDir, "Video Files (*.mp4 *.mov)"
+            imgDir, "Video Files (%s)" % " ".join(self.videoFormats)
         )
         if filename:
             self.settings.setValue("backgroundDir", os.path.dirname(filename))
@@ -228,10 +233,14 @@ def scale(scale, width, height, returntype=None):
 
 def finalizeFrame(self, imageData, width, height):
     if self.distort:
-        image = Image.frombytes(
-            'RGBA',
-            (width, height),
-            imageData)
+        try:
+            image = Image.frombytes(
+                'RGBA',
+                (width, height),
+                imageData)
+        except ValueError:
+            print('#### ignored invalid data caused by distortion ####')
+            image = self.blankFrame(width, height)
     else:
         image = Image.frombytes(
             'RGBA',
@@ -240,7 +249,7 @@ def finalizeFrame(self, imageData, width, height):
 
     if self.scale != 100 \
         or self.xPosition != 0 or self.yPosition != 0:
-        frame = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        frame = self.blankFrame(width, height)
         frame.paste(image, box=(self.xPosition, self.yPosition))
     else:
         frame = image

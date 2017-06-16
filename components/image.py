@@ -38,6 +38,7 @@ class Component(__base__.Component):
         super().update()
 
     def previewRender(self, previewWorker):
+        self.imageFormats = previewWorker.core.imageFormats
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
@@ -52,7 +53,7 @@ class Component(__base__.Component):
         return self.drawFrame(width, height)
 
     def drawFrame(self, width, height):
-        frame = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        frame = self.blankFrame(width, height)
         if self.imagePath and os.path.exists(self.imagePath):
             image = Image.open(self.imagePath)
             if self.stretched and image.size != (width, height):
@@ -85,7 +86,8 @@ class Component(__base__.Component):
     def pickImage(self):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
         filename = QtGui.QFileDialog.getOpenFileName(
-            self.page, "Choose Image", imgDir, "Image Files (*.jpg *.png)")
+            self.page, "Choose Image", imgDir,
+            "Image Files (%s)" % " ".join(self.imageFormats))
         if filename:
             self.settings.setValue("backgroundDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)

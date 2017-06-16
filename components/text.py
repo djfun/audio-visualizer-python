@@ -126,7 +126,7 @@ class Component(__base__.Component):
 
     def addText(self, width, height):
         x, y = self.getXY()
-        im = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        im = self.blankFrame(width, height)
         image = ImageQt(im)
 
         painter = QPainter(image)

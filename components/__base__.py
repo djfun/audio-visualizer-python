@@ -1,4 +1,5 @@
 from PyQt4 import QtGui, QtCore
+from PIL import Image
 
 
 class Component(QtCore.QObject):
@@ -44,6 +45,9 @@ class Component(QtCore.QObject):
     def preFrameRender(self, **kwargs):
         for var, value in kwargs.items():
             exec('self.%s = value' % var)
+
+    def blankFrame(self, width, height):
+        return Image.new("RGBA", (width, height), (0, 0, 0, 0))
 
     def pickColor(self):
         dialog = QtGui.QColorDialog()

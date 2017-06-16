@@ -145,7 +145,7 @@ class Component(__base__.Component):
         bF = width / 64
         bH = bF / 2
         bQ = bF / 4
-        imTop = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        imTop = self.blankFrame(width, height)
         draw = ImageDraw.Draw(imTop)
         r, g, b = color
         color2 = (r, g, b, 125)
@@ -163,7 +163,7 @@ class Component(__base__.Component):
 
         imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
 
-        im = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        im = self.blankFrame(width, height)
 
         if layout == 0:
             y = 0 - int(height/100*43)

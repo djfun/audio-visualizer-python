@@ -230,7 +230,7 @@
         <number>10</number>
        </property>
        <property name="maximum">
-        <number>200</number>
+        <number>400</number>
        </property>
        <property name="value">
         <number>100</number>

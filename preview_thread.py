@@ -1,11 +1,9 @@
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import pyqtSignal, pyqtSlot
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from PIL.ImageQt import ImageQt
 import core
-import time
 from queue import Queue, Empty
-import numpy
 import os
 from copy import copy
 
@@ -18,6 +16,7 @@ class Worker(QtCore.QObject):
         QtCore.QObject.__init__(self)
         parent.newTask.connect(self.createPreviewImage)
         parent.processTask.connect(self.process)
+        self.parent = parent
         self.core = core.Core()
         self.queue = queue
         self.core.settings = parent.settings

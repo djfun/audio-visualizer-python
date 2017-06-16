@@ -24,6 +24,32 @@ class Core():
         self.presetDir = os.path.join(self.dataDir, 'presets')
         self.wd = os.path.dirname(os.path.realpath(__file__))
         self.loadEncoderOptions()
+        self.videoFormats = Core.appendUppercase([
+            '*.mp4',
+            '*.mov',
+            '*.mkv',
+            '*.avi',
+            '*.webm',
+            '*.flv',
+        ])
+        self.audioFormats = Core.appendUppercase([
+            '*.mp3',
+            '*.wav',
+            '*.ogg',
+            '*.fla',
+            '*.aac',
+        ])
+        self.imageFormats = Core.appendUppercase([
+            '*.png',
+            '*.jpg',
+            '*.tif',
+            '*.tiff',
+            '*.gif',
+            '*.bmp',
+            '*.ico',
+            '*.xbm',
+            '*.xpm',
+        ])
 
         self.findComponents()
         self.selectedComponents = []
@@ -116,44 +142,48 @@ class Core():
         which implements an insertComponent method'''
         errcode, data = self.parseAvFile(filepath)
         if errcode == 0:
-            for i, tup in enumerate(data['Components']):
-                name, vers, preset = tup
-                clearThis = False
+            try:
+                for i, tup in enumerate(data['Components']):
+                    name, vers, preset = tup
+                    clearThis = False
 
-                # add loaded named presets to savedPresets dict
-                if 'preset' in preset and preset['preset'] != None:
-                    nam = preset['preset']
-                    filepath2 = os.path.join(
-                        self.presetDir, name, str(vers), nam)
-                    origSaveValueStore = self.getPreset(filepath2)
-                    if origSaveValueStore:
-                        self.savedPresets[nam] = dict(origSaveValueStore)
-                    else:
-                        # saved preset was renamed or deleted
-                        clearThis = True
-
-                # insert component into the loader
-                loader.insertComponent(
-                    self.moduleIndexFor(name), -1)
-                try:
+                    # add loaded named presets to savedPresets dict
                     if 'preset' in preset and preset['preset'] != None:
-                        self.selectedComponents[-1].loadPreset(
-                            preset
-                        )
-                    else:
-                        self.selectedComponents[-1].loadPreset(
-                            preset,
-                            preset['preset']
-                        )
-                except KeyError as e:
-                    print('%s missing value %s' %
-                        (self.selectedComponents[-1], e))
+                        nam = preset['preset']
+                        filepath2 = os.path.join(
+                            self.presetDir, name, str(vers), nam)
+                        origSaveValueStore = self.getPreset(filepath2)
+                        if origSaveValueStore:
+                            self.savedPresets[nam] = dict(origSaveValueStore)
+                        else:
+                            # saved preset was renamed or deleted
+                            clearThis = True
 
-                if clearThis:
-                    self.clearPreset(-1, loader)
+                    # insert component into the loader
+                    loader.insertComponent(
+                        self.moduleIndexFor(name), -1)
+                    try:
+                        if 'preset' in preset and preset['preset'] != None:
+                            self.selectedComponents[-1].loadPreset(
+                                preset
+                            )
+                        else:
+                            self.selectedComponents[-1].loadPreset(
+                                preset,
+                                preset['preset']
+                            )
+                    except KeyError as e:
+                        print('%s missing value %s' %
+                            (self.selectedComponents[-1], e))
+
+                    if clearThis:
+                        self.clearPreset(-1, loader)
+            except:
+                errcode = 1
+                data = sys.exc_info()
 
 
-        elif errcode == 1:
+        if errcode == 1:
             typ, value, _ = data
             if typ.__name__ == KeyError:
                 # probably just an old version, still loadable
@@ -398,3 +428,9 @@ class Core():
     def presetFromString(string):
         '''Turns a string repr of OrderedDict into a regular dict'''
         return dict(eval(string))
+
+    @staticmethod
+    def appendUppercase(lst):
+        for form, i in zip(lst, range(len(lst))):
+            lst.append(form.upper())
+        return lst

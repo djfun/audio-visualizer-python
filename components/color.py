@@ -71,7 +71,7 @@ class Component(__base__.Component):
 
     def drawFrame(self, width, height):
         r, g, b = self.color1
-        return Image.new("RGBA", (width, height), (r, g, b, 255))
+        return self.blankFrame(width, height)
 
     def loadPreset(self, pr, presetName=None):
         super().loadPreset(pr, presetName)
