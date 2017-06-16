@@ -37,8 +37,12 @@ class Component(__base__.Component):
         # disable color #2 until non-default 'fill' option gets changed
         page.lineEdit_color2.setDisabled(True)
         page.pushButton_color2.setDisabled(True)
-        page.spinBox_x.setValue(self.x)
-        page.spinBox_x.setValue(self.y)
+        page.spinBox_x.valueChanged.connect(self.update)
+        page.spinBox_y.valueChanged.connect(self.update)
+        page.spinBox_width.setValue(
+            int(parent.settings.value("outputWidth")))
+        page.spinBox_height.setValue(
+            int(parent.settings.value("outputHeight")))
 
         page.lineEdit_color1.textChanged.connect(self.update)
         page.lineEdit_color2.textChanged.connect(self.update)
@@ -71,12 +75,15 @@ class Component(__base__.Component):
 
     def drawFrame(self, width, height):
         r, g, b = self.color1
-        return self.blankFrame(width, height)
+        return Image.new("RGBA", (width, height), (r, g, b, 255))
 
     def loadPreset(self, pr, presetName=None):
         super().loadPreset(pr, presetName)
 
         self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
+        self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
+        self.page.spinBox_x.setValue(pr['x'])
+        self.page.spinBox_y.setValue(pr['y'])
         self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
 
         btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
@@ -93,6 +100,8 @@ class Component(__base__.Component):
             'preset': self.currentPreset,
             'color1': self.color1,
             'color2': self.color2,
+            'x': self.x,
+            'y': self.y,
         }
 
     def pickColor(self, num):
