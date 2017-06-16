@@ -1,5 +1,4 @@
 from importlib import import_module
-from collections import OrderedDict
 from PyQt4 import QtGui, uic
 from PyQt4.QtCore import Qt
 import sys

@@ -7,6 +7,9 @@ from . import __base__
 
 class Component(__base__.Component):
     '''Color'''
+
+    modified = QtCore.pyqtSignal(int, dict)
+
     def widget(self, parent):
         self.parent = parent
         page = uic.loadUi(os.path.join(
@@ -20,14 +23,14 @@ class Component(__base__.Component):
         page.lineEdit_color1.setText('%s,%s,%s' % self.color1)
         page.lineEdit_color2.setText('%s,%s,%s' % self.color2)
 
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+        btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.color1).name()
 
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+        btnStyle2 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.color2).name()
 
-        page.pushButton_color1.setStyleSheet(btnStyle)
-        page.pushButton_color2.setStyleSheet(btnStyle)
+        page.pushButton_color1.setStyleSheet(btnStyle1)
+        page.pushButton_color2.setStyleSheet(btnStyle2)
         page.pushButton_color1.clicked.connect(lambda: self.pickColor(1))
         page.pushButton_color2.clicked.connect(lambda: self.pickColor(2))
 
@@ -50,6 +53,7 @@ class Component(__base__.Component):
         self.x = self.page.spinBox_x.value()
         self.y = self.page.spinBox_y.value()
         self.parent.drawPreview()
+        super().update()
 
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
@@ -67,23 +71,26 @@ class Component(__base__.Component):
 
     def drawFrame(self, width, height):
         r, g, b = self.color1
-        return Image.new("RGBA", (width, height), (r, g, b, 255))
+        return self.blankFrame(width, height)
 
-    def loadPreset(self, pr):
+    def loadPreset(self, pr, presetName=None):
+        super().loadPreset(pr, presetName)
+
         self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
         self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
 
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+        btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['color1']).name()
 
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+        btnStyle2 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['color2']).name()
 
-        self.page.pushButton_color1.setStyleSheet(btnStyle)
-        self.page.pushButton_color2.setStyleSheet(btnStyle)
+        self.page.pushButton_color1.setStyleSheet(btnStyle1)
+        self.page.pushButton_color2.setStyleSheet(btnStyle2)
 
     def savePreset(self):
         return {
+            'preset': self.currentPreset,
             'color1': self.color1,
             'color2': self.color2,
         }

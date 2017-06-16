@@ -6,25 +6,330 @@ from os.path import expanduser
 import subprocess as sp
 import numpy
 from PIL import Image
-import tempfile
 from shutil import rmtree
-import atexit
 import time
 from collections import OrderedDict
 import json
+from importlib import import_module
+from PyQt4.QtGui import QDesktopServices
+import string
 
 
 class Core():
 
     def __init__(self):
         self.FFMPEG_BIN = self.findFfmpeg()
-        self.tempDir = os.path.join(
-            tempfile.gettempdir(), 'audio-visualizer-python-data')
-        if not os.path.exists(self.tempDir):
-            os.makedirs(self.tempDir)
-        atexit.register(self.deleteTempDir)
+        self.dataDir = QDesktopServices.storageLocation(
+            QDesktopServices.DataLocation)
+        self.presetDir = os.path.join(self.dataDir, 'presets')
         self.wd = os.path.dirname(os.path.realpath(__file__))
         self.loadEncoderOptions()
+        self.videoFormats = Core.appendUppercase([
+            '*.mp4',
+            '*.mov',
+            '*.mkv',
+            '*.avi',
+            '*.webm',
+            '*.flv',
+        ])
+        self.audioFormats = Core.appendUppercase([
+            '*.mp3',
+            '*.wav',
+            '*.ogg',
+            '*.fla',
+            '*.aac',
+        ])
+        self.imageFormats = Core.appendUppercase([
+            '*.png',
+            '*.jpg',
+            '*.tif',
+            '*.tiff',
+            '*.gif',
+            '*.bmp',
+            '*.ico',
+            '*.xbm',
+            '*.xpm',
+        ])
+
+        self.findComponents()
+        self.selectedComponents = []
+        # copies of named presets to detect modification
+        self.savedPresets = {}
+
+    def findComponents(self):
+        def findComponents():
+            srcPath = os.path.join(self.wd, 'components')
+            if os.path.exists(srcPath):
+                for f in sorted(os.listdir(srcPath)):
+                    name, ext = os.path.splitext(f)
+                    if name.startswith("__"):
+                        continue
+                    elif ext == '.py':
+                        yield name
+        self.modules = [
+            import_module('components.%s' % name)
+            for name in findComponents()
+        ]
+        self.moduleIndexes = [i for i in range(len(self.modules))]
+
+    def componentListChanged(self):
+        for i, component in enumerate(self.selectedComponents):
+            component.compPos = i
+
+    def insertComponent(self, compPos, moduleIndex):
+        if compPos < 0:
+            compPos = len(self.selectedComponents) -1
+
+        component = self.modules[moduleIndex].Component(
+            moduleIndex, compPos)
+        self.selectedComponents.insert(
+            compPos,
+            component)
+
+        self.componentListChanged()
+        return compPos
+
+    def moveComponent(self, startI, endI):
+        comp = self.selectedComponents.pop(startI)
+        self.selectedComponents.insert(endI, comp)
+
+        self.componentListChanged()
+        return endI
+
+    def removeComponent(self, i):
+        self.selectedComponents.pop(i)
+        self.componentListChanged()
+
+    def updateComponent(self, i):
+        # print('updating %s' % self.selectedComponents[i])
+        self.selectedComponents[i].update()
+
+    def moduleIndexFor(self, compName):
+        compNames = [mod.Component.__doc__ for mod in self.modules]
+        index = compNames.index(compName)
+        return self.moduleIndexes[index]
+
+    def clearPreset(self, compIndex, loader=None):
+        '''Clears a preset from a component'''
+        self.selectedComponents[compIndex].currentPreset = None
+        if loader:
+            loader.updateComponentTitle(compIndex)
+
+    def openPreset(self, filepath, compIndex, presetName):
+        '''Applies a preset to a specific component'''
+        saveValueStore = self.getPreset(filepath)
+        if not saveValueStore:
+            return False
+        try:
+            self.selectedComponents[compIndex].loadPreset(
+                saveValueStore,
+                presetName
+            )
+        except KeyError as e:
+            print('preset missing value: %s' % e)
+
+        self.savedPresets[presetName] = dict(saveValueStore)
+        return True
+
+    def getPreset(self, filepath):
+        '''Returns the preset dict stored at this filepath'''
+        if not os.path.exists(filepath):
+            return False
+        with open(filepath, 'r') as f:
+            for line in f:
+                saveValueStore = Core.presetFromString(line.strip())
+                break
+        return saveValueStore
+
+    def openProject(self, loader, filepath):
+        '''loader is the object calling this method (mainwindow/command)
+        which implements an insertComponent method'''
+        errcode, data = self.parseAvFile(filepath)
+        if errcode == 0:
+            try:
+                for i, tup in enumerate(data['Components']):
+                    name, vers, preset = tup
+                    clearThis = False
+
+                    # add loaded named presets to savedPresets dict
+                    if 'preset' in preset and preset['preset'] != None:
+                        nam = preset['preset']
+                        filepath2 = os.path.join(
+                            self.presetDir, name, str(vers), nam)
+                        origSaveValueStore = self.getPreset(filepath2)
+                        if origSaveValueStore:
+                            self.savedPresets[nam] = dict(origSaveValueStore)
+                        else:
+                            # saved preset was renamed or deleted
+                            clearThis = True
+
+                    # insert component into the loader
+                    loader.insertComponent(
+                        self.moduleIndexFor(name), -1)
+                    try:
+                        if 'preset' in preset and preset['preset'] != None:
+                            self.selectedComponents[-1].loadPreset(
+                                preset
+                            )
+                        else:
+                            self.selectedComponents[-1].loadPreset(
+                                preset,
+                                preset['preset']
+                            )
+                    except KeyError as e:
+                        print('%s missing value %s' %
+                            (self.selectedComponents[-1], e))
+
+                    if clearThis:
+                        self.clearPreset(-1, loader)
+            except:
+                errcode = 1
+                data = sys.exc_info()
+
+
+        if errcode == 1:
+            typ, value, _ = data
+            if typ.__name__ == KeyError:
+                # probably just an old version, still loadable
+                print('file missing value: %s' % value)
+                return
+            loader.createNewProject()
+            msg = '%s: %s' % (typ.__name__, value)
+            loader.showMessage(
+                msg="Project file '%s' is corrupted." % filepath,
+                showCancel=False,
+                icon=QtGui.QMessageBox.Warning,
+                detail=msg)
+
+    def parseAvFile(self, filepath):
+        '''Parses an avp (project) or avl (preset package) file.
+        Returns data usable by another method.'''
+        data = {}
+        try:
+            with open(filepath, 'r') as f:
+                def parseLine(line):
+                    '''Decides if a given avp or avl line is a section header'''
+                    validSections = ('Components')
+                    line = line.strip()
+                    newSection = ''
+
+                    if line.startswith('[') and line.endswith(']') \
+                            and line[1:-1] in validSections:
+                        newSection = line[1:-1]
+
+                    return line, newSection
+
+                section = ''
+                i = 0
+                for line in f:
+                    line, newSection = parseLine(line)
+                    if newSection:
+                        section = str(newSection)
+                        data[section] = []
+                        continue
+                    if line and section == 'Components':
+                        if i == 0:
+                            lastCompName = str(line)
+                            i += 1
+                        elif i == 1:
+                            lastCompVers = str(line)
+                            i += 1
+                        elif i == 2:
+                            lastCompPreset = Core.presetFromString(line)
+                            data[section].append(
+                                (lastCompName,
+                                lastCompVers,
+                                lastCompPreset)
+                            )
+                            i = 0
+            return 0, data
+        except:
+            return 1, sys.exc_info()
+
+    def importPreset(self, filepath):
+        errcode, data = self.parseAvFile(filepath)
+        returnList = []
+        if errcode == 0:
+            name, vers, preset = data['Components'][0]
+            presetName = preset['preset'] \
+                if preset['preset'] else os.path.basename(filepath)[:-4]
+            newPath = os.path.join(
+                self.presetDir,
+                name,
+                vers,
+                presetName
+            )
+            if os.path.exists(newPath):
+                return False, newPath
+            preset['preset'] = presetName
+            self.createPresetFile(
+                name, vers, presetName, preset
+            )
+            return True, presetName
+        elif errcode == 1:
+            # TODO: an error message
+            return False, ''
+
+    def exportPreset(self, exportPath, compName, vers, origName):
+        internalPath = os.path.join(self.presetDir, compName, str(vers), origName)
+        if not os.path.exists(internalPath):
+            return
+        if os.path.exists(exportPath):
+            os.remove(exportPath)
+        with open(internalPath, 'r') as f:
+            internalData = [line for line in f]
+        try:
+            saveValueStore = Core.presetFromString(internalData[0].strip())
+            self.createPresetFile(
+                compName, vers,
+                origName, saveValueStore,
+                exportPath
+            )
+            return True
+        except:
+            return False
+
+    def createPresetFile(
+        self, compName, vers, presetName, saveValueStore, filepath=''):
+        '''Create a preset file (.avl) at filepath using args.
+           Or if filepath is empty, create an internal preset using
+           the args for the filepath.'''
+        if not filepath:
+            dirname = os.path.join(self.presetDir, compName, str(vers))
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+            filepath = os.path.join(dirname, presetName)
+            internal = True
+        else:
+            if not filepath.endswith('.avl'):
+                filepath += '.avl'
+            internal = False
+
+        with open(filepath, 'w') as f:
+            if not internal:
+                f.write('[Components]\n')
+                f.write('%s\n' % compName)
+                f.write('%s\n' % str(vers))
+            f.write(Core.presetToString(saveValueStore))
+
+    def createProjectFile(self, filepath):
+        '''Create a project file (.avp) using the current program state'''
+        try:
+            if not filepath.endswith(".avp"):
+                filepath += '.avp'
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            with open(filepath, 'w') as f:
+                print('creating %s' % filepath)
+                f.write('[Components]\n')
+                for comp in self.selectedComponents:
+                    saveValueStore = comp.savePreset()
+                    f.write('%s\n' % str(comp))
+                    f.write('%s\n' % str(comp.version()))
+                    f.write('%s\n' % Core.presetToString(saveValueStore))
+            return True
+        except:
+            return False
 
     def loadEncoderOptions(self):
         file_path = os.path.join(self.wd, 'encoder-options.json')
@@ -107,12 +412,6 @@ class Core():
 
         return completeAudioArray
 
-    def deleteTempDir(self):
-        try:
-            rmtree(self.tempDir)
-        except FileNotFoundError:
-            pass
-
     def cancel(self):
         self.canceled = True
 
@@ -120,6 +419,22 @@ class Core():
         self.canceled = False
 
     @staticmethod
-    def stringOrderedDict(dictionary):
-        sorted_ = OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
-        return repr(sorted_)
+    def badName(name):
+        '''Returns whether a name contains non-alphanumeric chars'''
+        return any([letter in string.punctuation for letter in name])
+
+    @staticmethod
+    def presetToString(dictionary):
+        '''Alphabetizes a dict into OrderedDict & returns string repr'''
+        return repr(OrderedDict(sorted(dictionary.items(), key=lambda t: t[0])))
+
+    @staticmethod
+    def presetFromString(string):
+        '''Turns a string repr of OrderedDict into a regular dict'''
+        return dict(eval(string))
+
+    @staticmethod
+    def appendUppercase(lst):
+        for form, i in zip(lst, range(len(lst))):
+            lst.append(form.upper())
+        return lst

@@ -9,8 +9,11 @@ from . import __base__
 
 class Component(__base__.Component):
     '''Title Text'''
-    def __init__(self):
-        super().__init__()
+
+    modified = QtCore.pyqtSignal(int, dict)
+
+    def __init__(self, *args):
+        super().__init__(*args)
         self.titleFont = QFont()
 
     def widget(self, parent):
@@ -31,7 +34,7 @@ class Component(__base__.Component):
         page.comboBox_textAlign.addItem("Right")
 
         page.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
-        page.pushButton_textColor.clicked.connect(lambda: self.pickColor())
+        page.pushButton_textColor.clicked.connect(self.pickColor)
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.textColor).name()
         page.pushButton_textColor.setStyleSheet(btnStyle)
@@ -62,6 +65,7 @@ class Component(__base__.Component):
         self.textColor = self.RGBFromString(
             self.page.lineEdit_textColor.text())
         self.parent.drawPreview()
+        super().update()
 
     def getXY(self):
         '''Returns true x, y after considering alignment settings'''
@@ -78,7 +82,9 @@ class Component(__base__.Component):
             x = self.xPosition - offset
         return x, self.yPosition
 
-    def loadPreset(self, pr):
+    def loadPreset(self, pr, presetName=None):
+        super().loadPreset(pr, presetName)
+
         self.page.lineEdit_title.setText(pr['title'])
         font = QFont()
         font.fromString(pr['titleFont'])
@@ -94,6 +100,7 @@ class Component(__base__.Component):
 
     def savePreset(self):
         return {
+            'preset': self.currentPreset,
             'title': self.title,
             'titleFont': self.titleFont.toString(),
             'alignment': self.alignment,
@@ -119,7 +126,7 @@ class Component(__base__.Component):
 
     def addText(self, width, height):
         x, y = self.getXY()
-        im = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        im = self.blankFrame(width, height)
         image = ImageQt(im)
 
         painter = QPainter(image)

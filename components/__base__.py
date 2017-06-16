@@ -1,7 +1,18 @@
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
+from PIL import Image
 
 
-class Component:
+class Component(QtCore.QObject):
+    '''A base class for components to inherit from'''
+
+    # modified = QtCore.pyqtSignal(int, bool)
+
+    def __init__(self, moduleIndex, compPos):
+        super().__init__()
+        self.currentPreset = None
+        self.moduleIndex = moduleIndex
+        self.compPos = compPos
+
     def __str__(self):
         return self.__doc__
 
@@ -10,18 +21,38 @@ class Component:
         return 1
 
     def cancel(self):
-        # make sure your component responds to these variables in frameRender()
+        # please stop any lengthy process in response to this variable
         self.canceled = True
 
     def reset(self):
         self.canceled = False
 
+    def update(self):
+        self.modified.emit(self.compPos, self.savePreset())
+        # read your widget values, then call super().update()
+
+    def loadPreset(self, presetDict, presetName):
+        '''Children should take (presetDict, presetName=None) as args'''
+
+        # Use super().loadPreset(presetDict, presetName)
+        # Then update your widgets using the preset dict
+        self.currentPreset = presetName \
+            if presetName != None else presetDict['preset']
+    '''
+    def savePreset(self):
+        return {}
+    '''
     def preFrameRender(self, **kwargs):
         for var, value in kwargs.items():
             exec('self.%s = value' % var)
 
+    def blankFrame(self, width, height):
+        return Image.new("RGBA", (width, height), (0, 0, 0, 0))
+
     def pickColor(self):
-        color = QtGui.QColorDialog.getColor()
+        dialog = QtGui.QColorDialog()
+        dialog.setOption(QtGui.QColorDialog.ShowAlphaChannel, True)
+        color = dialog.getColor()
         if color.isValid():
             RGBstring = '%s,%s,%s' % (
                 str(color.red()), str(color.green()), str(color.blue()))
@@ -57,7 +88,7 @@ class Component:
         return page
 
     def update(self):
-        # read widget values
+        super().update()
         self.parent.drawPreview()
 
     def previewRender(self, previewWorker):
@@ -71,12 +102,6 @@ class Component:
         height = int(self.worker.core.settings.value('outputHeight'))
         image = Image.new("RGBA", (width, height), (0,0,0,0))
         return image
-
-    def loadPreset(self, presetDict):
-        # update widgets using a preset dict
-
-    def savePreset(self):
-        return {}
 
     def cancel(self):
         self.canceled = True

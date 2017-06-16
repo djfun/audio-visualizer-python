@@ -1,9 +1,8 @@
 import numpy
 from PIL import Image, ImageDraw
-from PyQt4 import uic, QtGui
+from PyQt4 import uic, QtGui, QtCore
 from PyQt4.QtGui import QColor
 import os
-import random
 from . import __base__
 import time
 from copy import copy
@@ -11,6 +10,9 @@ from copy import copy
 
 class Component(__base__.Component):
     '''Original Audio Visualization'''
+
+    modified = QtCore.pyqtSignal(int, dict)
+
     def widget(self, parent):
         self.parent = parent
         self.visColor = (255, 255, 255)
@@ -36,8 +38,11 @@ class Component(__base__.Component):
         self.layout = self.page.comboBox_visLayout.currentIndex()
         self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
         self.parent.drawPreview()
+        super().update()
 
-    def loadPreset(self, pr):
+    def loadPreset(self, pr, presetName=None):
+        super().loadPreset(pr, presetName)
+
         self.page.lineEdit_visColor.setText('%s,%s,%s' % pr['visColor'])
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['visColor']).name()
@@ -46,6 +51,7 @@ class Component(__base__.Component):
 
     def savePreset(self):
         return {
+            'preset': self.currentPreset,
             'layout': self.layout,
             'visColor': self.visColor,
         }
@@ -139,7 +145,7 @@ class Component(__base__.Component):
         bF = width / 64
         bH = bF / 2
         bQ = bF / 4
-        imTop = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        imTop = self.blankFrame(width, height)
         draw = ImageDraw.Draw(imTop)
         r, g, b = color
         color2 = (r, g, b, 125)
@@ -157,7 +163,7 @@ class Component(__base__.Component):
 
         imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
 
-        im = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        im = self.blankFrame(width, height)
 
         if layout == 0:
             y = 0 - int(height/100*43)

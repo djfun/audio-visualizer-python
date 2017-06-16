@@ -5,12 +5,22 @@ import subprocess
 import threading
 from queue import PriorityQueue
 from . import __base__
-        
+
+
 class Video:
     '''Video Component Frame-Fetcher'''
     def __init__(self, **kwargs):
-        mandatoryArgs = ['ffmpeg', 'videoPath', 'width', 'height',
-            'frameRate', 'chunkSize', 'parent']
+        mandatoryArgs = [
+            'ffmpeg',     # path to ffmpeg, usually core.FFMPEG_BIN
+            'videoPath',
+            'width',
+            'height',
+            'scale',      # percentage scale
+            'frameRate',  # frames per second
+            'chunkSize',  # number of bytes in one frame
+            'parent',     # mainwindow object
+            'component',  # component object
+        ]
         for arg in mandatoryArgs:
             try:
                 exec('self.%s = kwargs[arg]' % arg)
@@ -31,7 +41,8 @@ class Video:
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
-            '-filter:v', 'scale='+str(self.width)+':'+str(self.height),
+            '-filter:v', 'scale=%s:%s' %
+                scale(self.scale, self.width, self.height, str),
             '-vcodec', 'rawvideo', '-',
         ]
 
@@ -50,7 +61,9 @@ class Video:
         while True:
             if num in self.finishedFrames:
                 image = self.finishedFrames.pop(num)
-                return Image.frombytes('RGBA', (self.width, self.height), image)
+                return finalizeFrame(
+                    self.component, image, self.width, self.height)
+
             i, image = self.frameBuffer.get()
             self.finishedFrames[i] = image
             self.frameBuffer.task_done()
@@ -78,6 +91,9 @@ class Video:
 
 class Component(__base__.Component):
     '''Video'''
+
+    modified = QtCore.pyqtSignal(int, dict)
+
     def widget(self, parent):
         self.parent = parent
         self.settings = parent.settings
@@ -93,6 +109,10 @@ class Component(__base__.Component):
         page.lineEdit_video.textChanged.connect(self.update)
         page.pushButton_video.clicked.connect(self.pickVideo)
         page.checkBox_loop.stateChanged.connect(self.update)
+        page.checkBox_distort.stateChanged.connect(self.update)
+        page.spinBox_scale.valueChanged.connect(self.update)
+        page.spinBox_x.valueChanged.connect(self.update)
+        page.spinBox_y.valueChanged.connect(self.update)
 
         self.page = page
         return page
@@ -100,15 +120,21 @@ class Component(__base__.Component):
     def update(self):
         self.videoPath = self.page.lineEdit_video.text()
         self.loopVideo = self.page.checkBox_loop.isChecked()
+        self.distort = self.page.checkBox_distort.isChecked()
+        self.scale = self.page.spinBox_scale.value()
+        self.xPosition = self.page.spinBox_x.value()
+        self.yPosition = self.page.spinBox_y.value()
         self.parent.drawPreview()
+        super().update()
 
     def previewRender(self, previewWorker):
+        self.videoFormats = previewWorker.core.videoFormats
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
-        self.chunkSize = 4*width*height
+        self.updateChunksize(width, height)
         frame = self.getPreviewFrame(width, height)
         if not frame:
-            return Image.new("RGBA", (width, height), (0, 0, 0, 0))
+            return self.blankFrame(width, height)
         else:
             return frame
 
@@ -116,32 +142,49 @@ class Component(__base__.Component):
         super().preFrameRender(**kwargs)
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
-        self.chunkSize = 4*width*height
+        self.blankFrame_ = self.blankFrame(width, height)
+        self.updateChunksize(width, height)
         self.video = Video(
             ffmpeg=self.parent.core.FFMPEG_BIN, videoPath=self.videoPath,
             width=width, height=height, chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
-            parent=self.parent, loopVideo=self.loopVideo
-        )
+            parent=self.parent, loopVideo=self.loopVideo,
+            component=self, scale=self.scale
+        ) if os.path.exists(self.videoPath) else None
 
     def frameRender(self, moduleNo, arrayNo, frameNo):
-        return self.video.frame(frameNo)
+        if self.video:
+            return self.video.frame(frameNo)
+        else:
+            return self.blankFrame_
 
-    def loadPreset(self, pr):
+    def loadPreset(self, pr, presetName=None):
+        super().loadPreset(pr, presetName)
         self.page.lineEdit_video.setText(pr['video'])
+        self.page.checkBox_loop.setChecked(pr['loop'])
+        self.page.checkBox_distort.setChecked(pr['distort'])
+        self.page.spinBox_scale.setValue(pr['scale'])
+        self.page.spinBox_x.setValue(pr['x'])
+        self.page.spinBox_y.setValue(pr['y'])
 
     def savePreset(self):
         return {
+            'preset': self.currentPreset,
             'video': self.videoPath,
+            'loop': self.loopVideo,
+            'distort': self.distort,
+            'scale': self.scale,
+            'x': self.xPosition,
+            'y': self.yPosition,
         }
 
     def pickVideo(self):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
         filename = QtGui.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
-            imgDir, "Video Files (*.mp4 *.mov)"
+            imgDir, "Video Files (%s)" % " ".join(self.videoFormats)
         )
-        if filename: 
+        if filename:
             self.settings.setValue("backgroundDir", os.path.dirname(filename))
             self.page.lineEdit_video.setText(filename)
             self.update()
@@ -149,13 +192,15 @@ class Component(__base__.Component):
     def getPreviewFrame(self, width, height):
         if not self.videoPath or not os.path.exists(self.videoPath):
             return
+
         command = [
             self.parent.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
-            '-filter:v', 'scale='+str(width)+':'+str(height),
+            '-filter:v', 'scale=%s:%s' %
+                scale(self.scale, width, height, str),
             '-vcodec', 'rawvideo', '-',
             '-ss', '90',
             '-vframes', '1',
@@ -165,7 +210,47 @@ class Component(__base__.Component):
             stderr=subprocess.DEVNULL, bufsize=10**8
         )
         byteFrame = pipe.stdout.read(self.chunkSize)
-        image = Image.frombytes('RGBA', (width, height), byteFrame)
+        frame = finalizeFrame(self, byteFrame, width, height)
         pipe.stdout.close()
         pipe.kill()
-        return image
+
+        return frame
+
+    def updateChunksize(self, width, height):
+        if self.scale != 100 and not self.distort:
+            width, height = scale(self.scale, width, height, int)
+        self.chunkSize = 4*width*height
+
+def scale(scale, width, height, returntype=None):
+    width = (float(width) / 100.0) * float(scale)
+    height = (float(height) / 100.0) * float(scale)
+    if returntype == str:
+        return (str(int(width)), str(int(height)))
+    elif returntype == int:
+        return (int(width), int(height))
+    else:
+        return (width, height)
+
+def finalizeFrame(self, imageData, width, height):
+    if self.distort:
+        try:
+            image = Image.frombytes(
+                'RGBA',
+                (width, height),
+                imageData)
+        except ValueError:
+            print('#### ignored invalid data caused by distortion ####')
+            image = self.blankFrame(width, height)
+    else:
+        image = Image.frombytes(
+            'RGBA',
+            scale(self.scale, width, height, int),
+            imageData)
+
+    if self.scale != 100 \
+        or self.xPosition != 0 or self.yPosition != 0:
+        frame = self.blankFrame(width, height)
+        frame.paste(image, box=(self.xPosition, self.yPosition))
+    else:
+        frame = image
+    return frame
