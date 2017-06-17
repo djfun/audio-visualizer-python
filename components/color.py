@@ -62,6 +62,7 @@ class Component(__base__.Component):
             page.comboBox_fill.addItem(label)
         page.comboBox_fill.setCurrentIndex(0)
         page.comboBox_fill.currentIndexChanged.connect(self.update)
+        page.comboBox_spread.currentIndexChanged.connect(self.update)
         page.spinBox_radialGradient_end.valueChanged.connect(self.update)
         page.spinBox_radialGradient_start.valueChanged.connect(self.update)
         page.spinBox_radialGradient_spread.valueChanged.connect(self.update)
@@ -80,10 +81,11 @@ class Component(__base__.Component):
         self.sizeWidth = self.page.spinBox_width.value()
         self.sizeHeight = self.page.spinBox_height.value()
         self.trans = self.page.checkBox_trans.isChecked()
+        self.spread = self.page.comboBox_spread.currentIndex()
 
         self.RG_start = self.page.spinBox_radialGradient_start.value()
         self.RG_end = self.page.spinBox_radialGradient_end.value()
-        self.RG_spread = self.page.spinBox_radialGradient_spread.value()
+        self.RG_centre = self.page.spinBox_radialGradient_spread.value()
         self.stretch = self.page.checkBox_stretch.isChecked()
         self.LG_start = self.page.spinBox_linearGradient_start.value()
         self.LG_end = self.page.spinBox_linearGradient_end.value()
@@ -146,19 +148,23 @@ class Component(__base__.Component):
         if self.fillType == 1:  # Linear Gradient
             brush = QtGui.QLinearGradient(
                 self.LG_start,
-                self.LG_end,
-                w, h)
+                self.LG_start,
+                self.LG_start+width/3,
+                self.LG_end)
 
         elif self.fillType == 2:  # Radial Gradient
             brush = QtGui.QRadialGradient(
                 self.RG_start,
                 self.RG_end,
                 w, h,
-                self.RG_spread)
+                self.RG_centre)
 
+        brush.setSpread(self.spread)
         brush.setColorAt(0.0, QColor(*self.color1))
         if self.trans:
             brush.setColorAt(1.0, QColor(0, 0, 0, 0))
+        elif self.fillType == 1 and self.stretch:
+            brush.setColorAt(0.2, QColor(*self.color2))
         else:
             brush.setColorAt(1.0, QColor(*self.color2))
         painter.setBrush(brush)
@@ -182,10 +188,11 @@ class Component(__base__.Component):
 
         self.page.spinBox_radialGradient_start.setValue(pr['RG_start'])
         self.page.spinBox_radialGradient_end.setValue(pr['RG_end'])
-        self.page.spinBox_radialGradient_spread.setValue(pr['RG_spread'])
+        self.page.spinBox_radialGradient_spread.setValue(pr['RG_centre'])
         self.page.spinBox_linearGradient_start.setValue(pr['LG_start'])
         self.page.spinBox_linearGradient_end.setValue(pr['LG_end'])
         self.page.checkBox_stretch.setChecked(pr['stretch'])
+        self.page.comboBox_spread.setCurrentIndex(pr['spread'])
 
         btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['color1']).name()
@@ -205,10 +212,11 @@ class Component(__base__.Component):
             'width': self.sizeWidth,
             'height': self.sizeHeight,
             'trans': self.trans,
+            'stretch': self.stretch,
+            'spread': self.spread,
             'RG_start': self.RG_start,
             'RG_end': self.RG_end,
-            'RG_spread': self.RG_spread,
-            'stretch': self.stretch,
+            'RG_centre': self.RG_centre,
             'LG_start': self.LG_start,
             'LG_end': self.LG_end,
         }

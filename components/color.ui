@@ -395,6 +395,25 @@
         </widget>
        </item>
        <item>
+        <widget class="QComboBox" name="comboBox_spread">
+         <item>
+          <property name="text">
+           <string>Pad</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Reflect</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Repeat</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
         <spacer name="horizontalSpacer_2">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -589,7 +608,7 @@
                </sizepolicy>
               </property>
               <property name="text">
-               <string>Spread</string>
+               <string>Centre</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -602,10 +621,10 @@
                <enum>QAbstractSpinBox::PlusMinus</enum>
               </property>
               <property name="minimum">
-               <number>1</number>
+               <number>-10000</number>
               </property>
               <property name="maximum">
-               <number>20</number>
+               <number>10000</number>
               </property>
               <property name="value">
                <number>3</number>
