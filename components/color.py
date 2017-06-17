@@ -96,11 +96,13 @@ class Component(__base__.Component):
             self.page.pushButton_color2.setEnabled(False)
             self.page.checkBox_trans.setEnabled(False)
             self.page.checkBox_stretch.setEnabled(False)
+            self.page.comboBox_spread.setEnabled(False)
         else:
             self.page.lineEdit_color2.setEnabled(True)
             self.page.pushButton_color2.setEnabled(True)
             self.page.checkBox_trans.setEnabled(True)
             self.page.checkBox_stretch.setEnabled(True)
+            self.page.comboBox_spread.setEnabled(True)
         self.page.fillWidget.setCurrentIndex(self.fillType)
 
         self.parent.drawPreview()

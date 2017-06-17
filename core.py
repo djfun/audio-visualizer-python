@@ -79,6 +79,8 @@ class Core():
     def insertComponent(self, compPos, moduleIndex):
         if compPos < 0:
             compPos = len(self.selectedComponents) -1
+        if len(self.selectedComponents) > 50:
+            return None
 
         component = self.modules[moduleIndex].Component(
             moduleIndex, compPos)
@@ -98,6 +100,10 @@ class Core():
 
     def removeComponent(self, i):
         self.selectedComponents.pop(i)
+        self.componentListChanged()
+
+    def clearComponents(self):
+        self.selectedComponents = list()
         self.componentListChanged()
 
     def updateComponent(self, i):
@@ -164,24 +170,27 @@ class Core():
                             clearThis = True
 
                     # insert component into the loader
-                    loader.insertComponent(
+                    i = loader.insertComponent(
                         self.moduleIndexFor(name), -1)
+                    if i == None:
+                        break
+
                     try:
                         if 'preset' in preset and preset['preset'] != None:
-                            self.selectedComponents[-1].loadPreset(
+                            self.selectedComponents[i].loadPreset(
                                 preset
                             )
                         else:
-                            self.selectedComponents[-1].loadPreset(
+                            self.selectedComponents[i].loadPreset(
                                 preset,
                                 preset['preset']
                             )
                     except KeyError as e:
                         print('%s missing value %s' %
-                            (self.selectedComponents[-1], e))
+                            (self.selectedComponents[i], e))
 
                     if clearThis:
-                        self.clearPreset(-1, loader)
+                        self.clearPreset(i, loader)
             except:
                 errcode = 1
                 data = sys.exc_info()

@@ -102,7 +102,6 @@ class MainWindow(QtCore.QObject):
             self.createAudioVisualisation)
 
         window.pushButton_Cancel.clicked.connect(self.stopVideo)
-        window.setWindowTitle("Audio Visualizer")
 
         for i, container in enumerate(self.core.encoder_options['containers']):
             window.comboBox_videoContainer.addItem(container['name'])
@@ -212,7 +211,7 @@ class MainWindow(QtCore.QObject):
         # Show the window and load current project
         window.show()
         self.currentProject = self.settings.value("currentProject")
-        if self.autosaveExists():
+        if self.autosaveExists(identical=True):
             # delete autosave if it's identical to the project
             os.remove(self.autosavePath)
 
@@ -222,12 +221,10 @@ class MainWindow(QtCore.QObject):
                 % os.path.basename(self.currentProject)[:-4],
                 showCancel=True)
             if ch:
-                os.remove(self.currentProject)
-                os.rename(self.autosavePath, self.currentProject)
+                self.saveProjectChanges()
             else:
                 os.remove(self.autosavePath)
-
-        self.openProject(self.currentProject)
+        self.openProject(self.currentProject, prompt=False)
         self.drawPreview()
 
     def cleanUp(self):
@@ -235,6 +232,13 @@ class MainWindow(QtCore.QObject):
         self.previewThread.quit()
         self.previewThread.wait()
         self.autosave()
+
+    def updateWindowTitle(self):
+        appName = 'Audio Visualizer'
+        if self.currentProject:
+            appName += ' - %s' % \
+                os.path.basename(self.currentProject)[:-4]
+        self.window.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
     def updateComponentTitle(self, pos, presetStore=False):
@@ -290,22 +294,24 @@ class MainWindow(QtCore.QObject):
         self.settings.setValue('outputVideoBitrate', currentVideoBitrate)
         self.settings.setValue('outputAudioBitrate', currentAudioBitrate)
 
-    def autosave(self):
+    def autosave(self, force=False):
         if not self.currentProject:
             if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
-        elif time.time() - self.lastAutosave >= 2.0:
+        elif force or time.time() - self.lastAutosave >= 2.0:
             self.core.createProjectFile(self.autosavePath)
             self.lastAutosave = time.time()
 
-    def autosaveExists(self):
+    def autosaveExists(self, identical=True):
         if self.currentProject and os.path.exists(self.autosavePath) \
-            and filecmp.cmp(self.autosavePath, self.currentProject):
-            with open(self.autosavePath, 'r') as f:
-                p = [line for line in f]
-            return True if len(p) > 1 else False
-        else:
-            return False
+            and filecmp.cmp(
+                self.autosavePath, self.currentProject) == identical:
+            return True
+        return False
+
+    def saveProjectChanges(self):
+        os.remove(self.currentProject)
+        os.rename(self.autosavePath, self.currentProject)
 
     def openInputFileDialog(self):
         inputDir = self.settings.value("inputDir", expanduser("~"))
@@ -417,10 +423,10 @@ class MainWindow(QtCore.QObject):
         self.settings.setValue('outputHeight', res[1])
         self.drawPreview()
 
-    def drawPreview(self):
+    def drawPreview(self, force=False):
         self.newTask.emit(self.core.selectedComponents)
         # self.processTask.emit()
-        self.autosave()
+        self.autosave(force)
 
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
@@ -433,6 +439,10 @@ class MainWindow(QtCore.QObject):
 
         index = self.core.insertComponent(
             compPos, moduleIndex)
+        if index == None:
+            self.showMessage(msg="Too many components!")
+            return None
+
         row = componentList.insertItem(
             index,
             self.core.selectedComponents[index].__doc__)
@@ -447,6 +457,7 @@ class MainWindow(QtCore.QObject):
         stackedWidget.setCurrentIndex(index)
 
         self.core.updateComponent(index)
+        return index
 
     def removeComponent(self):
         componentList = self.window.listWidget_componentList
@@ -514,32 +525,40 @@ class MainWindow(QtCore.QObject):
 
     def clear(self):
         '''Get a blank slate'''
-        self.core.selectedComponents = []
+        self.core.clearComponents()
         self.window.listWidget_componentList.clear()
         for widget in self.pages:
             self.window.stackedWidget.removeWidget(widget)
         self.pages = []
 
     def createNewProject(self):
-        if self.autosaveExists():
-            ch = self.showMessage(
-                msg="You have unsaved changes in project '%s'. "
-                "Save before starting a new project?"
-                % os.path.basename(self.currentProject)[:-4],
-                showCancel=True)
-            if ch:
-                self.saveCurrentProject()
+        self.openSaveChangesDialog('starting a new project')
 
         self.clear()
         self.currentProject = None
         self.settings.setValue("currentProject", None)
-        self.drawPreview()
+        self.drawPreview(True)
+        self.updateWindowTitle()
 
     def saveCurrentProject(self):
         if self.currentProject:
             self.core.createProjectFile(self.currentProject)
         else:
             self.openSaveProjectDialog()
+
+    def openSaveChangesDialog(self, phrase):
+        if self.autosaveExists(identical=False):
+            ch = self.showMessage(
+                msg="You have unsaved changes in project '%s'. "
+                "Save before %s?" % \
+                    (os.path.basename(self.currentProject)[:-4],
+                    phrase),
+                showCancel=True)
+            if ch:
+                self.saveProjectChanges()
+
+        if os.path.exists(self.autosavePath):
+            os.remove(self.autosavePath)
 
     def openSaveProjectDialog(self):
         filename = QtGui.QFileDialog.getSaveFileName(
@@ -553,7 +572,7 @@ class MainWindow(QtCore.QObject):
         self.settings.setValue("projectDir", os.path.dirname(filename))
         self.settings.setValue("currentProject", filename)
         self.currentProject = filename
-
+        self.updateWindowTitle()
         self.core.createProjectFile(filename)
 
     def openOpenProjectDialog(self):
@@ -563,16 +582,27 @@ class MainWindow(QtCore.QObject):
             "Project Files (*.avp)")
         self.openProject(filename)
 
-    def openProject(self, filepath):
+    def openProject(self, filepath, prompt=True):
+        print('opening', filepath)
         if not filepath or not os.path.exists(filepath) \
           or not filepath.endswith('.avp'):
+            self.updateWindowTitle()
             return
+
         self.clear()
+        # ask to save any changes that are about to get deleted
+        if prompt:
+            self.openSaveChangesDialog('opening another project')
+
         self.currentProject = filepath
+        self.updateWindowTitle()
         self.settings.setValue("currentProject", filepath)
         self.settings.setValue("projectDir", os.path.dirname(filepath))
         # actually load the project using core method
         self.core.openProject(self, filepath)
+        if self.window.listWidget_componentList.count() == 0:
+            self.drawPreview()
+        self.autosave(True)
 
     def showMessage(self, **kwargs):
         parent = kwargs['parent'] if 'parent' in kwargs else self.window
