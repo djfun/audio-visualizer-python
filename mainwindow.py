@@ -1,4 +1,3 @@
-from os.path import expanduser
 from queue import Queue
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, Qt
@@ -189,11 +188,15 @@ class MainWindow(QtCore.QObject):
 
         # Configure the Projects Menu
         self.projectMenu = QMenu()
-        self.ui_newProject = self.projectMenu.addAction("New Project")
-        self.ui_newProject.triggered[()].connect(self.createNewProject)
+        self.window.menuButton_newProject = self.projectMenu.addAction(
+            "New Project")
+        self.window.menuButton_newProject.triggered[()].connect(
+            self.createNewProject)
 
-        self.ui_openProject = self.projectMenu.addAction("Open Project")
-        self.ui_openProject.triggered[()].connect(self.openOpenProjectDialog)
+        self.window.menuButton_openProject = self.projectMenu.addAction(
+            "Open Project")
+        self.window.menuButton_openProject.triggered[()].connect(
+            self.openOpenProjectDialog)
 
         action = self.projectMenu.addAction("Save Project")
         action.triggered[()].connect(self.saveCurrentProject)
@@ -314,18 +317,18 @@ class MainWindow(QtCore.QObject):
         os.rename(self.autosavePath, self.currentProject)
 
     def openInputFileDialog(self):
-        inputDir = self.settings.value("inputDir", expanduser("~"))
+        inputDir = self.settings.value("inputDir", os.path.expanduser("~"))
 
         fileName = QtGui.QFileDialog.getOpenFileName(
-            self.window, "Open Music File",
-            inputDir, "Music Files (%s)" % " ".join(self.core.audioFormats))
+            self.window, "Open Audio File",
+            inputDir, "Audio Files (%s)" % " ".join(self.core.audioFormats))
 
         if not fileName == "":
             self.settings.setValue("inputDir", os.path.dirname(fileName))
             self.window.lineEdit_audioFile.setText(fileName)
 
     def openOutputFileDialog(self):
-        outputDir = self.settings.value("outputDir", expanduser("~"))
+        outputDir = self.settings.value("outputDir", os.path.expanduser("~"))
 
         fileName = QtGui.QFileDialog.getSaveFileName(
             self.window, "Set Output Video File",
@@ -347,7 +350,6 @@ class MainWindow(QtCore.QObject):
           self.window.lineEdit_outputFile.text():
             self.canceled = False
             self.progressBarUpdated(-1)
-            ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
             self.videoThread = QtCore.QThread(self)
             self.videoWorker = video_thread.Worker(self)
             self.videoWorker.moveToThread(self.videoThread)
@@ -358,9 +360,13 @@ class MainWindow(QtCore.QObject):
             self.videoWorker.imageCreated.connect(self.showPreviewImage)
             self.videoWorker.encoding.connect(self.changeEncodingStatus)
             self.videoThread.start()
+            outputPath = self.window.lineEdit_outputFile.text()
+            if not os.path.dirname(outputPath):
+                outputPath = os.path.join(
+                    os.path.expanduser("~"), outputPath)
             self.videoTask.emit(
                 self.window.lineEdit_audioFile.text(),
-                self.window.lineEdit_outputFile.text(),
+                outputPath,
                 self.core.selectedComponents)
         else:
             self.showMessage(
@@ -384,8 +390,8 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_listMoveDown.setEnabled(False)
             self.window.pushButton_listMoveUp.setEnabled(False)
             self.window.listWidget_componentList.setEnabled(False)
-            self.ui_newProject.setEnabled(False)
-            self.ui_openProject.setEnabled(False)
+            self.window.menuButton_newProject.setEnabled(False)
+            self.window.menuButton_openProject.setEnabled(False)
         else:
             self.window.pushButton_createVideo.setEnabled(True)
             self.window.pushButton_Cancel.setEnabled(False)
@@ -403,8 +409,8 @@ class MainWindow(QtCore.QObject):
             self.window.pushButton_listMoveDown.setEnabled(True)
             self.window.pushButton_listMoveUp.setEnabled(True)
             self.window.listWidget_componentList.setEnabled(True)
-            self.ui_newProject.setEnabled(True)
-            self.ui_openProject.setEnabled(True)
+            self.window.menuButton_newProject.setEnabled(True)
+            self.window.menuButton_openProject.setEnabled(True)
 
     def progressBarUpdated(self, value):
         self.window.progressBar_createVideo.setValue(value)

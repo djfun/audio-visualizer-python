@@ -116,6 +116,7 @@ class Worker(QtCore.QObject):
         for cont in options['containers']:
             if cont['name'] == containerName:
                 container = cont['container']
+                break
 
         vencoders = options['video-codecs'][vcodec]
         aencoders = options['audio-codecs'][acodec]
@@ -222,13 +223,15 @@ class Worker(QtCore.QObject):
         if not self.canceled:
             for i in range(0, len(self.completeAudioArray), self.sampleSize):
                 while True:
-                    if i in frameBuffer:
+                    if i in frameBuffer or self.canceled:
                         # if frame's in buffer, pipe it to ffmpeg
                         break
                     # else fetch the next frame & add to the buffer
                     data = self.renderQueue.get()
                     frameBuffer[data[0]] = data[1]
                     self.renderQueue.task_done()
+                if self.canceled:
+                    break
 
                 try:
                     self.out_pipe.stdin.write(frameBuffer[i].tobytes())
