@@ -301,7 +301,9 @@ class MainWindow(QtCore.QObject):
     def autosaveExists(self):
         if self.currentProject and os.path.exists(self.autosavePath) \
             and filecmp.cmp(self.autosavePath, self.currentProject):
-            return True
+            with open(self.autosavePath, 'r') as f:
+                p = [line for line in f]
+            return True if len(p) > 1 else False
         else:
             return False
 
