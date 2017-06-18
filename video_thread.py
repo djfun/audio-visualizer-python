@@ -27,7 +27,6 @@ class Worker(QtCore.QObject):
         self.core = core.Core()
         self.core.settings = parent.settings
         self.modules = parent.core.modules
-        self.stackedWidget = parent.window.stackedWidget
         self.parent = parent
         parent.videoTask.connect(self.createVideo)
         self.sampleSize = 1470
@@ -280,7 +279,6 @@ class Worker(QtCore.QObject):
 
         self.error = False
         self.canceled = False
-        self.parent.drawPreview()
         self.stopped = True
         self.encoding.emit(False)
         self.videoCreated.emit()

@@ -37,6 +37,7 @@ class Core():
             '*.wav',
             '*.ogg',
             '*.fla',
+            '*.flac',
             '*.aac',
         ])
         self.imageFormats = Core.appendUppercase([
@@ -76,9 +77,10 @@ class Core():
         for i, component in enumerate(self.selectedComponents):
             component.compPos = i
 
-    def insertComponent(self, compPos, moduleIndex):
+    def insertComponent(self, compPos, moduleIndex, loader):
+        '''Creates a new component'''
         if compPos < 0:
-            compPos = len(self.selectedComponents) -1
+            compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
             return None
 
@@ -87,8 +89,14 @@ class Core():
         self.selectedComponents.insert(
             compPos,
             component)
-
         self.componentListChanged()
+
+        # init component's widget for loading/saving presets
+        self.selectedComponents[compPos].widget(loader)
+        self.updateComponent(compPos)
+
+        if hasattr(loader, 'insertComponent'):
+            loader.insertComponent(compPos)
         return compPos
 
     def moveComponent(self, startI, endI):
@@ -115,11 +123,8 @@ class Core():
         index = compNames.index(compName)
         return self.moduleIndexes[index]
 
-    def clearPreset(self, compIndex, loader=None):
-        '''Clears a preset from a component'''
+    def clearPreset(self, compIndex):
         self.selectedComponents[compIndex].currentPreset = None
-        if loader:
-            loader.updateComponentTitle(compIndex)
 
     def openPreset(self, filepath, compIndex, presetName):
         '''Applies a preset to a specific component'''
@@ -148,9 +153,10 @@ class Core():
         return saveValueStore
 
     def openProject(self, loader, filepath):
-        '''loader is the object calling this method (mainwindow/command)
-        which implements an insertComponent method'''
+        '''loader is the object calling this method which must have
+        its own showMessage(**kwargs) method for displaying errors'''
         errcode, data = self.parseAvFile(filepath)
+        print(data)
         if errcode == 0:
             try:
                 for i, tup in enumerate(data['Components']):
@@ -169,10 +175,13 @@ class Core():
                             # saved preset was renamed or deleted
                             clearThis = True
 
-                    # insert component into the loader
-                    i = loader.insertComponent(
-                        self.moduleIndexFor(name), -1)
+                    # create the actual component object & get its index
+                    i = self.insertComponent(
+                        -1,
+                        self.moduleIndexFor(name),
+                        loader)
                     if i == None:
+                        loader.showMessage(msg="Too many components!")
                         break
 
                     try:
@@ -190,7 +199,9 @@ class Core():
                             (self.selectedComponents[i], e))
 
                     if clearThis:
-                        self.clearPreset(i, loader)
+                        self.clearPreset(i)
+                    if hasattr(loader, 'updateComponentTitle'):
+                        loader.updateComponentTitle(i)
             except:
                 errcode = 1
                 data = sys.exc_info()
@@ -202,7 +213,8 @@ class Core():
                 # probably just an old version, still loadable
                 print('file missing value: %s' % value)
                 return
-            loader.createNewProject()
+            if hasattr(loader, 'createNewProject'):
+                loader.createNewProject()
             msg = '%s: %s' % (typ.__name__, value)
             loader.showMessage(
                 msg="Project file '%s' is corrupted." % filepath,

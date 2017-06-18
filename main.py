@@ -1,8 +1,5 @@
-from importlib import import_module
 from PyQt4 import QtGui, uic
-from PyQt4.QtCore import Qt
 import sys
-import io
 import os
 import atexit
 import signal
@@ -10,7 +7,6 @@ import signal
 import core
 import preview_thread
 import video_thread
-from mainwindow import *
 
 
 def LoadDefaultSettings(self):
@@ -36,34 +32,50 @@ def LoadDefaultSettings(self):
     }
 
     for parm, value in default.items():
+        print(parm, self.settings.value(parm))
         if self.settings.value(parm) is None:
             self.settings.setValue(parm, value)
 
 if __name__ == "__main__":
-    ''' FIXME commandline functionality broken until we decide how to implement
-    if len(sys.argv) > 1:
-    # command line mode
-    app = QtGui.QApplication(sys.argv, False)
-    command = Command()
-    signal.signal(signal.SIGINT, command.cleanUp)
-    sys.exit(app.exec_())
+    mode = 'gui'
+    if len(sys.argv) > 2:
+        mode = 'cmd'
+
+    elif len(sys.argv) == 2:
+        if sys.argv[1].startswith('-'):
+            mode = 'cmd'
+        else:
+            # opening a project file with gui
+            proj = sys.argv[1]
     else:
-    '''
+        # normal gui launch
+        proj = None
+
     app = QtGui.QApplication(sys.argv)
     app.setApplicationName("audio-visualizer")
     app.setOrganizationName("audio-visualizer")
-    window = uic.loadUi(os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "mainwindow.ui"))
-    # window.adjustSize()
-    desc = QtGui.QDesktopWidget()
-    dpi = desc.physicalDpiX()
 
-    topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
-    window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
-    # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
+    if mode == 'cmd':
+        from command import *
 
-    main = MainWindow(window)
+        main = Command()
 
+    elif mode == 'gui':
+        from mainwindow import *
+
+        window = uic.loadUi(os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "mainwindow.ui"))
+        # window.adjustSize()
+        desc = QtGui.QDesktopWidget()
+        dpi = desc.physicalDpiX()
+
+        topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
+        window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
+        # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
+
+        main = MainWindow(window, proj)
+
+    # applicable to both modes
     signal.signal(signal.SIGINT, main.cleanUp)
     atexit.register(main.cleanUp)
 
