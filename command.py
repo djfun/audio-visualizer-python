@@ -18,16 +18,27 @@ class Command(QtCore.QObject):
         self.dataDir = self.core.dataDir
 
         self.parser = argparse.ArgumentParser(
-            description='Create a visualization for an audio file')
+            description='Create a visualization for an audio file',
+            epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
+                '-i ~/Music/song.mp3 -o ~/video.mp4 '
+                '-c 0 image ~/Pictures/thisWeeksPicture.jpg '
+                '-c 1 vis classic')
         self.parser.add_argument(
-            '-i', '--input', help='input audio file', required=True)
+            '-i', '--input', metavar='SOUND',
+            help='input audio file', required=True)
         self.parser.add_argument(
-            '-o', '--output', help='output video file', required=True)
+            '-o', '--output', metavar='OUTPUT',
+            help='output video file', required=True)
 
         # optional arguments
         self.parser.add_argument(
             'projpath', metavar='path-to-project',
             help='open a project file (.avp)', nargs='?')
+        self.parser.add_argument(
+            '-c', '--comp', metavar=('LAYER', 'NAME', 'ARG'),
+            help='create/edit component NAME at LAYER.'
+            '"help" for information about possible args', nargs=3,
+            action='append')
 
         '''
         self.parser.add_argument(
@@ -66,6 +77,16 @@ class Command(QtCore.QObject):
         if self.args.projpath:
             self.core.openProject(self, self.args.projpath)
 
+        if self.args.comp:
+            for comp in self.args.comp:
+                pos, name, arg = comp
+                realName = self.parseCompName(name)
+                if not realName:
+                    print(name, 'is not a valid component name.')
+                    quit()
+                modI = self.core.moduleIndexFor(realName)
+                self.core.insertComponent(int(pos), modI, self)
+
         self.createAudioVisualisation()
 
     def createAudioVisualisation(self):
@@ -95,3 +116,23 @@ class Command(QtCore.QObject):
 
     def cleanUp(self, *args):
         pass
+
+    def parseCompName(self, name):
+        '''Deduces a proper component name out of a commandline arg'''
+        compFileNames = [ \
+            os.path.splitext(os.path.basename(
+                mod.__file__))[0] \
+            for mod in self.core.modules \
+        ]
+
+        if name.title() in self.core.compNames:
+            return name.title()
+        for compName in self.core.compNames:
+            if name.capitalize() in compName:
+                return compName
+        for i, compFileName in enumerate(compFileNames):
+            if name.lower() in compFileName:
+                return self.core.compNames[i]
+            return
+
+        return None

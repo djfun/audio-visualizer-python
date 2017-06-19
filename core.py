@@ -72,6 +72,7 @@ class Core():
             for name in findComponents()
         ]
         self.moduleIndexes = [i for i in range(len(self.modules))]
+        self.compNames = [mod.Component.__doc__ for mod in self.modules]
 
     def componentListChanged(self):
         for i, component in enumerate(self.selectedComponents):
@@ -119,8 +120,7 @@ class Core():
         self.selectedComponents[i].update()
 
     def moduleIndexFor(self, compName):
-        compNames = [mod.Component.__doc__ for mod in self.modules]
-        index = compNames.index(compName)
+        index = self.compNames.index(compName)
         return self.moduleIndexes[index]
 
     def clearPreset(self, compIndex):
