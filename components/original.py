@@ -183,3 +183,15 @@ class Component(__base__.Component):
 
         return im
 
+    def command(self, arg):
+        if not arg.startswith('preset='):
+            if arg == 'classic':
+                self.layout = 0; return
+            elif arg == 'split':
+                self.layout = 1; return
+            elif arg == 'bottom':
+                self.layout = 2; return
+        super().command(arg)
+
+    def commandHelp(self):
+        print('Give a layout name: classic, split, or bottom')

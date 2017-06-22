@@ -29,7 +29,7 @@ class Worker(QtCore.QObject):
         self.modules = parent.core.modules
         self.parent = parent
         parent.videoTask.connect(self.createVideo)
-        self.sampleSize = 1470
+        self.sampleSize = 1470  # 44100 / 30 = 1470
         self.canceled = False
         self.error = False
         self.stopped = False
@@ -99,7 +99,8 @@ class Worker(QtCore.QObject):
 
         # test if user has libfdk_aac
         encoders = sp.check_output(
-            self.core.FFMPEG_BIN + " -encoders -hide_banner", shell=True)
+            self.core.FFMPEG_BIN + " -encoders -hide_banner",
+            shell=True)
 
         encoders = encoders.decode("utf-8")
 
@@ -120,15 +121,15 @@ class Worker(QtCore.QObject):
         vencoders = options['video-codecs'][vcodec]
         aencoders = options['audio-codecs'][acodec]
 
-        print(encoders)
+        #print(encoders)
         for encoder in vencoders:
-            print(encoder)
+            #print(encoder)
             if encoder in encoders:
                 vencoder = encoder
                 break
 
         for encoder in aencoders:
-            print(encoder)
+            #print(encoder)
             if encoder in encoders:
                 aencoder = encoder
                 break
@@ -161,16 +162,15 @@ class Worker(QtCore.QObject):
             ffmpegCommand.append('-2')
 
         ffmpegCommand.append(outputFile)
-        self.out_pipe = sp.Popen(
-            ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout)
 
-        # create video for output
+        # ### Now start creating video for output ###
         numpy.seterr(divide='ignore')
 
-        # initialize components
-        print('loaded components:',
-              ["%s%s" % (num, str(component)) for num,
-               component in enumerate(self.components)])
+        # Call preFrameRender on all components
+        print('Loaded Components:', ", ".join(
+            ["%s) %s" % (num, str(component)) \
+                for num, component in enumerate(reversed(self.components))
+            ]))
         self.staticComponents = {}
         numComps = len(self.components)
         for compNo, comp in enumerate(self.components):
@@ -190,14 +190,17 @@ class Worker(QtCore.QObject):
                     comp.frameRender(compNo, 0, 0))
             self.progressBarUpdate.emit(100)
 
+        # Create ffmpeg pipe and queues for frames
+        self.out_pipe = sp.Popen(
+            ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout)
         self.compositeQueue = Queue()
         self.compositeQueue.maxsize = 20
         self.renderQueue = PriorityQueue()
         self.renderQueue.maxsize = 20
         self.previewQueue = PriorityQueue()
 
-        self.renderThreads = []
         # Threads to render frames and send them back here for piping out
+        self.renderThreads = []
         for i in range(3):
             self.renderThreads.append(
                 Thread(target=self.renderNode, name="Render Thread"))

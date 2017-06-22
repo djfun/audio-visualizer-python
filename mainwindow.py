@@ -597,7 +597,6 @@ class MainWindow(QtCore.QObject):
         self.openProject(filename)
 
     def openProject(self, filepath, prompt=True):
-        print('opening', filepath)
         if not filepath or not os.path.exists(filepath) \
           or not filepath.endswith('.avp'):
             self.updateWindowTitle()

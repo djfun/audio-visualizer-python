@@ -86,7 +86,7 @@ class Core():
             return None
 
         component = self.modules[moduleIndex].Component(
-            moduleIndex, compPos)
+            moduleIndex, compPos, self)
         self.selectedComponents.insert(
             compPos,
             component)
@@ -142,6 +142,10 @@ class Core():
         self.savedPresets[presetName] = dict(saveValueStore)
         return True
 
+    def getPresetDir(self, comp):
+        return os.path.join(
+            self.presetDir, str(comp), str(comp.version()))
+
     def getPreset(self, filepath):
         '''Returns the preset dict stored at this filepath'''
         if not os.path.exists(filepath):
@@ -153,10 +157,11 @@ class Core():
         return saveValueStore
 
     def openProject(self, loader, filepath):
-        '''loader is the object calling this method which must have
-        its own showMessage(**kwargs) method for displaying errors'''
+        ''' loader is the object calling this method which must have
+        its own showMessage(**kwargs) method for displaying errors.
+        '''
         errcode, data = self.parseAvFile(filepath)
-        print(data)
+        #print(data)
         if errcode == 0:
             try:
                 for i, tup in enumerate(data['Components']):
@@ -224,12 +229,14 @@ class Core():
 
     def parseAvFile(self, filepath):
         '''Parses an avp (project) or avl (preset package) file.
-        Returns data usable by another method.'''
+        Returns dictionary with section names as the keys, each one
+        contains a list of tuples: (compName, version, compPresetDict)
+        '''
         data = {}
         try:
             with open(filepath, 'r') as f:
                 def parseLine(line):
-                    '''Decides if a given avp or avl line is a section header'''
+                    '''Decides if a file line is a section header'''
                     validSections = ('Components')
                     line = line.strip()
                     newSection = ''
@@ -313,8 +320,7 @@ class Core():
     def createPresetFile(
         self, compName, vers, presetName, saveValueStore, filepath=''):
         '''Create a preset file (.avl) at filepath using args.
-           Or if filepath is empty, create an internal preset using
-           the args for the filepath.'''
+        Or if filepath is empty, create an internal preset using args'''
         if not filepath:
             dirname = os.path.join(self.presetDir, compName, str(vers))
             if not os.path.exists(dirname):

@@ -92,3 +92,20 @@ class Component(__base__.Component):
             self.settings.setValue("backgroundDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)
             self.update()
+
+    def command(self, arg):
+        if not arg.startswith('preset='):
+            if os.path.exists(arg):
+                try:
+                    Image.open(arg)
+                    self.imagePath = arg
+                    self.stretched = True
+                    return True
+                except OSError as e:
+                    print("Not a supported image format")
+                    quit(1)
+        super().command(arg)
+
+    def commandHelp(self):
+        print('Give a complete filepath to an image to load that '
+            'image with default settings.')

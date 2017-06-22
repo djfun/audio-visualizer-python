@@ -221,6 +221,22 @@ class Component(__base__.Component):
             width, height = scale(self.scale, width, height, int)
         self.chunkSize = 4*width*height
 
+    def command(self, arg):
+        if not arg.startswith('preset='):
+            if os.path.exists(arg):
+                if os.path.splitext(arg)[1] in self.core.videoFormats:
+                    self.videoPath = arg
+                    self.scale = 100
+                    return True
+                else:
+                    print("Not a supported video format")
+                    quit(1)
+        super().command(arg)
+
+    def commandHelp(self):
+        print('Give a complete filepath to a video to load that '
+            'video with default settings.')
+
 def scale(scale, width, height, returntype=None):
     width = (float(width) / 100.0) * float(scale)
     height = (float(height) / 100.0) * float(scale)

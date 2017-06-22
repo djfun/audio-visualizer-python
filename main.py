@@ -1,8 +1,6 @@
 from PyQt4 import QtGui, uic
 import sys
 import os
-import atexit
-import signal
 
 import core
 import preview_thread
@@ -32,7 +30,7 @@ def LoadDefaultSettings(self):
     }
 
     for parm, value in default.items():
-        print(parm, self.settings.value(parm))
+        #print(parm, self.settings.value(parm))
         if self.settings.value(parm) is None:
             self.settings.setValue(parm, value)
 
@@ -62,6 +60,8 @@ if __name__ == "__main__":
 
     elif mode == 'gui':
         from mainwindow import *
+        import atexit
+        import signal
 
         window = uic.loadUi(os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "mainwindow.ui"))
@@ -73,10 +73,10 @@ if __name__ == "__main__":
         window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
         # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
 
+        signal.signal(signal.SIGINT, main.cleanUp)
+        atexit.register(main.cleanUp)
+
         main = MainWindow(window, proj)
 
     # applicable to both modes
-    signal.signal(signal.SIGINT, main.cleanUp)
-    atexit.register(main.cleanUp)
-
     sys.exit(app.exec_())

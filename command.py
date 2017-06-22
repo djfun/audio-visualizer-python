@@ -36,7 +36,7 @@ class Command(QtCore.QObject):
             help='open a project file (.avp)', nargs='?')
         self.parser.add_argument(
             '-c', '--comp', metavar=('LAYER', 'NAME', 'ARG'),
-            help='create/edit component NAME at LAYER.'
+            help='create component NAME at LAYER.'
             '"help" for information about possible args', nargs=3,
             action='append')
 
@@ -80,12 +80,18 @@ class Command(QtCore.QObject):
         if self.args.comp:
             for comp in self.args.comp:
                 pos, name, arg = comp
+                try:
+                    pos = int(pos)
+                except ValueError:
+                    print(pos, 'is not a layer number.')
+                    quit(1)
                 realName = self.parseCompName(name)
                 if not realName:
                     print(name, 'is not a valid component name.')
-                    quit()
+                    quit(1)
                 modI = self.core.moduleIndexFor(realName)
-                self.core.insertComponent(int(pos), modI, self)
+                i = self.core.insertComponent(pos, modI, self)
+                self.core.selectedComponents[i].command(arg)
 
         self.createAudioVisualisation()
 
@@ -99,12 +105,12 @@ class Command(QtCore.QObject):
         self.videoTask.emit(
           self.args.input,
           self.args.output,
-          self.core.selectedComponents)
+          list(reversed(self.core.selectedComponents))
+        )
 
     def videoCreated(self):
         self.videoThread.quit()
         self.videoThread.wait()
-        self.cleanUp()
 
     def showMessage(self, **kwargs):
         print(kwargs['msg'])
@@ -114,22 +120,20 @@ class Command(QtCore.QObject):
     def drawPreview(self, *args):
         pass
 
-    def cleanUp(self, *args):
-        pass
-
     def parseCompName(self, name):
         '''Deduces a proper component name out of a commandline arg'''
-        compFileNames = [ \
-            os.path.splitext(os.path.basename(
-                mod.__file__))[0] \
-            for mod in self.core.modules \
-        ]
 
         if name.title() in self.core.compNames:
             return name.title()
         for compName in self.core.compNames:
             if name.capitalize() in compName:
                 return compName
+
+        compFileNames = [ \
+            os.path.splitext(os.path.basename(
+                mod.__file__))[0] \
+            for mod in self.core.modules \
+        ]
         for i, compFileName in enumerate(compFileNames):
             if name.lower() in compFileName:
                 return self.core.compNames[i]
