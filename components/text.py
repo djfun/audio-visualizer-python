@@ -19,12 +19,14 @@ class Component(__base__.Component):
     def widget(self, parent):
         height = int(parent.settings.value('outputHeight'))
         width = int(parent.settings.value('outputWidth'))
+
         self.parent = parent
         self.textColor = (255, 255, 255)
         self.title = 'Text'
         self.alignment = 1
         self.fontSize = height / 13.5
-        self.xPosition = width / 2
+        fm = QtGui.QFontMetrics(self.titleFont)
+        self.xPosition = width / 2 - fm.width(self.title)/2
         self.yPosition = height / 2 * 1.036
 
         page = uic.loadUi(os.path.join(

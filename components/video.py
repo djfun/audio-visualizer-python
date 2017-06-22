@@ -227,6 +227,7 @@ class Component(__base__.Component):
                 if os.path.splitext(arg)[1] in self.core.videoFormats:
                     self.videoPath = arg
                     self.scale = 100
+                    self.loopVideo = True
                     return True
                 else:
                     print("Not a supported video format")

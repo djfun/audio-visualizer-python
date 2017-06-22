@@ -124,6 +124,10 @@ class Component(QtCore.QObject):
         self.page = page
         return page
 
+    def update(self):
+        super().update()
+        self.parent.drawPreview()
+
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))

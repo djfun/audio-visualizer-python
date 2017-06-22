@@ -80,7 +80,7 @@ class Core():
 
     def insertComponent(self, compPos, moduleIndex, loader):
         '''Creates a new component'''
-        if compPos < 0:
+        if compPos < 0 or compPos > len(self.selectedComponents):
             compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
             return None

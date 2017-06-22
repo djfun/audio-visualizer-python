@@ -73,10 +73,10 @@ if __name__ == "__main__":
         window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
         # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
 
+        main = MainWindow(window, proj)
+
         signal.signal(signal.SIGINT, main.cleanUp)
         atexit.register(main.cleanUp)
-
-        main = MainWindow(window, proj)
 
     # applicable to both modes
     sys.exit(app.exec_())

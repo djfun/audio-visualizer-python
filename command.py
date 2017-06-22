@@ -16,13 +16,14 @@ class Command(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.core = core.Core()
         self.dataDir = self.core.dataDir
+        self.canceled = False
 
         self.parser = argparse.ArgumentParser(
             description='Create a visualization for an audio file',
             epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
                 '-i ~/Music/song.mp3 -o ~/video.mp4 '
                 '-c 0 image ~/Pictures/thisWeeksPicture.jpg '
-                '-c 1 vis classic')
+                '-c 1 video "preset=My Logo" -c 2 vis classic')
         self.parser.add_argument(
             '-i', '--input', metavar='SOUND',
             help='input audio file', required=True)
@@ -40,35 +41,6 @@ class Command(QtCore.QObject):
             '"help" for information about possible args', nargs=3,
             action='append')
 
-        '''
-        self.parser.add_argument(
-            '-b', '--background', dest='bgimage',
-            help='background image file', required=True)
-        self.parser.add_argument(
-            '-t', '--text', dest='text', help='title text', required=True)
-        self.parser.add_argument(
-            '-f', '--font', dest='font', help='title font', required=False)
-        self.parser.add_argument(
-            '-s', '--fontsize', dest='fontsize',
-            help='title font size', required=False)
-        self.parser.add_argument(
-            '-c', '--textcolor', dest='textcolor',
-            help='title text color in r,g,b format', required=False)
-        self.parser.add_argument(
-            '-C', '--viscolor', dest='viscolor',
-            help='visualization color in r,g,b format', required=False)
-        self.parser.add_argument(
-            '-x', '--xposition', dest='xposition',
-            help='x position', required=False)
-        self.parser.add_argument(
-            '-y', '--yposition', dest='yposition',
-            help='y position', required=False)
-        self.parser.add_argument(
-            '-a', '--alignment', dest='alignment',
-            help='title alignment', required=False,
-            type=int, choices=[0, 1, 2])
-        '''
-
         self.args = self.parser.parse_args()
         self.settings = QSettings(
             os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
@@ -76,6 +48,9 @@ class Command(QtCore.QObject):
 
         if self.args.projpath:
             self.core.openProject(self, self.args.projpath)
+            self.core.selectedComponents = list(
+                reversed(self.core.selectedComponents))
+            self.core.componentListChanged()
 
         if self.args.comp:
             for comp in self.args.comp:
@@ -111,6 +86,7 @@ class Command(QtCore.QObject):
     def videoCreated(self):
         self.videoThread.quit()
         self.videoThread.wait()
+        quit(0)
 
     def showMessage(self, **kwargs):
         print(kwargs['msg'])
