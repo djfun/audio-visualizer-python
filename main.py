@@ -52,8 +52,15 @@ if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     app.setApplicationName("audio-visualizer")
     app.setOrganizationName("audio-visualizer")
-    window = uic.loadUi(os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "mainwindow.ui"))
+
+    if getattr(sys, 'frozen', False):
+        # frozen
+        wd = os.path.dirname(sys.executable)
+    else:
+        # unfrozen
+        wd = os.path.dirname(os.path.realpath(__file__))
+
+    window = uic.loadUi(os.path.join(wd, "mainwindow.ui"))
     # window.adjustSize()
     desc = QtGui.QDesktopWidget()
     dpi = desc.physicalDpiX()

@@ -69,7 +69,7 @@ class Worker(QtCore.QObject):
     def previewDispatch(self):
         background = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
         background.paste(Image.open(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "background.png")))
+            self.core.wd, "background.png")))
         background = background.resize((self.width, self.height))
 
         while not self.stopped:

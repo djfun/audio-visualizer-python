@@ -63,9 +63,7 @@ class MainWindow(QtGui.QMainWindow):
         LoadDefaultSettings(self)
         self.presetManager = PresetManager(
             uic.loadUi(
-                os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                'presetmanager.ui')),
-            self)
+                os.path.join(self.core.wd, 'presetmanager.ui')), self)
 
         if not os.path.exists(self.dataDir):
             os.makedirs(self.dataDir)
@@ -143,7 +141,7 @@ class MainWindow(QtGui.QMainWindow):
         window.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
 
         self.previewWindow = PreviewWindow(self, os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "background.png"))
+            self.core.wd, "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
         # Make component buttons
