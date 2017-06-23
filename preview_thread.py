@@ -23,7 +23,7 @@ class Worker(QtCore.QObject):
         self.stackedWidget = parent.window.stackedWidget
         self.background = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
         self.background.paste(Image.open(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "background.png")))
+            self.core.wd, "background.png")))
 
     @pyqtSlot(str, list)
     def createPreviewImage(self, components):

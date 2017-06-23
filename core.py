@@ -22,7 +22,13 @@ class Core():
         self.dataDir = QDesktopServices.storageLocation(
             QDesktopServices.DataLocation)
         self.presetDir = os.path.join(self.dataDir, 'presets')
-        self.wd = os.path.dirname(os.path.realpath(__file__))
+        if getattr(sys, 'frozen', False):
+            # frozen
+            self.wd = os.path.dirname(sys.executable)
+        else:
+            # unfrozen
+            self.wd = os.path.dirname(os.path.realpath(__file__))
+
         self.loadEncoderOptions()
         self.videoFormats = Core.appendUppercase([
             '*.mp4',
