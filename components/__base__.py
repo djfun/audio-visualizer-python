@@ -71,7 +71,8 @@ class Component(QtCore.QObject):
                 self.core.openPreset(path, self.compPos, preset)
         else:
             print(
-                'To open a preset for this component:\n'
+                self.__doc__, 'Usage:\n'
+                'Open a preset for this component:\n'
                 '    "preset=Preset Name"\n')
             self.commandHelp()
             quit(0)

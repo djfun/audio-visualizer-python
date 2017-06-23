@@ -160,8 +160,11 @@ class Core():
         ''' loader is the object calling this method which must have
         its own showMessage(**kwargs) method for displaying errors.
         '''
+        if not os.path.exists(filepath):
+            loader.showMessage(msg='Project file not found')
+            return
+
         errcode, data = self.parseAvFile(filepath)
-        #print(data)
         if errcode == 0:
             try:
                 for i, tup in enumerate(data['Components']):

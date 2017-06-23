@@ -36,10 +36,10 @@ class Command(QtCore.QObject):
             'projpath', metavar='path-to-project',
             help='open a project file (.avp)', nargs='?')
         self.parser.add_argument(
-            '-c', '--comp', metavar=('LAYER', 'NAME', 'ARG'),
-            help='create component NAME at LAYER.'
-            '"help" for information about possible args', nargs=3,
-            action='append')
+            '-c', '--comp', metavar=('LAYER', 'ARG'),
+            help='first arg must be component NAME to insert at LAYER.'
+            '"help" for information about possible args for a component.',
+            nargs='*', action='append')
 
         self.args = self.parser.parse_args()
         self.settings = QSettings(
@@ -54,7 +54,9 @@ class Command(QtCore.QObject):
 
         if self.args.comp:
             for comp in self.args.comp:
-                pos, name, arg = comp
+                pos = comp[0]
+                name = comp[1]
+                args = comp[2:]
                 try:
                     pos = int(pos)
                 except ValueError:
@@ -66,7 +68,8 @@ class Command(QtCore.QObject):
                     quit(1)
                 modI = self.core.moduleIndexFor(realName)
                 i = self.core.insertComponent(pos, modI, self)
-                self.core.selectedComponents[i].command(arg)
+                for arg in args:
+                    self.core.selectedComponents[i].command(arg)
 
         self.createAudioVisualisation()
 
