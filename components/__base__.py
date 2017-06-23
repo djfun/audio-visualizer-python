@@ -73,7 +73,7 @@ class Component(QtCore.QObject):
             print(
                 self.__doc__, 'Usage:\n'
                 'Open a preset for this component:\n'
-                '    "preset=Preset Name"\n')
+                '    "preset=Preset Name"')
             self.commandHelp()
             quit(0)
 

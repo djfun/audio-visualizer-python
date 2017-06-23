@@ -2,6 +2,7 @@ from PyQt4 import QtCore
 from PyQt4.QtCore import QSettings
 import argparse
 import os
+import sys
 
 import core
 import video_thread
@@ -22,14 +23,14 @@ class Command(QtCore.QObject):
             description='Create a visualization for an audio file',
             epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
                 '-i ~/Music/song.mp3 -o ~/video.mp4 '
-                '-c 0 image ~/Pictures/thisWeeksPicture.jpg '
-                '-c 1 video "preset=My Logo" -c 2 vis classic')
+                '-c 0 image path=~/Pictures/thisWeeksPicture.jpg '
+                '-c 1 video "preset=My Logo" -c 2 vis layout=classic')
         self.parser.add_argument(
             '-i', '--input', metavar='SOUND',
-            help='input audio file', required=True)
+            help='input audio file')
         self.parser.add_argument(
             '-o', '--output', metavar='OUTPUT',
-            help='output video file', required=True)
+            help='output video file')
 
         # optional arguments
         self.parser.add_argument(
@@ -71,7 +72,11 @@ class Command(QtCore.QObject):
                 for arg in args:
                     self.core.selectedComponents[i].command(arg)
 
-        self.createAudioVisualisation()
+        if self.args.input and self.args.output:
+            self.createAudioVisualisation()
+        elif 'help' not in sys.argv:
+            self.parser.print_help()
+            quit(1)
 
     def createAudioVisualisation(self):
         self.videoThread = QtCore.QThread(self)

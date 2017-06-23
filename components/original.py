@@ -184,14 +184,21 @@ class Component(__base__.Component):
         return im
 
     def command(self, arg):
-        if not arg.startswith('preset='):
-            if arg == 'classic':
-                self.layout = 0; return
-            elif arg == 'split':
-                self.layout = 1; return
-            elif arg == 'bottom':
-                self.layout = 2; return
+        if not arg.startswith('preset=') and '=' in arg:
+            key, arg = arg.split('=', 1)
+            if key == 'color':
+                self.page.lineEdit_visColor.setText(arg)
+                return
+            elif key == 'layout':
+                if arg == 'classic':
+                    self.page.comboBox_visLayout.setCurrentIndex(0)
+                elif arg == 'split':
+                    self.page.comboBox_visLayout.setCurrentIndex(1)
+                elif arg == 'bottom':
+                    self.page.comboBox_visLayout.setCurrentIndex(2)
+                return
         super().command(arg)
 
     def commandHelp(self):
-        print('Give a layout name: classic, split, or bottom')
+        print('Give a layout name:\n    layout=[classic/split/bottom]')
+        print('Specify a color:\n    color=255,255,255')

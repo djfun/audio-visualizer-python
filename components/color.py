@@ -233,3 +233,14 @@ class Component(__base__.Component):
         else:
             self.page.lineEdit_color2.setText(RGBstring)
             self.page.pushButton_color2.setStyleSheet(btnStyle)
+
+    def commandHelp(self):
+        print('Specify a color:\n    color=255,255,255')
+
+    def command(self, arg):
+        if not arg.startswith('preset=') and '=' in arg:
+            key, arg = arg.split('=', 1)
+            if key == 'color':
+                self.page.lineEdit_color1.setText(arg)
+                return
+        super().command(arg)

@@ -149,12 +149,28 @@ class Component(__base__.Component):
         self.page.lineEdit_textColor.setText(RGBstring)
         self.page.pushButton_textColor.setStyleSheet(btnStyle)
 
-    def commandHelp(self, arg):
-        print('Enter a string to use as centred white text. '
-        'Use quotes around the string to escape spaces.')
+    def commandHelp(self):
+        print('Enter a string to use as centred white text:')
+        print('    "title=User Error"')
+        print('Specify a text color:\n    color=255,255,255')
+        print('Set custom x, y position:\n    x=500 y=500')
 
     def command(self, arg):
-        if not arg.startswith('preset='):
-            self.title = arg
-            return True
+        if not arg.startswith('preset=') and '=' in arg:
+            key, arg = arg.split('=', 1)
+            if key == 'color':
+                self.page.lineEdit_textColor.setText(arg)
+                return
+            elif key == 'size':
+                self.page.spinBox_fontSize.setValue(int(arg))
+                return
+            elif key == 'x':
+                self.page.spinBox_xTextAlign.setValue(int(arg))
+                return
+            elif key == 'y':
+                self.page.spinBox_yTextAlign.setValue(int(arg))
+                return
+            elif key == 'title':
+                self.page.lineEdit_title.setText(arg)
+                return
         super().command(arg)

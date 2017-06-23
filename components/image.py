@@ -94,18 +94,18 @@ class Component(__base__.Component):
             self.update()
 
     def command(self, arg):
-        if not arg.startswith('preset='):
-            if os.path.exists(arg):
+        if not arg.startswith('preset=') and '=' in arg:
+            key, arg = arg.split('=', 1)
+            if key == 'path' and os.path.exists(arg):
                 try:
                     Image.open(arg)
-                    self.imagePath = arg
-                    self.stretched = True
-                    return True
+                    self.page.lineEdit_image.setText(arg)
+                    self.page.checkBox_stretch.setChecked(True)
+                    return
                 except OSError as e:
                     print("Not a supported image format")
                     quit(1)
         super().command(arg)
 
     def commandHelp(self):
-        print('Give a complete filepath to an image to load that '
-            'image with default settings.')
+        print('Load an image:\n    path=/filepath/to/image.png')
