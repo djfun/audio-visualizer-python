@@ -19,12 +19,14 @@ class Component(__base__.Component):
     def widget(self, parent):
         height = int(parent.settings.value('outputHeight'))
         width = int(parent.settings.value('outputWidth'))
+
         self.parent = parent
         self.textColor = (255, 255, 255)
         self.title = 'Text'
         self.alignment = 1
         self.fontSize = height / 13.5
-        self.xPosition = width / 2
+        fm = QtGui.QFontMetrics(self.titleFont)
+        self.xPosition = width / 2 - fm.width(self.title)/2
         self.yPosition = height / 2 * 1.036
 
         page = uic.loadUi(os.path.join(
@@ -146,3 +148,29 @@ class Component(__base__.Component):
             return
         self.page.lineEdit_textColor.setText(RGBstring)
         self.page.pushButton_textColor.setStyleSheet(btnStyle)
+
+    def commandHelp(self):
+        print('Enter a string to use as centred white text:')
+        print('    "title=User Error"')
+        print('Specify a text color:\n    color=255,255,255')
+        print('Set custom x, y position:\n    x=500 y=500')
+
+    def command(self, arg):
+        if not arg.startswith('preset=') and '=' in arg:
+            key, arg = arg.split('=', 1)
+            if key == 'color':
+                self.page.lineEdit_textColor.setText(arg)
+                return
+            elif key == 'size':
+                self.page.spinBox_fontSize.setValue(int(arg))
+                return
+            elif key == 'x':
+                self.page.spinBox_xTextAlign.setValue(int(arg))
+                return
+            elif key == 'y':
+                self.page.spinBox_yTextAlign.setValue(int(arg))
+                return
+            elif key == 'title':
+                self.page.lineEdit_title.setText(arg)
+                return
+        super().command(arg)

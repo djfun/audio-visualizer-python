@@ -45,7 +45,7 @@ class MainWindow(QtGui.QMainWindow):
     processTask = QtCore.pyqtSignal()
     videoTask = QtCore.pyqtSignal(str, str, list)
 
-    def __init__(self, window):
+    def __init__(self, window, project):
         QtGui.QMainWindow.__init__(self)
 
         # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
@@ -149,7 +149,7 @@ class MainWindow(QtGui.QMainWindow):
         for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.__doc__)
             action.triggered[()].connect(
-                lambda item=i: self.insertComponent(item))
+                lambda item=i: self.core.insertComponent(0, item, self))
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
 
@@ -209,24 +209,36 @@ class MainWindow(QtGui.QMainWindow):
             self.openPresetManager
         )
 
-        # Show the window and load current project
         window.show()
-        self.currentProject = self.settings.value("currentProject")
-        if self.autosaveExists(identical=True):
-            # delete autosave if it's identical to the project
-            os.remove(self.autosavePath)
 
-        if self.currentProject and os.path.exists(self.autosavePath):
-            ch = self.showMessage(
-                msg="Restore unsaved changes in project '%s'?"
-                % os.path.basename(self.currentProject)[:-4],
-                showCancel=True)
-            if ch:
-                self.saveProjectChanges()
-            else:
+        if project and project != self.autosavePath:
+            # open a project from the commandline
+            if not os.path.dirname(project):
+                project = os.path.join(os.path.expanduser('~'), project)
+            self.currentProject = project
+            self.settings.setValue("currentProject", project)
+            if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
+        else:
+            # open the last currentProject from settings
+            self.currentProject = self.settings.value("currentProject")
+
+            # delete autosave if it's identical to this project
+            if self.autosaveExists(identical=True):
+                os.remove(self.autosavePath)
+
+            if self.currentProject and os.path.exists(self.autosavePath):
+                ch = self.showMessage(
+                    msg="Restore unsaved changes in project '%s'?"
+                    % os.path.basename(self.currentProject)[:-4],
+                    showCancel=True)
+                if ch:
+                    self.saveProjectChanges()
+                else:
+                    os.remove(self.autosavePath)
+
         self.openProject(self.currentProject, prompt=False)
-        self.drawPreview()
+        self.drawPreview(True)
 
         # Setup Hotkeys
         QtGui.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)
@@ -261,7 +273,8 @@ class MainWindow(QtGui.QMainWindow):
         appName = 'Audio Visualizer'
         if self.currentProject:
             appName += ' - %s' % \
-                os.path.basename(self.currentProject)[:-4]
+                os.path.splitext(
+                    os.path.basename(self.currentProject))[0]
         self.window.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
@@ -273,7 +286,6 @@ class MainWindow(QtGui.QMainWindow):
             else:
                 modified = (presetStore != self.core.savedPresets[name])
         else:
-            print(pos, presetStore)
             modified = bool(presetStore)
         if pos < 0:
             pos = len(self.core.selectedComponents)-1
@@ -327,10 +339,14 @@ class MainWindow(QtGui.QMainWindow):
             self.lastAutosave = time.time()
 
     def autosaveExists(self, identical=True):
-        if self.currentProject and os.path.exists(self.autosavePath) \
-            and filecmp.cmp(
-                self.autosavePath, self.currentProject) == identical:
-            return True
+        try:
+            if self.currentProject and os.path.exists(self.autosavePath) \
+                and filecmp.cmp(
+                    self.autosavePath, self.currentProject) == identical:
+                return True
+        except FileNotFoundError:
+            print('project file couldn\'t be located:', self.currentProject)
+            return identical
         return False
 
     def saveProjectChanges(self):
@@ -432,6 +448,7 @@ class MainWindow(QtGui.QMainWindow):
             self.window.listWidget_componentList.setEnabled(True)
             self.window.menuButton_newProject.setEnabled(True)
             self.window.menuButton_openProject.setEnabled(True)
+            self.drawPreview(True)
 
     def progressBarUpdated(self, value):
         self.window.progressBar_createVideo.setValue(value)
@@ -458,19 +475,11 @@ class MainWindow(QtGui.QMainWindow):
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
 
-    def insertComponent(self, moduleIndex, compPos=0):
+    def insertComponent(self, index):
         componentList = self.window.listWidget_componentList
         stackedWidget = self.window.stackedWidget
-        if compPos < 0:
-            compPos = componentList.count()
 
-        index = self.core.insertComponent(
-            compPos, moduleIndex)
-        if index == None:
-            self.showMessage(msg="Too many components!")
-            return None
-
-        row = componentList.insertItem(
+        componentList.insertItem(
             index,
             self.core.selectedComponents[index].__doc__)
         componentList.setCurrentRow(index)
@@ -479,11 +488,10 @@ class MainWindow(QtGui.QMainWindow):
         self.core.selectedComponents[index].modified.connect(
             self.updateComponentTitle)
 
-        self.pages.insert(index, self.core.selectedComponents[index].widget(self))
+        self.pages.insert(index, self.core.selectedComponents[index].page)
         stackedWidget.insertWidget(index, self.pages[index])
         stackedWidget.setCurrentIndex(index)
 
-        self.core.updateComponent(index)
         return index
 
     def removeComponent(self):
@@ -620,7 +628,6 @@ class MainWindow(QtGui.QMainWindow):
         self.openProject(filename)
 
     def openProject(self, filepath, prompt=True):
-        print('opening', filepath)
         if not filepath or not os.path.exists(filepath) \
           or not filepath.endswith('.avp'):
             self.updateWindowTitle()

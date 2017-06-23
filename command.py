@@ -1,122 +1,126 @@
-# FIXME: commandline functionality broken until we decide how to implement it
-'''
+from PyQt4 import QtCore
+from PyQt4.QtCore import QSettings
+import argparse
+import os
+import sys
+
+import core
+import video_thread
+from main import LoadDefaultSettings
+
+
 class Command(QtCore.QObject):
 
-  videoTask = QtCore.pyqtSignal(str, str, str, list)
+    videoTask = QtCore.pyqtSignal(str, str, list)
 
-  def __init__(self):
-    QtCore.QObject.__init__(self)
-    self.modules = []
-    self.selectedComponents = []
+    def __init__(self):
+        QtCore.QObject.__init__(self)
+        self.core = core.Core()
+        self.dataDir = self.core.dataDir
+        self.canceled = False
 
-    import argparse
-    self.parser = argparse.ArgumentParser(
-        description='Create a visualization for an audio file')
-    self.parser.add_argument(
-        '-i', '--input', dest='input', help='input audio file', required=True)
-    self.parser.add_argument(
-        '-o', '--output', dest='output',
-        help='output video file', required=True)
-    self.parser.add_argument(
-        '-b', '--background', dest='bgimage',
-        help='background image file', required=True)
-    self.parser.add_argument(
-        '-t', '--text', dest='text', help='title text', required=True)
-    self.parser.add_argument(
-        '-f', '--font', dest='font', help='title font', required=False)
-    self.parser.add_argument(
-        '-s', '--fontsize', dest='fontsize',
-        help='title font size', required=False)
-    self.parser.add_argument(
-        '-c', '--textcolor', dest='textcolor',
-        help='title text color in r,g,b format', required=False)
-    self.parser.add_argument(
-        '-C', '--viscolor', dest='viscolor',
-        help='visualization color in r,g,b format', required=False)
-    self.parser.add_argument(
-        '-x', '--xposition', dest='xposition',
-        help='x position', required=False)
-    self.parser.add_argument(
-        '-y', '--yposition', dest='yposition',
-        help='y position', required=False)
-    self.parser.add_argument(
-        '-a', '--alignment', dest='alignment',
-        help='title alignment', required=False,
-        type=int, choices=[0, 1, 2])
-    self.args = self.parser.parse_args()
+        self.parser = argparse.ArgumentParser(
+            description='Create a visualization for an audio file',
+            epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
+                '-i ~/Music/song.mp3 -o ~/video.mp4 '
+                '-c 0 image path=~/Pictures/thisWeeksPicture.jpg '
+                '-c 1 video "preset=My Logo" -c 2 vis layout=classic')
+        self.parser.add_argument(
+            '-i', '--input', metavar='SOUND',
+            help='input audio file')
+        self.parser.add_argument(
+            '-o', '--output', metavar='OUTPUT',
+            help='output video file')
 
-    self.settings = QSettings('settings.ini', QSettings.IniFormat)
-    LoadDefaultSettings(self)
+        # optional arguments
+        self.parser.add_argument(
+            'projpath', metavar='path-to-project',
+            help='open a project file (.avp)', nargs='?')
+        self.parser.add_argument(
+            '-c', '--comp', metavar=('LAYER', 'ARG'),
+            help='first arg must be component NAME to insert at LAYER.'
+            '"help" for information about possible args for a component.',
+            nargs='*', action='append')
 
-    # load colours as tuples from comma-separated strings
-    self.textColor = core.Core.RGBFromString(
-        self.settings.value("textColor", '255, 255, 255'))
-    self.visColor = core.Core.RGBFromString(
-        self.settings.value("visColor", '255, 255, 255'))
-    if self.args.textcolor:
-      self.textColor = core.Core.RGBFromString(self.args.textcolor)
-    if self.args.viscolor:
-      self.visColor = core.Core.RGBFromString(self.args.viscolor)
+        self.args = self.parser.parse_args()
+        self.settings = QSettings(
+            os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
+        LoadDefaultSettings(self)
 
-    # font settings
-    if self.args.font:
-      self.font = QFont(self.args.font)
-    else:
-      self.font = QFont(self.settings.value("titleFont", QFont()))
+        if self.args.projpath:
+            self.core.openProject(self, self.args.projpath)
+            self.core.selectedComponents = list(
+                reversed(self.core.selectedComponents))
+            self.core.componentListChanged()
 
-    if self.args.fontsize:
-      self.fontsize = int(self.args.fontsize)
-    else:
-      self.fontsize = int(self.settings.value("fontSize", 35))
-    if self.args.alignment:
-      self.alignment = int(self.args.alignment)
-    else:
-      self.alignment = int(self.settings.value("alignment", 0))
+        if self.args.comp:
+            for comp in self.args.comp:
+                pos = comp[0]
+                name = comp[1]
+                args = comp[2:]
+                try:
+                    pos = int(pos)
+                except ValueError:
+                    print(pos, 'is not a layer number.')
+                    quit(1)
+                realName = self.parseCompName(name)
+                if not realName:
+                    print(name, 'is not a valid component name.')
+                    quit(1)
+                modI = self.core.moduleIndexFor(realName)
+                i = self.core.insertComponent(pos, modI, self)
+                for arg in args:
+                    self.core.selectedComponents[i].command(arg)
 
-    if self.args.xposition:
-      self.textX = int(self.args.xposition)
-    else:
-      self.textX = int(self.settings.value("xPosition", 70))
+        if self.args.input and self.args.output:
+            self.createAudioVisualisation()
+        elif 'help' not in sys.argv:
+            self.parser.print_help()
+            quit(1)
 
-    if self.args.yposition:
-      self.textY = int(self.args.yposition)
-    else:
-      self.textY = int(self.settings.value("yPosition", 375))
+    def createAudioVisualisation(self):
+        self.videoThread = QtCore.QThread(self)
+        self.videoWorker = video_thread.Worker(self)
+        self.videoWorker.moveToThread(self.videoThread)
+        self.videoWorker.videoCreated.connect(self.videoCreated)
 
-    ffmpeg_cmd = self.settings.value("ffmpeg_cmd", expanduser("~"))
+        self.videoThread.start()
+        self.videoTask.emit(
+          self.args.input,
+          self.args.output,
+          list(reversed(self.core.selectedComponents))
+        )
 
-    self.videoThread = QtCore.QThread(self)
-    self.videoWorker = video_thread.Worker(self)
+    def videoCreated(self):
+        self.videoThread.quit()
+        self.videoThread.wait()
+        quit(0)
 
-    self.videoWorker.moveToThread(self.videoThread)
-    self.videoWorker.videoCreated.connect(self.videoCreated)
+    def showMessage(self, **kwargs):
+        print(kwargs['msg'])
+        if 'detail' in kwargs:
+            print(kwargs['detail'])
 
-    self.videoThread.start()
-    self.videoTask.emit(self.args.bgimage,
-      self.args.text,
-      self.font,
-      self.fontsize,
-      self.alignment,
-      self.textX,
-      self.textY,
-      self.textColor,
-      self.visColor,
-      self.args.input,
-      self.args.output,
-      self.selectedComponents)
+    def drawPreview(self, *args):
+        pass
 
-  def videoCreated(self):
-    self.videoThread.quit()
-    self.videoThread.wait()
-    self.cleanUp()
+    def parseCompName(self, name):
+        '''Deduces a proper component name out of a commandline arg'''
 
-  def cleanUp(self):
-    self.settings.setValue("titleFont", self.font.toString())
-    self.settings.setValue("alignment", str(self.alignment))
-    self.settings.setValue("fontSize", str(self.fontsize))
-    self.settings.setValue("xPosition", str(self.textX))
-    self.settings.setValue("yPosition", str(self.textY))
-    self.settings.setValue("visColor", '%s,%s,%s' % self.visColor)
-    self.settings.setValue("textColor", '%s,%s,%s' % self.textColor)
-    sys.exit(0)
-'''
+        if name.title() in self.core.compNames:
+            return name.title()
+        for compName in self.core.compNames:
+            if name.capitalize() in compName:
+                return compName
+
+        compFileNames = [ \
+            os.path.splitext(os.path.basename(
+                mod.__file__))[0] \
+            for mod in self.core.modules \
+        ]
+        for i, compFileName in enumerate(compFileNames):
+            if name.lower() in compFileName:
+                return self.core.compNames[i]
+            return
+
+        return None

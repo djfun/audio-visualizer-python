@@ -1,16 +1,10 @@
-from importlib import import_module
 from PyQt4 import QtGui, uic
-from PyQt4.QtCore import Qt
 import sys
-import io
 import os
-import atexit
-import signal
 
 import core
 import preview_thread
 import video_thread
-from mainwindow import *
 
 
 def LoadDefaultSettings(self):
@@ -36,42 +30,59 @@ def LoadDefaultSettings(self):
     }
 
     for parm, value in default.items():
+        #print(parm, self.settings.value(parm))
         if self.settings.value(parm) is None:
             self.settings.setValue(parm, value)
 
 if __name__ == "__main__":
-    ''' FIXME commandline functionality broken until we decide how to implement
-    if len(sys.argv) > 1:
-    # command line mode
-    app = QtGui.QApplication(sys.argv, False)
-    command = Command()
-    signal.signal(signal.SIGINT, command.cleanUp)
-    sys.exit(app.exec_())
+    mode = 'gui'
+    if len(sys.argv) > 2:
+        mode = 'cmd'
+
+    elif len(sys.argv) == 2:
+        if sys.argv[1].startswith('-'):
+            mode = 'cmd'
+        else:
+            # opening a project file with gui
+            proj = sys.argv[1]
     else:
-    '''
+        # normal gui launch
+        proj = None
+
     app = QtGui.QApplication(sys.argv)
     app.setApplicationName("audio-visualizer")
     app.setOrganizationName("audio-visualizer")
 
-    if getattr(sys, 'frozen', False):
-        # frozen
-        wd = os.path.dirname(sys.executable)
-    else:
-        # unfrozen
-        wd = os.path.dirname(os.path.realpath(__file__))
+    if mode == 'cmd':
+        from command import *
 
-    window = uic.loadUi(os.path.join(wd, "mainwindow.ui"))
-    # window.adjustSize()
-    desc = QtGui.QDesktopWidget()
-    dpi = desc.physicalDpiX()
+        main = Command()
 
-    topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
-    window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
-    # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
+    elif mode == 'gui':
+        from mainwindow import *
+        import atexit
+        import signal
 
-    main = MainWindow(window)
+        if getattr(sys, 'frozen', False):
+            # frozen
+            wd = os.path.dirname(sys.executable)
+        else:
+            # unfrozen
+            wd = os.path.dirname(os.path.realpath(__file__))
 
-    signal.signal(signal.SIGINT, main.cleanUp)
-    atexit.register(main.cleanUp)
+        window = uic.loadUi(os.path.join(wd, "mainwindow.ui"))
+        # window.adjustSize()
+        desc = QtGui.QDesktopWidget()
+        dpi = desc.physicalDpiX()
 
+        topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
+        window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
+        # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
+
+        main = MainWindow(window, proj)
+
+        signal.signal(signal.SIGINT, main.cleanUp)
+        atexit.register(main.cleanUp)
+
+    # applicable to both modes
     sys.exit(app.exec_())
