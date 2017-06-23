@@ -1,7 +1,7 @@
 from queue import Queue
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QSettings, Qt
-from PyQt4.QtGui import QMenu
+from PyQt4.QtGui import QMenu, QShortcut
 import sys
 import os
 import signal
@@ -39,14 +39,14 @@ class PreviewWindow(QtGui.QLabel):
         self.repaint()
 
 
-class MainWindow(QtCore.QObject):
+class MainWindow(QtGui.QMainWindow):
 
     newTask = QtCore.pyqtSignal(list)
     processTask = QtCore.pyqtSignal()
     videoTask = QtCore.pyqtSignal(str, str, list)
 
     def __init__(self, window):
-        QtCore.QObject.__init__(self)
+        QtGui.QMainWindow.__init__(self)
 
         # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
         self.window = window
@@ -229,6 +229,29 @@ class MainWindow(QtCore.QObject):
                 os.remove(self.autosavePath)
         self.openProject(self.currentProject, prompt=False)
         self.drawPreview()
+
+        # Setup Hotkeys
+        QtGui.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)
+        QtGui.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
+        QtGui.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
+        QtGui.QShortcut("Ctrl+N", self.window, self.createNewProject)
+
+        QtGui.QShortcut("Ctrl+T", self.window, activated=lambda:
+                        self.window.pushButton_addComponent.click())
+        QtGui.QShortcut("Ctrl+Space", self.window, activated=lambda:
+                        self.window.listWidget_componentList.setFocus())
+        QtGui.QShortcut("Ctrl+Shift+S", self.window,
+                        self.presetManager.openSavePresetDialog)
+        QtGui.QShortcut("Ctrl+Shift+C", self.window,
+                        self.presetManager.clearPreset)
+
+        QtGui.QShortcut("Ctrl+Up", self.window,
+                        activated=lambda: self.moveComponent(-1))
+        QtGui.QShortcut("Ctrl+Down", self.window,
+                        activated=lambda: self.moveComponent(1))
+        QtGui.QShortcut("Ctrl+Home", self.window, self.moveComponentTop)
+        QtGui.QShortcut("Ctrl+End", self.window, self.moveComponentBottom)
+        QtGui.QShortcut("Ctrl+r", self.window, self.removeComponent)
 
     def cleanUp(self):
         self.timer.stop()
@@ -497,6 +520,16 @@ class MainWindow(QtCore.QObject):
             componentList.setCurrentRow(newRow)
             stackedWidget.setCurrentIndex(newRow)
             self.drawPreview()
+
+    def moveComponentTop(self):
+        componentList = self.window.listWidget_componentList
+        row = -componentList.currentRow()
+        self.moveComponent(row)
+
+    def moveComponentBottom(self):
+        componentList = self.window.listWidget_componentList
+        row = len(componentList)-1
+        self.moveComponent(row)
 
     def dragComponent(self, event):
         '''Drop event for the component listwidget'''
