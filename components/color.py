@@ -53,7 +53,7 @@ class Component(__base__.Component):
         page.spinBox_height.valueChanged.connect(self.update)
         page.checkBox_trans.stateChanged.connect(self.update)
 
-        self.fillLabels = [ \
+        self.fillLabels = [
             'Solid',
             'Linear Gradient',
             'Radial Gradient',
@@ -126,8 +126,8 @@ class Component(__base__.Component):
         r, g, b = self.color1
         shapeSize = (self.sizeWidth, self.sizeHeight)
         # in default state, skip all this logic and return a plain fill
-        if self.fillType==0 and shapeSize == (width, height) \
-            and self.x == 0 and self.y == 0:
+        if self.fillType == 0 and shapeSize == (width, height) \
+                and self.x == 0 and self.y == 0:
             return Image.new("RGBA", (width, height), (r, g, b, 255))
 
         frame = self.blankFrame(width, height)
@@ -143,9 +143,11 @@ class Component(__base__.Component):
             image = ImageQt(frame)
             painter = QtGui.QPainter(image)
             if self.stretch:
-                w = width; h = height
+                w = width
+                h = height
             else:
-                w = self.sizeWidth; h = self.sizeWidth
+                w = self.sizeWidth
+                h = self.sizeWidth
 
         if self.fillType == 1:  # Linear Gradient
             brush = QtGui.QLinearGradient(
@@ -170,8 +172,10 @@ class Component(__base__.Component):
         else:
             brush.setColorAt(1.0, QColor(*self.color2))
         painter.setBrush(brush)
-        painter.drawRect(self.x, self.y,
-            self.sizeWidth, self.sizeHeight)
+        painter.drawRect(
+            self.x, self.y,
+            self.sizeWidth, self.sizeHeight
+        )
         painter.end()
         imBytes = image.bits().asstring(image.numBytes())
         return Image.frombytes('RGBA', (width, height), imBytes)

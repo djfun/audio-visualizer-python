@@ -30,7 +30,6 @@ def LoadDefaultSettings(self):
     }
 
     for parm, value in default.items():
-        #print(parm, self.settings.value(parm))
         if self.settings.value(parm) is None:
             self.settings.setValue(parm, value)
 
@@ -76,7 +75,11 @@ if __name__ == "__main__":
         dpi = desc.physicalDpiX()
 
         topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
-        window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
+        window.resize(
+            window.width() *
+            (dpi / 96), window.height() *
+            (dpi / 96)
+        )
         # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
 
         main = MainWindow(window, proj)

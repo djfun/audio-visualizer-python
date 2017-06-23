@@ -121,15 +121,12 @@ class Worker(QtCore.QObject):
         vencoders = options['video-codecs'][vcodec]
         aencoders = options['audio-codecs'][acodec]
 
-        #print(encoders)
         for encoder in vencoders:
-            #print(encoder)
             if encoder in encoders:
                 vencoder = encoder
                 break
 
         for encoder in aencoders:
-            #print(encoder)
             if encoder in encoders:
                 aencoder = encoder
                 break
@@ -167,10 +164,10 @@ class Worker(QtCore.QObject):
         numpy.seterr(divide='ignore')
 
         # Call preFrameRender on all components
-        print('Loaded Components:', ", ".join(
-            ["%s) %s" % (num, str(component)) \
-                for num, component in enumerate(reversed(self.components))
-            ]))
+        print('Loaded Components:', ", ".join([
+            "%s) %s" % (num, str(component))
+            for num, component in enumerate(reversed(self.components))
+        ]))
         self.staticComponents = {}
         numComps = len(self.components)
         for compNo, comp in enumerate(self.components):

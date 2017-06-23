@@ -21,22 +21,33 @@ class PresetManager(QtGui.QDialog):
 
         # window
         self.lastFilter = '*'
-        self.presetRows = [] # list of (comp, vers, name) tuples
+        self.presetRows = []  # list of (comp, vers, name) tuples
         self.window = window
         self.window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
         # connect button signals
-        self.window.pushButton_delete.clicked.connect(self.openDeletePresetDialog)
-        self.window.pushButton_rename.clicked.connect(self.openRenamePresetDialog)
-        self.window.pushButton_import.clicked.connect(self.openImportDialog)
-        self.window.pushButton_export.clicked.connect(self.openExportDialog)
-        self.window.pushButton_close.clicked.connect(self.window.close)
+        self.window.pushButton_delete.clicked.connect(
+            self.openDeletePresetDialog
+        )
+        self.window.pushButton_rename.clicked.connect(
+            self.openRenamePresetDialog
+        )
+        self.window.pushButton_import.clicked.connect(
+            self.openImportDialog
+        )
+        self.window.pushButton_export.clicked.connect(
+            self.openExportDialog
+        )
+        self.window.pushButton_close.clicked.connect(
+            self.window.close
+        )
 
         # create filter box and preset list
         self.drawFilterList()
         self.window.comboBox_filter.currentIndexChanged.connect(
             lambda: self.drawPresetList(
-                self.window.comboBox_filter.currentText(), self.window.lineEdit_search.text()
+                self.window.comboBox_filter.currentText(),
+                self.window.lineEdit_search.text()
             )
         )
 
@@ -47,7 +58,8 @@ class PresetManager(QtGui.QDialog):
         self.window.lineEdit_search.setCompleter(completer)
         self.window.lineEdit_search.textChanged.connect(
             lambda: self.drawPresetList(
-                self.window.comboBox_filter.currentText(), self.window.lineEdit_search.text()
+                self.window.comboBox_filter.currentText(),
+                self.window.lineEdit_search.text()
             )
         )
         self.drawPresetList('*')
@@ -72,16 +84,14 @@ class PresetManager(QtGui.QDialog):
                     parseList.append((compName, int(compVers), preset))
                 except ValueError:
                     continue
-        self.presets =\
-            {
-            compName : \
-                [
-                (vers, preset) \
-                    for name, vers, preset in parseList \
-                    if name == compName \
-                ] \
-            for compName, _, __ in parseList \
-            }
+        self.presets = {
+            compName: [
+                (vers, preset)
+                for name, vers, preset in parseList
+                if name == compName
+            ]
+            for compName, _, __ in parseList
+        }
 
     def drawPresetList(self, compFilter=None, presetFilter=''):
         self.window.listWidget_presets.clear()
@@ -96,7 +106,9 @@ class PresetManager(QtGui.QDialog):
                 continue
             for vers, preset in presets:
                 if not presetFilter or presetFilter in preset:
-                    self.window.listWidget_presets.addItem('%s: %s' % (component, preset))
+                    self.window.listWidget_presets.addItem(
+                        '%s: %s' % (component, preset)
+                    )
                     self.presetRows.append((component, vers, preset))
                 if preset not in presetNames:
                     presetNames.append(preset)
@@ -149,7 +161,7 @@ class PresetManager(QtGui.QDialog):
             break
 
     def createNewPreset(
-        self, compName, vers, filename, saveValueStore, **kwargs):
+            self, compName, vers, filename, saveValueStore, **kwargs):
         path = os.path.join(self.presetDir, compName, str(vers), filename)
         if self.presetExists(path, **kwargs):
             return
