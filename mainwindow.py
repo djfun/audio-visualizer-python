@@ -526,7 +526,7 @@ class MainWindow(QtGui.QMainWindow):
 
     def moveComponentBottom(self):
         componentList = self.window.listWidget_componentList
-        row = len(componentList)-1
+        row = len(componentList)-componentList.currentRow()-1
         self.moveComponent(row)
 
     def dragComponent(self, event):
