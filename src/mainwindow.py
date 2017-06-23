@@ -1,7 +1,7 @@
 from queue import Queue
-from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtCore import QSettings, Qt
-from PyQt4.QtGui import QMenu, QShortcut
+from PyQt5 import QtCore, QtGui, uic, QtWidgets
+from PyQt5.QtCore import QSettings, Qt
+from PyQt5.QtWidgets import QMenu, QShortcut
 import sys
 import os
 import signal
@@ -15,11 +15,11 @@ from presetmanager import PresetManager
 from main import LoadDefaultSettings
 
 
-class PreviewWindow(QtGui.QLabel):
+class PreviewWindow(QtWidgets.QLabel):
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()
         self.parent = parent
-        self.setFrameStyle(QtGui.QFrame.StyledPanel)
+        self.setFrameStyle(QtWidgets.QFrame.StyledPanel)
         self.pixmap = QtGui.QPixmap(img)
 
     def paintEvent(self, event):
@@ -39,14 +39,14 @@ class PreviewWindow(QtGui.QLabel):
         self.repaint()
 
 
-class MainWindow(QtGui.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
 
     newTask = QtCore.pyqtSignal(list)
     processTask = QtCore.pyqtSignal()
     videoTask = QtCore.pyqtSignal(str, str, list)
 
     def __init__(self, window, project):
-        QtGui.QMainWindow.__init__(self)
+        QtWidgets.QMainWindow.__init__(self)
 
         # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
         self.window = window
@@ -148,7 +148,7 @@ class MainWindow(QtGui.QMainWindow):
         self.compMenu = QMenu()
         for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.__doc__)
-            action.triggered[()].connect(
+            action.triggered.connect(
                 lambda item=i: self.core.insertComponent(0, item, self))
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
@@ -162,10 +162,7 @@ class MainWindow(QtGui.QMainWindow):
 
         componentList.setContextMenuPolicy(
             QtCore.Qt.CustomContextMenu)
-        componentList.connect(
-            componentList,
-            QtCore.SIGNAL("customContextMenuRequested(QPoint)"),
-            self.componentContextMenu)
+        componentList.customContextMenuRequested.connect(self.componentContextMenu)
 
         currentRes = str(self.settings.value('outputWidth'))+'x' + \
             str(self.settings.value('outputHeight'))
@@ -188,19 +185,19 @@ class MainWindow(QtGui.QMainWindow):
         self.projectMenu = QMenu()
         self.window.menuButton_newProject = self.projectMenu.addAction(
             "New Project")
-        self.window.menuButton_newProject.triggered[()].connect(
+        self.window.menuButton_newProject.triggered.connect(
             self.createNewProject)
 
         self.window.menuButton_openProject = self.projectMenu.addAction(
             "Open Project")
-        self.window.menuButton_openProject.triggered[()].connect(
+        self.window.menuButton_openProject.triggered.connect(
             self.openOpenProjectDialog)
 
         action = self.projectMenu.addAction("Save Project")
-        action.triggered[()].connect(self.saveCurrentProject)
+        action.triggered.connect(self.saveCurrentProject)
 
         action = self.projectMenu.addAction("Save Project As")
-        action.triggered[()].connect(self.openSaveProjectDialog)
+        action.triggered.connect(self.openSaveProjectDialog)
 
         self.window.pushButton_projects.setMenu(self.projectMenu)
 
@@ -243,27 +240,27 @@ class MainWindow(QtGui.QMainWindow):
         self.drawPreview(True)
 
         # Setup Hotkeys
-        QtGui.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)
-        QtGui.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
-        QtGui.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
-        QtGui.QShortcut("Ctrl+N", self.window, self.createNewProject)
+        QtWidgets.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)
+        QtWidgets.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
+        QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
+        QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
 
-        QtGui.QShortcut("Ctrl+T", self.window, activated=lambda:
+        QtWidgets.QShortcut("Ctrl+T", self.window, activated=lambda:
                         self.window.pushButton_addComponent.click())
-        QtGui.QShortcut("Ctrl+Space", self.window, activated=lambda:
+        QtWidgets.QShortcut("Ctrl+Space", self.window, activated=lambda:
                         self.window.listWidget_componentList.setFocus())
-        QtGui.QShortcut("Ctrl+Shift+S", self.window,
+        QtWidgets.QShortcut("Ctrl+Shift+S", self.window,
                         self.presetManager.openSavePresetDialog)
-        QtGui.QShortcut("Ctrl+Shift+C", self.window,
+        QtWidgets.QShortcut("Ctrl+Shift+C", self.window,
                         self.presetManager.clearPreset)
 
-        QtGui.QShortcut("Ctrl+Up", self.window,
+        QtWidgets.QShortcut("Ctrl+Up", self.window,
                         activated=lambda: self.moveComponent(-1))
-        QtGui.QShortcut("Ctrl+Down", self.window,
+        QtWidgets.QShortcut("Ctrl+Down", self.window,
                         activated=lambda: self.moveComponent(1))
-        QtGui.QShortcut("Ctrl+Home", self.window, self.moveComponentTop)
-        QtGui.QShortcut("Ctrl+End", self.window, self.moveComponentBottom)
-        QtGui.QShortcut("Ctrl+r", self.window, self.removeComponent)
+        QtWidgets.QShortcut("Ctrl+Home", self.window, self.moveComponentTop)
+        QtWidgets.QShortcut("Ctrl+End", self.window, self.moveComponentBottom)
+        QtWidgets.QShortcut("Ctrl+r", self.window, self.removeComponent)
 
     def cleanUp(self):
         self.timer.stop()

@@ -1,5 +1,5 @@
 from PIL import Image, ImageDraw
-from PyQt4 import uic, QtGui, QtCore
+from PyQt5 import uic, QtGui, QtCore, QtWidgets
 import os
 from . import __base__
 

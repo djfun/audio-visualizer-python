@@ -1,11 +1,11 @@
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 import string
 import os
 
 import core
 
 
-class PresetManager(QtGui.QDialog):
+class PresetManager(QtWidgets.QDialog):
     def __init__(self, window, parent):
         super().__init__(parent.window)
         self.parent = parent
@@ -41,8 +41,8 @@ class PresetManager(QtGui.QDialog):
         )
 
         # make auto-completion for search bar
-        self.autocomplete = QtGui.QStringListModel()
-        completer = QtGui.QCompleter()
+        self.autocomplete = QtCore.QStringListModel()
+        completer = QtWidgets.QCompleter()
         completer.setModel(self.autocomplete)
         self.window.lineEdit_search.setCompleter(completer)
         self.window.lineEdit_search.textChanged.connect(

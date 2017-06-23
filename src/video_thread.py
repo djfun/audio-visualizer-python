@@ -1,5 +1,5 @@
-from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtCore import pyqtSignal, pyqtSlot
+from PyQt5 import QtCore, QtGui, uic
+from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
 import core

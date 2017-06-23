@@ -1,6 +1,6 @@
 from PIL import Image, ImageDraw
-from PyQt4.QtGui import QPainter, QColor, QFont
-from PyQt4 import uic, QtGui, QtCore
+from PyQt5.QtGui import QPainter, QColor, QFont
+from PyQt5 import uic, QtGui, QtCore
 from PIL.ImageQt import ImageQt
 import os
 import io
