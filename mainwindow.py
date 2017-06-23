@@ -212,6 +212,8 @@ class MainWindow(QtGui.QMainWindow):
         window.show()
 
         if project and project != self.autosavePath:
+            if not project.endswith('.avp'):
+                project += '.avp'
             # open a project from the commandline
             if not os.path.dirname(project):
                 project = os.path.join(os.path.expanduser('~'), project)
@@ -350,8 +352,15 @@ class MainWindow(QtGui.QMainWindow):
         return False
 
     def saveProjectChanges(self):
-        os.remove(self.currentProject)
-        os.rename(self.autosavePath, self.currentProject)
+        try:
+            os.remove(self.currentProject)
+            os.rename(self.autosavePath, self.currentProject)
+            return True
+        except (FileNotFoundError, IsADirectoryError) as e:
+            self.showMessage(
+                msg='Project file couldn\'t be saved.',
+                detail=str(e))
+            return False
 
     def openInputFileDialog(self):
         inputDir = self.settings.value("inputDir", os.path.expanduser("~"))
@@ -592,6 +601,7 @@ class MainWindow(QtGui.QMainWindow):
             self.openSaveProjectDialog()
 
     def openSaveChangesDialog(self, phrase):
+        success = True
         if self.autosaveExists(identical=False):
             ch = self.showMessage(
                 msg="You have unsaved changes in project '%s'. "
@@ -600,9 +610,9 @@ class MainWindow(QtGui.QMainWindow):
                     phrase),
                 showCancel=True)
             if ch:
-                self.saveProjectChanges()
+                success = self.saveProjectChanges()
 
-        if os.path.exists(self.autosavePath):
+        if success and os.path.exists(self.autosavePath):
             os.remove(self.autosavePath)
 
     def openSaveProjectDialog(self):
