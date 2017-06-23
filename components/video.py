@@ -221,6 +221,23 @@ class Component(__base__.Component):
             width, height = scale(self.scale, width, height, int)
         self.chunkSize = 4*width*height
 
+    def command(self, arg):
+        if not arg.startswith('preset=') and '=' in arg:
+            key, arg = arg.split('=', 1)
+            if key == 'path' and os.path.exists(arg):
+                if os.path.splitext(arg)[1] in self.core.videoFormats:
+                    self.page.lineEdit_video.setText(arg)
+                    self.page.spinBox_scale.setValue(100)
+                    self.page.checkBox_loop.setChecked(True)
+                    return
+                else:
+                    print("Not a supported video format")
+                    quit(1)
+        super().command(arg)
+
+    def commandHelp(self):
+        print('Load a video:\n    path=/filepath/to/video.mp4')
+
 def scale(scale, width, height, returntype=None):
     width = (float(width) / 100.0) * float(scale)
     height = (float(height) / 100.0) * float(scale)
