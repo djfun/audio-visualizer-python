@@ -179,7 +179,7 @@ class Core():
                     clearThis = False
 
                     # add loaded named presets to savedPresets dict
-                    if 'preset' in preset and preset['preset'] != None:
+                    if 'preset' in preset and preset['preset'] is not None:
                         nam = preset['preset']
                         filepath2 = os.path.join(
                             self.presetDir, name, str(vers), nam)
@@ -195,12 +195,12 @@ class Core():
                         -1,
                         self.moduleIndexFor(name),
                         loader)
-                    if i == None:
+                    if i is None:
                         loader.showMessage(msg="Too many components!")
                         break
 
                     try:
-                        if 'preset' in preset and preset['preset'] != None:
+                        if 'preset' in preset and preset['preset'] is not None:
                             self.selectedComponents[i].loadPreset(
                                 preset
                             )
@@ -210,8 +210,8 @@ class Core():
                                 preset['preset']
                             )
                     except KeyError as e:
-                        print('%s missing value %s' %
-                            (self.selectedComponents[i], e))
+                        print('%s missing value %s' % (
+                            self.selectedComponents[i], e))
 
                     if clearThis:
                         self.clearPreset(i)
@@ -220,7 +220,6 @@ class Core():
             except:
                 errcode = 1
                 data = sys.exc_info()
-
 
         if errcode == 1:
             typ, value, _ = data
@@ -274,11 +273,11 @@ class Core():
                             i += 1
                         elif i == 2:
                             lastCompPreset = Core.presetFromString(line)
-                            data[section].append(
-                                (lastCompName,
+                            data[section].append((
+                                lastCompName,
                                 lastCompVers,
-                                lastCompPreset)
-                            )
+                                lastCompPreset
+                            ))
                             i = 0
             return 0, data
         except:
@@ -309,7 +308,9 @@ class Core():
             return False, ''
 
     def exportPreset(self, exportPath, compName, vers, origName):
-        internalPath = os.path.join(self.presetDir, compName, str(vers), origName)
+        internalPath = os.path.join(
+            self.presetDir, compName, str(vers), origName
+        )
         if not os.path.exists(internalPath):
             return
         if os.path.exists(exportPath):
@@ -328,7 +329,7 @@ class Core():
             return False
 
     def createPresetFile(
-        self, compName, vers, presetName, saveValueStore, filepath=''):
+            self, compName, vers, presetName, saveValueStore, filepath=''):
         '''Create a preset file (.avl) at filepath using args.
         Or if filepath is empty, create an internal preset using args'''
         if not filepath:
@@ -463,7 +464,8 @@ class Core():
     @staticmethod
     def presetToString(dictionary):
         '''Alphabetizes a dict into OrderedDict & returns string repr'''
-        return repr(OrderedDict(sorted(dictionary.items(), key=lambda t: t[0])))
+        return repr(
+            OrderedDict(sorted(dictionary.items(), key=lambda t: t[0])))
 
     @staticmethod
     def presetFromString(string):

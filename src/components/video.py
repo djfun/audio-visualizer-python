@@ -41,8 +41,8 @@ class Video:
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
-            '-filter:v', 'scale=%s:%s' %
-                scale(self.scale, self.width, self.height, str),
+            '-filter:v', 'scale=%s:%s' % scale(
+                self.scale, self.width, self.height, str),
             '-vcodec', 'rawvideo', '-',
         ]
 
@@ -180,7 +180,7 @@ class Component(__base__.Component):
 
     def pickVideo(self):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
-        filename = QtGui.QFileDialog.getOpenFileName(
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
             imgDir, "Video Files (%s)" % " ".join(self.videoFormats)
         )
@@ -199,8 +199,8 @@ class Component(__base__.Component):
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
-            '-filter:v', 'scale=%s:%s' %
-                scale(self.scale, width, height, str),
+            '-filter:v', 'scale=%s:%s' % scale(
+                self.scale, width, height, str),
             '-vcodec', 'rawvideo', '-',
             '-ss', '90',
             '-vframes', '1',
@@ -238,6 +238,7 @@ class Component(__base__.Component):
     def commandHelp(self):
         print('Load a video:\n    path=/filepath/to/video.mp4')
 
+
 def scale(scale, width, height, returntype=None):
     width = (float(width) / 100.0) * float(scale)
     height = (float(height) / 100.0) * float(scale)
@@ -247,6 +248,7 @@ def scale(scale, width, height, returntype=None):
         return (int(width), int(height))
     else:
         return (width, height)
+
 
 def finalizeFrame(self, imageData, width, height):
     if self.distort:
@@ -265,7 +267,7 @@ def finalizeFrame(self, imageData, width, height):
             imageData)
 
     if self.scale != 100 \
-        or self.xPosition != 0 or self.yPosition != 0:
+            or self.xPosition != 0 or self.yPosition != 0:
         frame = self.blankFrame(width, height)
         frame.paste(image, box=(self.xPosition, self.yPosition))
     else:

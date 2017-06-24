@@ -85,7 +85,7 @@ class Component(__base__.Component):
 
     def pickImage(self):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
-        filename = QtGui.QFileDialog.getOpenFileName(
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Image", imgDir,
             "Image Files (%s)" % " ".join(self.imageFormats))
         if filename:

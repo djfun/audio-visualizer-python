@@ -39,7 +39,7 @@ class Component(QtCore.QObject):
         then update self.page widgets using the preset dict.
         '''
         self.currentPreset = presetName \
-            if presetName != None else presetDict['preset']
+            if presetName is not None else presetDict['preset']
 
     def preFrameRender(self, **kwargs):
         '''Triggered only before a video is exported (video_thread.py)
@@ -66,8 +66,8 @@ class Component(QtCore.QObject):
                 print('Couldn\'t locate preset "%s"' % preset)
                 quit(1)
             else:
-                print('Opening "%s" preset on layer %s' % \
-                    (preset, self.compPos))
+                print('Opening "%s" preset on layer %s' % (
+                    preset, self.compPos))
                 self.core.openPreset(path, self.compPos, preset)
         else:
             print(
@@ -88,8 +88,8 @@ class Component(QtCore.QObject):
         and return this as an RGB string and QPushButton stylesheet.
         In a subclass apply stylesheet to any color selection widgets
         '''
-        dialog = QtGui.QColorDialog()
-        dialog.setOption(QtGui.QColorDialog.ShowAlphaChannel, True)
+        dialog = QtWidgets.QColorDialog()
+        dialog.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
         color = dialog.getColor()
         if color.isValid():
             RGBstring = '%s,%s,%s' % (
@@ -142,10 +142,10 @@ class Component(QtCore.QObject):
         return image
     '''
 
+
 class BadComponentInit(Exception):
     def __init__(self, arg, name):
-        string = \
-'''################################
+        string = '''################################
 Mandatory argument "%s" not specified
   in %s instance initialization
 ###################################'''

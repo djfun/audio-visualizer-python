@@ -22,9 +22,9 @@ class Command(QtCore.QObject):
         self.parser = argparse.ArgumentParser(
             description='Create a visualization for an audio file',
             epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
-                '-i ~/Music/song.mp3 -o ~/video.mp4 '
-                '-c 0 image path=~/Pictures/thisWeeksPicture.jpg '
-                '-c 1 video "preset=My Logo" -c 2 vis layout=classic')
+                        '-i ~/Music/song.mp3 -o ~/video.mp4 '
+                        '-c 0 image path=~/Pictures/thisWeeksPicture.jpg '
+                        '-c 1 video "preset=My Logo" -c 2 vis layout=classic')
         self.parser.add_argument(
             '-i', '--input', metavar='SOUND',
             help='input audio file')
@@ -113,10 +113,11 @@ class Command(QtCore.QObject):
             if name.capitalize() in compName:
                 return compName
 
-        compFileNames = [ \
-            os.path.splitext(os.path.basename(
-                mod.__file__))[0] \
-            for mod in self.core.modules \
+        compFileNames = [
+            os.path.splitext(
+                os.path.basename(mod.__file__)
+            )[0]
+            for mod in self.core.modules
         ]
         for i, compFileName in enumerate(compFileNames):
             if name.lower() in compFileName:
