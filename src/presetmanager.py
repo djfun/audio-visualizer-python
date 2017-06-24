@@ -27,12 +27,20 @@ class PresetManager(QtWidgets.QDialog):
 
         # connect button signals
         self.window.pushButton_delete.clicked.connect(
-            self.openDeletePresetDialog)
+            self.openDeletePresetDialog
+        )
         self.window.pushButton_rename.clicked.connect(
-            self.openRenamePresetDialog)
-        self.window.pushButton_import.clicked.connect(self.openImportDialog)
-        self.window.pushButton_export.clicked.connect(self.openExportDialog)
-        self.window.pushButton_close.clicked.connect(self.window.close)
+            self.openRenamePresetDialog
+        )
+        self.window.pushButton_import.clicked.connect(
+            self.openImportDialog
+        )
+        self.window.pushButton_export.clicked.connect(
+            self.openExportDialog
+        )
+        self.window.pushButton_close.clicked.connect(
+            self.window.close
+        )
 
         # create filter box and preset list
         self.drawFilterList()
@@ -99,7 +107,8 @@ class PresetManager(QtWidgets.QDialog):
             for vers, preset in presets:
                 if not presetFilter or presetFilter in preset:
                     self.window.listWidget_presets.addItem(
-                        '%s: %s' % (component, preset))
+                        '%s: %s' % (component, preset)
+                    )
                     self.presetRows.append((component, vers, preset))
                 if preset not in presetNames:
                     presetNames.append(preset)

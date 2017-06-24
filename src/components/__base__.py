@@ -67,7 +67,8 @@ class Component(QtCore.QObject):
                 quit(1)
             else:
                 print('Opening "%s" preset on layer %s' % (
-                    preset, self.compPos))
+                    preset, self.compPos)
+                )
                 self.core.openPreset(path, self.compPos, preset)
         else:
             print(

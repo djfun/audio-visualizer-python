@@ -211,7 +211,8 @@ class Core():
                             )
                     except KeyError as e:
                         print('%s missing value %s' % (
-                            self.selectedComponents[i], e))
+                            self.selectedComponents[i], e)
+                        )
 
                     if clearThis:
                         self.clearPreset(i)
@@ -465,7 +466,8 @@ class Core():
     def presetToString(dictionary):
         '''Alphabetizes a dict into OrderedDict & returns string repr'''
         return repr(
-            OrderedDict(sorted(dictionary.items(), key=lambda t: t[0])))
+            OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
+        )
 
     @staticmethod
     def presetFromString(string):

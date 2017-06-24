@@ -174,7 +174,8 @@ class Component(__base__.Component):
         painter.setBrush(brush)
         painter.drawRect(
             self.x, self.y,
-            self.sizeWidth, self.sizeHeight)
+            self.sizeWidth, self.sizeHeight
+        )
         painter.end()
         imBytes = image.bits().asstring(image.numBytes())
         return Image.frombytes('RGBA', (width, height), imBytes)
