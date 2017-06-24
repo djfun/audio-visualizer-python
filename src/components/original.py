@@ -1,6 +1,6 @@
 import numpy
 from PIL import Image, ImageDraw
-from PyQt5 import uic, QtGui, QtCore
+from PyQt5 import uic, QtGui, QtCore, QtWidgets
 from PyQt5.QtGui import QColor
 import os
 from . import __base__
