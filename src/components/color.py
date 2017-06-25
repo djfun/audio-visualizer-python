@@ -152,7 +152,7 @@ class Component(__base__.Component):
             brush = QtGui.QLinearGradient(
                 self.LG_start,
                 self.LG_start,
-                self.LG_start+width/3,
+                self.LG_end+width/3,
                 self.LG_end)
 
         elif self.fillType == 2:  # Radial Gradient

@@ -158,7 +158,9 @@ class PresetManager(QtWidgets.QDialog):
                         self.createNewPreset(
                             componentName, vers, newName,
                             saveValueStore, window=self.parent.window)
-                        self.openPreset(newName)
+                        self.findPresets()
+                        self.drawPresetList()
+                        self.openPreset(newName, index)
             break
 
     def createNewPreset(
@@ -184,11 +186,11 @@ class PresetManager(QtWidgets.QDialog):
 
         return False
 
-    def openPreset(self, presetName):
+    def openPreset(self, presetName, compPos=None):
         componentList = self.parent.window.listWidget_componentList
         selectedComponents = self.parent.core.selectedComponents
 
-        index = componentList.currentRow()
+        index = compPos if compPos is not None else componentList.currentRow()
         if index == -1:
             return
         componentName = str(selectedComponents[index]).strip()
@@ -217,6 +219,10 @@ class PresetManager(QtWidgets.QDialog):
         self.deletePreset(comp, vers, name)
         self.findPresets()
         self.drawPresetList()
+
+        for i, comp in enumerate(self.core.selectedComponents):
+            if comp.currentPreset == name:
+                self.clearPreset(i)
 
     def deletePreset(self, comp, vers, name):
         filepath = os.path.join(self.presetDir, comp, str(vers), name)
@@ -260,6 +266,11 @@ class PresetManager(QtWidgets.QDialog):
                     os.rename(oldPath, newPath)
                     self.findPresets()
                     self.drawPresetList()
+
+                    for i, comp in enumerate(self.core.selectedComponents):
+                        if comp.currentPreset == oldName:
+                            comp.currentPreset = newName
+                            self.parent.updateComponentTitle(i, True)
             break
 
     def openImportDialog(self):
