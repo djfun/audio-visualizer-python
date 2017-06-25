@@ -49,8 +49,18 @@ class Worker(QtCore.QObject):
 
             components = nextPreviewInformation["components"]
             for component in reversed(components):
-                frame = Image.alpha_composite(
-                    frame, component.previewRender(self))
+                try:
+                    frame = Image.alpha_composite(
+                        frame, component.previewRender(self)
+                    )
+                except ValueError as e:
+                    self.parent.showMessage(
+                        msg="Bad frame returned by %s's previewRender method. "
+                            "This is a fatal error." %
+                            str(component),
+                        detail=str(e)
+                    )
+                    quit(1)
 
             self._image = ImageQt(frame)
             self.imageCreated.emit(QtGui.QImage(self._image))

@@ -1,6 +1,6 @@
 import numpy
 from PIL import Image, ImageDraw
-from PyQt5 import uic, QtGui, QtCore, QtWidgets
+from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtGui import QColor
 import os
 from . import __base__
@@ -17,8 +17,7 @@ class Component(__base__.Component):
         self.parent = parent
         self.visColor = (255, 255, 255)
 
-        page = uic.loadUi(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 'original.ui'))
+        page = self.loadUi('original.ui')
         page.comboBox_visLayout.addItem("Classic")
         page.comboBox_visLayout.addItem("Split")
         page.comboBox_visLayout.addItem("Bottom")

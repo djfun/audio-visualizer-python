@@ -1,5 +1,5 @@
 from PIL import Image, ImageDraw
-from PyQt5 import uic, QtGui, QtCore, QtWidgets
+from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 from . import __base__
 
@@ -12,8 +12,7 @@ class Component(__base__.Component):
     def widget(self, parent):
         self.parent = parent
         self.settings = parent.settings
-        page = uic.loadUi(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 'image.ui'))
+        page = self.loadUi('image.ui')
         self.imagePath = ''
         self.x = 0
         self.y = 0

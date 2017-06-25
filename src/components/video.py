@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw
-from PyQt5 import uic, QtGui, QtCore, QtWidgets
+from PyQt5 import QtGui, QtCore, QtWidgets
 import os
+import math
 import subprocess
 import threading
 from queue import PriorityQueue
@@ -79,9 +80,20 @@ class Video:
             self.frameNo += 1
 
             # If we run out of frames, use the last good frame and loop.
-            if len(self.currentFrame) == 0:
-                self.frameBuffer.put((self.frameNo-1, self.lastFrame))
-                continue
+            try:
+                if len(self.currentFrame) == 0:
+                    self.frameBuffer.put((self.frameNo-1, self.lastFrame))
+                    continue
+            except AttributeError as e:
+                self.parent.showMessage(
+                    msg='%s couldn\'t be loaded. '
+                        'This is a fatal error.' % os.path.basename(
+                        self.videoPath
+                    ),
+                    detail=str(e)
+                )
+                self.parent.stopVideo()
+                break
 
             self.currentFrame = pipe.stdout.read(self.chunkSize)
             if len(self.currentFrame) != 0:
@@ -97,10 +109,7 @@ class Component(__base__.Component):
     def widget(self, parent):
         self.parent = parent
         self.settings = parent.settings
-        page = uic.loadUi(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            'video.ui'
-        ))
+        page = self.loadUi('video.ui')
         self.videoPath = ''
         self.x = 0
         self.y = 0
@@ -243,28 +252,32 @@ def scale(scale, width, height, returntype=None):
     width = (float(width) / 100.0) * float(scale)
     height = (float(height) / 100.0) * float(scale)
     if returntype == str:
-        return (str(int(width)), str(int(height)))
+        return (str(math.ceil(width)), str(math.ceil(height)))
     elif returntype == int:
-        return (int(width), int(height))
+        return (math.ceil(width), math.ceil(height))
     else:
         return (width, height)
 
 
 def finalizeFrame(self, imageData, width, height):
-    if self.distort:
-        try:
+    try:
+        if self.distort:
             image = Image.frombytes(
                 'RGBA',
                 (width, height),
                 imageData)
-        except ValueError:
-            print('#### ignored invalid data caused by distortion ####')
-            image = self.blankFrame(width, height)
-    else:
-        image = Image.frombytes(
-            'RGBA',
-            scale(self.scale, width, height, int),
-            imageData)
+        else:
+            image = Image.frombytes(
+                'RGBA',
+                scale(self.scale, width, height, int),
+                imageData)
+
+    except ValueError:
+        print(
+            '### BAD VIDEO SELECTED ###\n'
+            'Video will not export with these settings'
+        )
+        return self.blankFrame(width, height)
 
     if self.scale != 100 \
             or self.xPosition != 0 or self.yPosition != 0:

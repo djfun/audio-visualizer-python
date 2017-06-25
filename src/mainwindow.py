@@ -12,7 +12,7 @@ import core
 import preview_thread
 import video_thread
 from presetmanager import PresetManager
-from main import LoadDefaultSettings
+from main import LoadDefaultSettings, disableWhenEncoding
 
 
 class PreviewWindow(QtWidgets.QLabel):
@@ -54,6 +54,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.pages = []  # widgets of component settings
         self.lastAutosave = time.time()
+        self.encoding = False
 
         # Create data directory, load/create settings
         self.dataDir = self.core.dataDir
@@ -149,16 +150,18 @@ class MainWindow(QtWidgets.QMainWindow):
         for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.__doc__)
             action.triggered.connect(
-                lambda _, item=i: self.core.insertComponent(0, item, self))
+                lambda _, item=i: self.core.insertComponent(0, item, self)
+            )
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
 
         componentList.dropEvent = self.dragComponent
         componentList.itemSelectionChanged.connect(
-            self.changeComponentWidget)
-
+            self.changeComponentWidget
+        )
         self.window.pushButton_removeComponent.clicked.connect(
-            lambda _: self.removeComponent())
+            lambda: self.removeComponent()
+        )
 
         componentList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         componentList.customContextMenuRequested.connect(
@@ -173,7 +176,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 currentRes = i
                 window.comboBox_resolution.setCurrentIndex(currentRes)
                 window.comboBox_resolution.currentIndexChanged.connect(
-                    self.updateResolution)
+                    self.updateResolution
+                )
 
         self.window.pushButton_listMoveUp.clicked.connect(
             lambda: self.moveComponent(-1)
@@ -185,14 +189,17 @@ class MainWindow(QtWidgets.QMainWindow):
         # Configure the Projects Menu
         self.projectMenu = QMenu()
         self.window.menuButton_newProject = self.projectMenu.addAction(
-            "New Project")
+            "New Project"
+        )
         self.window.menuButton_newProject.triggered.connect(
-            self.createNewProject)
-
+            lambda: self.createNewProject()
+        )
         self.window.menuButton_openProject = self.projectMenu.addAction(
-            "Open Project")
+            "Open Project"
+        )
         self.window.menuButton_openProject.triggered.connect(
-            self.openOpenProjectDialog)
+            lambda: self.openOpenProjectDialog()
+        )
 
         action = self.projectMenu.addAction("Save Project")
         action.triggered.connect(self.saveCurrentProject)
@@ -207,6 +214,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.openPresetManager
         )
 
+        self.updateWindowTitle()
         window.show()
 
         if project and project != self.autosavePath:
@@ -282,10 +290,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateWindowTitle(self):
         appName = 'Audio Visualizer'
-        if self.currentProject:
-            appName += ' - %s' % \
-                os.path.splitext(
-                    os.path.basename(self.currentProject))[0]
+        try:
+            if self.currentProject:
+                appName += ' - %s' % \
+                    os.path.splitext(
+                        os.path.basename(self.currentProject))[0]
+            if self.autosaveExists(identical=False):
+                appName += '*'
+        except AttributeError:
+            pass
         self.window.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
@@ -345,7 +358,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.currentProject:
             if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
-        elif force or time.time() - self.lastAutosave >= 2.0:
+        elif force or time.time() - self.lastAutosave >= 0.1:
             self.core.createProjectFile(self.autosavePath)
             self.lastAutosave = time.time()
 
@@ -391,7 +404,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "Video Files (%s);; All Files (*)" % " ".join(
                 self.core.videoFormats))
 
-        if not fileName == "":
+        if fileName:
             self.settings.setValue("outputDir", os.path.dirname(fileName))
             self.window.lineEdit_outputFile.setText(fileName)
 
@@ -402,33 +415,50 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def createAudioVisualisation(self):
         # create output video if mandatory settings are filled in
-        if self.window.lineEdit_audioFile.text() and \
-          self.window.lineEdit_outputFile.text():
-            self.canceled = False
-            self.progressBarUpdated(-1)
-            self.videoThread = QtCore.QThread(self)
-            self.videoWorker = video_thread.Worker(self)
-            self.videoWorker.moveToThread(self.videoThread)
-            self.videoWorker.videoCreated.connect(self.videoCreated)
-            self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
-            self.videoWorker.progressBarSetText.connect(
-                self.progressBarSetText)
-            self.videoWorker.imageCreated.connect(self.showPreviewImage)
-            self.videoWorker.encoding.connect(self.changeEncodingStatus)
-            self.videoThread.start()
-            outputPath = self.window.lineEdit_outputFile.text()
+        audioFile = self.window.lineEdit_audioFile.text()
+        outputPath = self.window.lineEdit_outputFile.text()
+
+        if audioFile and outputPath and self.core.selectedComponents:
             if not os.path.dirname(outputPath):
                 outputPath = os.path.join(
                     os.path.expanduser("~"), outputPath)
-            self.videoTask.emit(
-                self.window.lineEdit_audioFile.text(),
-                outputPath,
-                self.core.selectedComponents)
+            if outputPath and os.path.isdir(outputPath):
+                self.showMessage(
+                    msg='Chosen filename matches a directory, which '
+                        'cannot be overwritten. Please choose a different '
+                        'filename or move the directory.'
+                )
+                return
         else:
-            self.showMessage(
-                msg="You must select an audio file and output filename.")
+            if not audioFile or not outputPath:
+                self.showMessage(
+                    msg="You must select an audio file and output filename."
+                )
+            elif not self.core.selectedComponents:
+                self.showMessage(
+                    msg="Not enough components."
+                )
+            return
+
+        self.canceled = False
+        self.progressBarUpdated(-1)
+        self.videoThread = QtCore.QThread(self)
+        self.videoWorker = video_thread.Worker(self)
+        self.videoWorker.moveToThread(self.videoThread)
+        self.videoWorker.videoCreated.connect(self.videoCreated)
+        self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
+        self.videoWorker.progressBarSetText.connect(
+            self.progressBarSetText)
+        self.videoWorker.imageCreated.connect(self.showPreviewImage)
+        self.videoWorker.encoding.connect(self.changeEncodingStatus)
+        self.videoThread.start()
+        self.videoTask.emit(
+            audioFile,
+            outputPath,
+            self.core.selectedComponents)
 
     def changeEncodingStatus(self, status):
+        self.encoding = status
         if status:
             self.window.pushButton_createVideo.setEnabled(False)
             self.window.pushButton_Cancel.setEnabled(True)
@@ -490,6 +520,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.newTask.emit(self.core.selectedComponents)
         # self.processTask.emit()
         self.autosave(force)
+        self.updateWindowTitle()
 
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
@@ -595,6 +626,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window.stackedWidget.removeWidget(widget)
         self.pages = []
 
+    @disableWhenEncoding
     def createNewProject(self):
         self.openSaveChangesDialog('starting a new project')
 
@@ -602,11 +634,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.currentProject = None
         self.settings.setValue("currentProject", None)
         self.drawPreview(True)
-        self.updateWindowTitle()
 
     def saveCurrentProject(self):
         if self.currentProject:
             self.core.createProjectFile(self.currentProject)
+            self.updateWindowTitle()
         else:
             self.openSaveProjectDialog()
 
@@ -638,9 +670,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings.setValue("projectDir", os.path.dirname(filename))
         self.settings.setValue("currentProject", filename)
         self.currentProject = filename
-        self.updateWindowTitle()
         self.core.createProjectFile(filename)
+        self.updateWindowTitle()
 
+    @disableWhenEncoding
     def openOpenProjectDialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.window, "Open Project File",
@@ -651,7 +684,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def openProject(self, filepath, prompt=True):
         if not filepath or not os.path.exists(filepath) \
           or not filepath.endswith('.avp'):
-            self.updateWindowTitle()
             return
 
         self.clear()
@@ -660,7 +692,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.openSaveChangesDialog('opening another project')
 
         self.currentProject = filepath
-        self.updateWindowTitle()
         self.settings.setValue("currentProject", filepath)
         self.settings.setValue("projectDir", os.path.dirname(filepath))
         # actually load the project using core method
@@ -668,6 +699,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.window.listWidget_componentList.count() == 0:
             self.drawPreview()
         self.autosave(True)
+        self.updateWindowTitle()
 
     def showMessage(self, **kwargs):
         parent = kwargs['parent'] if 'parent' in kwargs else self.window
