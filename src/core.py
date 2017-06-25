@@ -178,6 +178,7 @@ class Core():
                 for i, tup in enumerate(data['Components']):
                     name, vers, preset = tup
                     clearThis = False
+                    modified = False
 
                     # add loaded named presets to savedPresets dict
                     if 'preset' in preset and preset['preset'] is not None:
@@ -187,6 +188,7 @@ class Core():
                         origSaveValueStore = self.getPreset(filepath2)
                         if origSaveValueStore:
                             self.savedPresets[nam] = dict(origSaveValueStore)
+                            modified = not origSaveValueStore == preset
                         else:
                             # saved preset was renamed or deleted
                             clearThis = True
@@ -218,7 +220,7 @@ class Core():
                     if clearThis:
                         self.clearPreset(i)
                     if hasattr(loader, 'updateComponentTitle'):
-                        loader.updateComponentTitle(i)
+                        loader.updateComponentTitle(i, modified)
             except:
                 errcode = 1
                 data = sys.exc_info()

@@ -286,6 +286,8 @@ class MainWindow(QtWidgets.QMainWindow):
             appName += ' - %s' % \
                 os.path.splitext(
                     os.path.basename(self.currentProject))[0]
+        if self.autosaveExists(identical=False):
+            appName += '*'
         self.window.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
@@ -490,6 +492,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.newTask.emit(self.core.selectedComponents)
         # self.processTask.emit()
         self.autosave(force)
+        self.updateWindowTitle()
 
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
@@ -602,11 +605,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.currentProject = None
         self.settings.setValue("currentProject", None)
         self.drawPreview(True)
-        self.updateWindowTitle()
 
     def saveCurrentProject(self):
         if self.currentProject:
             self.core.createProjectFile(self.currentProject)
+            self.updateWindowTitle()
         else:
             self.openSaveProjectDialog()
 
@@ -638,8 +641,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings.setValue("projectDir", os.path.dirname(filename))
         self.settings.setValue("currentProject", filename)
         self.currentProject = filename
-        self.updateWindowTitle()
         self.core.createProjectFile(filename)
+        self.updateWindowTitle()
 
     def openOpenProjectDialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -651,7 +654,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def openProject(self, filepath, prompt=True):
         if not filepath or not os.path.exists(filepath) \
           or not filepath.endswith('.avp'):
-            self.updateWindowTitle()
             return
 
         self.clear()
@@ -660,7 +662,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.openSaveChangesDialog('opening another project')
 
         self.currentProject = filepath
-        self.updateWindowTitle()
         self.settings.setValue("currentProject", filepath)
         self.settings.setValue("projectDir", os.path.dirname(filepath))
         # actually load the project using core method
