@@ -58,7 +58,8 @@ class Worker(QtCore.QObject):
                         msg="Bad frame returned by %s's previewRender method. "
                             "This is a fatal error." %
                             str(component),
-                        detail=str(e)
+                        detail=str(e),
+                        icon='Warning'
                     )
                     quit(1)
 

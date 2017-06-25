@@ -176,7 +176,7 @@ class PresetManager(QtWidgets.QDialog):
                 msg="%s already exists! Overwrite it?" %
                     os.path.basename(path),
                 showCancel=True,
-                icon=QtWidgets.QMessageBox.Warning,
+                icon='Warning',
                 parent=window)
             if not ch:
                 # user clicked cancel
@@ -209,7 +209,7 @@ class PresetManager(QtWidgets.QDialog):
         ch = self.parent.showMessage(
             msg='Really delete %s?' % name,
             showCancel=True,
-            icon=QtWidgets.QMessageBox.Warning,
+            icon='Warning',
             parent=self.window
         )
         if not ch:

@@ -1,5 +1,4 @@
-from PyQt4 import QtCore
-from PyQt4.QtCore import QSettings
+from PyQt5 import QtCore
 import argparse
 import os
 import sys
@@ -24,13 +23,20 @@ class Command(QtCore.QObject):
             epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
                         '-i ~/Music/song.mp3 -o ~/video.mp4 '
                         '-c 0 image path=~/Pictures/thisWeeksPicture.jpg '
-                        '-c 1 video "preset=My Logo" -c 2 vis layout=classic')
+                        '-c 1 video "preset=My Logo" -c 2 vis layout=classic'
+        )
         self.parser.add_argument(
             '-i', '--input', metavar='SOUND',
-            help='input audio file')
+            help='input audio file'
+        )
         self.parser.add_argument(
             '-o', '--output', metavar='OUTPUT',
-            help='output video file')
+            help='output video file'
+        )
+        self.parser.add_argument(
+            '-e', '--export', action='store_true',
+            help='use input and output files from project file'
+        )
 
         # optional arguments
         self.parser.add_argument(
@@ -43,12 +49,19 @@ class Command(QtCore.QObject):
             nargs='*', action='append')
 
         self.args = self.parser.parse_args()
-        self.settings = QSettings(
-            os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
+        self.settings = self.core.settings
         LoadDefaultSettings(self)
 
         if self.args.projpath:
-            self.core.openProject(self, self.args.projpath)
+            projPath = self.args.projpath
+            if not os.path.dirname(projPath):
+                projPath = os.path.join(
+                    self.settings.value("projectDir"),
+                    projPath
+                )
+            if not projPath.endswith('.avp'):
+                projPath += '.avp'
+            self.core.openProject(self, projPath)
             self.core.selectedComponents = list(
                 reversed(self.core.selectedComponents))
             self.core.componentListChanged()
@@ -72,13 +85,28 @@ class Command(QtCore.QObject):
                 for arg in args:
                     self.core.selectedComponents[i].command(arg)
 
-        if self.args.input and self.args.output:
-            self.createAudioVisualisation()
+        if self.args.export and self.args.projpath:
+            errcode, data = self.core.parseAvFile(projPath)
+            for key, value in data['WindowFields']:
+                if 'outputFile' in key:
+                    output = value
+                    if not os.path.dirname(value):
+                        output = os.path.join(
+                            os.path.expanduser('~'),
+                            output
+                        )
+                if 'audioFile' in key:
+                    input = value
+            self.createAudioVisualisation(input, output)
+
+        elif self.args.input and self.args.output:
+            self.createAudioVisualisation(self.args.input, self.args.output)
+
         elif 'help' not in sys.argv:
             self.parser.print_help()
             quit(1)
 
-    def createAudioVisualisation(self):
+    def createAudioVisualisation(self, input, output):
         self.videoThread = QtCore.QThread(self)
         self.videoWorker = video_thread.Worker(self)
         self.videoWorker.moveToThread(self.videoThread)
@@ -86,8 +114,8 @@ class Command(QtCore.QObject):
 
         self.videoThread.start()
         self.videoTask.emit(
-          self.args.input,
-          self.args.output,
+          input,
+          output,
           list(reversed(self.core.selectedComponents))
         )
 

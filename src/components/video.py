@@ -88,9 +88,10 @@ class Video:
                 self.parent.showMessage(
                     msg='%s couldn\'t be loaded. '
                         'This is a fatal error.' % os.path.basename(
-                        self.videoPath
-                    ),
-                    detail=str(e)
+                            self.videoPath
+                        ),
+                    detail=str(e),
+                    icon='Warning'
                 )
                 self.parent.stopVideo()
                 break
@@ -188,13 +189,13 @@ class Component(__base__.Component):
         }
 
     def pickVideo(self):
-        imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
+        imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
             imgDir, "Video Files (%s)" % " ".join(self.videoFormats)
         )
         if filename:
-            self.settings.setValue("backgroundDir", os.path.dirname(filename))
+            self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_video.setText(filename)
             self.update()
 
