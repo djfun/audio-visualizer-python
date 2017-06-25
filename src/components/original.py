@@ -9,9 +9,13 @@ from copy import copy
 
 
 class Component(__base__.Component):
-    '''Original Audio Visualization'''
+    '''Classic Visualizer'''
 
     modified = QtCore.pyqtSignal(int, dict)
+
+    @classmethod
+    def names(cls):
+        return ['Original Audio Visualization']
 
     def widget(self, parent):
         self.parent = parent

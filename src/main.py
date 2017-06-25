@@ -8,11 +8,11 @@ import video_thread
 
 
 def disableWhenEncoding(func):
-    def decorator(*args):
+    def decorator(*args, **kwargs):
         if args[0].encoding:
             return
         else:
-            return func(*args)
+            return func(*args, **kwargs)
     return decorator
 
 

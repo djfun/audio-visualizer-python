@@ -144,6 +144,11 @@ class Component(QtCore.QObject):
         height = int(self.worker.core.settings.value('outputHeight'))
         image = Image.new("RGBA", (width, height), (0,0,0,0))
         return image
+
+    @classmethod
+    def names(cls):
+        # Alternative names for renaming a component between project files
+        return []
     '''
 
 

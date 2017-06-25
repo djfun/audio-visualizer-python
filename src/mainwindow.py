@@ -644,8 +644,9 @@ class MainWindow(QtWidgets.QMainWindow):
             field.blockSignals(False)
 
     @disableWhenEncoding
-    def createNewProject(self):
-        self.openSaveChangesDialog('starting a new project')
+    def createNewProject(self, prompt=True):
+        if prompt:
+            self.openSaveChangesDialog('starting a new project')
 
         self.clear()
         self.currentProject = None

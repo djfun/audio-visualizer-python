@@ -1,5 +1,4 @@
 import sys
-import io
 import os
 from PyQt5 import QtCore, QtGui, uic
 from os.path import expanduser
@@ -81,8 +80,15 @@ class Core():
             import_module('components.%s' % name)
             for name in findComponents()
         ]
+        # store canonical module names and indexes
         self.moduleIndexes = [i for i in range(len(self.modules))]
         self.compNames = [mod.Component.__doc__ for mod in self.modules]
+        self.altCompNames = []
+        # store alternative names for modules
+        for i, mod in enumerate(self.modules):
+            if hasattr(mod.Component, 'names'):
+                for name in mod.Component.names():
+                    self.altCompNames.append((name, i))
 
     def componentListChanged(self):
         for i, component in enumerate(self.selectedComponents):
@@ -132,8 +138,13 @@ class Core():
         self.selectedComponents[i].update()
 
     def moduleIndexFor(self, compName):
-        index = self.compNames.index(compName)
-        return self.moduleIndexes[index]
+        try:
+            index = self.compNames.index(compName)
+            return self.moduleIndexes[index]
+        except ValueError:
+            for altName, modI in self.altCompNames:
+                if altName == compName:
+                    return self.moduleIndexes[modI]
 
     def clearPreset(self, compIndex):
         self.selectedComponents[compIndex].currentPreset = None
@@ -247,7 +258,7 @@ class Core():
                 print('file missing value: %s' % value)
                 return
             if hasattr(loader, 'createNewProject'):
-                loader.createNewProject()
+                loader.createNewProject(prompt=False)
             import traceback
             msg = '%s: %s\n\nTraceback:\n' % (typ.__name__, value)
             msg += "\n".join(traceback.format_tb(tb))
