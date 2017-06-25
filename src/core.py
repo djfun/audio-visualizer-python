@@ -180,16 +180,14 @@ class Core():
         if errcode == 0:
             try:
                 if hasattr(loader, 'window'):
-                    for pair in data['WindowFields']:
-                        widget, value = pair.split('=', 1)
+                    for widget, value in data['WindowFields']:
                         widget = eval('loader.window.%s' % widget)
                         widget.blockSignals(True)
-                        widget.setText(value.strip())
+                        widget.setText(value)
                         widget.blockSignals(False)
 
-                for pair in data['Settings']:
-                    key, value = pair.split('=', 1)
-                    self.settings.setValue(key, value.strip())
+                for key, value in data['Settings']:
+                    self.settings.setValue(key, value)
 
                 for tup in data['Components']:
                     name, vers, preset = tup
@@ -264,16 +262,16 @@ class Core():
         Returns dictionary with section names as the keys, each one
         contains a list of tuples: (compName, version, compPresetDict)
         '''
-        data = {}
+        validSections = (
+                    'Components',
+                    'Settings',
+                    'WindowFields'
+                )
+        data = {sect: [] for sect in validSections}
         try:
             with open(filepath, 'r') as f:
                 def parseLine(line):
                     '''Decides if a file line is a section header'''
-                    validSections = (
-                        'Components',
-                        'Settings',
-                        'WindowFields'
-                    )
                     line = line.strip()
                     newSection = ''
 
@@ -289,7 +287,6 @@ class Core():
                     line, newSection = parseLine(line)
                     if newSection:
                         section = str(newSection)
-                        data[section] = []
                         continue
                     if line and section == 'Components':
                         if i == 0:
@@ -307,7 +304,9 @@ class Core():
                             ))
                             i = 0
                     elif line and section:
-                        data[section].append(line)
+                        key, value = line.split('=', 1)
+                        data[section].append((key, value.strip()))
+
             return 0, data
         except:
             return 1, sys.exc_info()

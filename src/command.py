@@ -87,16 +87,16 @@ class Command(QtCore.QObject):
 
         if self.args.export and self.args.projpath:
             errcode, data = self.core.parseAvFile(projPath)
-            for line in data['WindowFields']:
-                if 'outputFile' in line:
-                    output = line.split('=', 1)[1]
-                    if not os.path.dirname(output):
+            for key, value in data['WindowFields']:
+                if 'outputFile' in key:
+                    output = value
+                    if not os.path.dirname(value):
                         output = os.path.join(
                             os.path.expanduser('~'),
                             output
                         )
-                if 'audioFile' in line:
-                    input = line.split('=', 1)[1]
+                if 'audioFile' in key:
+                    input = value
             self.createAudioVisualisation(input, output)
 
         elif self.args.input and self.args.output:
