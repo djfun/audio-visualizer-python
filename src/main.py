@@ -7,6 +7,15 @@ import preview_thread
 import video_thread
 
 
+def disableWhenEncoding(func):
+    def decorator(*args):
+        if args[0].encoding:
+            return
+        else:
+            return func(*args)
+    return decorator
+
+
 def LoadDefaultSettings(self):
     self.resolutions = [
         '1920x1080',

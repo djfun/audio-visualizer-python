@@ -86,12 +86,14 @@ class Video:
                     continue
             except AttributeError as e:
                 self.parent.showMessage(
-                    msg='%s couldn\'t be loaded.' % os.path.basename(
+                    msg='%s couldn\'t be loaded. '
+                        'This is a fatal error.' % os.path.basename(
                         self.videoPath
                     ),
                     detail=str(e)
                 )
                 self.parent.stopVideo()
+                break
 
             self.currentFrame = pipe.stdout.read(self.chunkSize)
             if len(self.currentFrame) != 0:
@@ -258,20 +260,24 @@ def scale(scale, width, height, returntype=None):
 
 
 def finalizeFrame(self, imageData, width, height):
-    if self.distort:
-        try:
+    try:
+        if self.distort:
             image = Image.frombytes(
                 'RGBA',
                 (width, height),
                 imageData)
-        except ValueError:
-            print('#### ignored invalid data caused by distortion ####')
-            image = self.blankFrame(width, height)
-    else:
-        image = Image.frombytes(
-            'RGBA',
-            scale(self.scale, width, height, int),
-            imageData)
+        else:
+            image = Image.frombytes(
+                'RGBA',
+                scale(self.scale, width, height, int),
+                imageData)
+
+    except ValueError:
+        print(
+            '### BAD VIDEO SELECTED ###\n'
+            'Video will not export with these settings'
+        )
+        return self.blankFrame(width, height)
 
     if self.scale != 100 \
             or self.xPosition != 0 or self.yPosition != 0:

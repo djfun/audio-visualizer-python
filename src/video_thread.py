@@ -2,7 +2,6 @@ from PyQt5 import QtCore, QtGui, uic
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
-import core
 import numpy
 import subprocess as sp
 import sys
@@ -12,6 +11,8 @@ from threading import Thread, Event
 import time
 from copy import copy
 import signal
+
+import core
 
 
 class Worker(QtCore.QObject):
@@ -87,8 +88,10 @@ class Worker(QtCore.QObject):
         self.encoding.emit(True)
         self.components = components
         self.outputFile = outputFile
-        self.bgI = 0  # tracked video frame
+
         self.reset()
+
+        self.bgI = 0  # tracked video frame
         self.width = int(self.core.settings.value('outputWidth'))
         self.height = int(self.core.settings.value('outputHeight'))
         progressBarValue = 0
@@ -171,7 +174,7 @@ class Worker(QtCore.QObject):
         self.staticComponents = {}
         numComps = len(self.components)
         for compNo, comp in enumerate(self.components):
-            pStr = "Analyzing audio..."
+            pStr = "Starting components..."
             self.progressBarSetText.emit(pStr)
             properties = None
             properties = comp.preFrameRender(
