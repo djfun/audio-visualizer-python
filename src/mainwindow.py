@@ -1,6 +1,5 @@
 from queue import Queue
 from PyQt5 import QtCore, QtGui, uic, QtWidgets
-from PyQt5.QtCore import QSettings, Qt
 from PyQt5.QtWidgets import QMenu, QShortcut
 import sys
 import os
@@ -27,7 +26,9 @@ class PreviewWindow(QtWidgets.QLabel):
         painter = QtGui.QPainter(self)
         point = QtCore.QPoint(0, 0)
         scaledPix = self.pixmap.scaled(
-            size, Qt.KeepAspectRatio, transformMode=Qt.SmoothTransformation)
+            size,
+            QtCore.Qt.KeepAspectRatio,
+            transformMode=QtCore.Qt.SmoothTransformation)
 
         # start painting the label from left upper corner
         point.setX((size.width() - scaledPix.width())/2)
@@ -59,8 +60,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Create data directory, load/create settings
         self.dataDir = self.core.dataDir
         self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
-        self.settings = QSettings(
-            os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
+        self.settings = self.core.settings
         LoadDefaultSettings(self)
         self.presetManager = PresetManager(
             uic.loadUi(
@@ -93,6 +93,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         window.toolButton_selectOutputFile.clicked.connect(
             self.openOutputFileDialog)
+
+        def changedField():
+            self.autosave()
+            self.updateWindowTitle()
+
+        window.lineEdit_audioFile.textChanged.connect(changedField)
+        window.lineEdit_outputFile.textChanged.connect(changedField)
 
         window.progressBar_createVideo.setValue(0)
 
@@ -359,7 +366,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
         elif force or time.time() - self.lastAutosave >= 0.1:
-            self.core.createProjectFile(self.autosavePath)
+            self.core.createProjectFile(self.autosavePath, self.window)
             self.lastAutosave = time.time()
 
     def autosaveExists(self, identical=True):
@@ -625,6 +632,13 @@ class MainWindow(QtWidgets.QMainWindow):
         for widget in self.pages:
             self.window.stackedWidget.removeWidget(widget)
         self.pages = []
+        for field in (
+                self.window.lineEdit_audioFile,
+                self.window.lineEdit_outputFile
+                ):
+            field.blockSignals(True)
+            field.setText('')
+            field.blockSignals(False)
 
     @disableWhenEncoding
     def createNewProject(self):
@@ -637,7 +651,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def saveCurrentProject(self):
         if self.currentProject:
-            self.core.createProjectFile(self.currentProject)
+            self.core.createProjectFile(self.currentProject, self.window)
             self.updateWindowTitle()
         else:
             self.openSaveProjectDialog()
@@ -670,7 +684,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings.setValue("projectDir", os.path.dirname(filename))
         self.settings.setValue("currentProject", filename)
         self.currentProject = filename
-        self.core.createProjectFile(filename)
+        self.core.createProjectFile(filename, self.window)
         self.updateWindowTitle()
 
     @disableWhenEncoding
@@ -707,7 +721,7 @@ class MainWindow(QtWidgets.QMainWindow):
         msg.setModal(True)
         msg.setText(kwargs['msg'])
         msg.setIcon(
-            kwargs['icon']
+            eval('QtWidgets.QMessageBox.%s' % kwargs['icon'])
             if 'icon' in kwargs else QtWidgets.QMessageBox.Information
         )
         msg.setDetailedText(kwargs['detail'] if 'detail' in kwargs else None)

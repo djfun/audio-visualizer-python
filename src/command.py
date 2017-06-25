@@ -1,5 +1,4 @@
-from PyQt4 import QtCore
-from PyQt4.QtCore import QSettings
+from PyQt5 import QtCore
 import argparse
 import os
 import sys
@@ -43,8 +42,7 @@ class Command(QtCore.QObject):
             nargs='*', action='append')
 
         self.args = self.parser.parse_args()
-        self.settings = QSettings(
-            os.path.join(self.dataDir, 'settings.ini'), QSettings.IniFormat)
+        self.settings = self.core.settings
         LoadDefaultSettings(self)
 
         if self.args.projpath:

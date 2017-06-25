@@ -30,6 +30,10 @@ class Core():
             # unfrozen
             self.wd = os.path.dirname(os.path.realpath(__file__))
         self.componentsPath = os.path.join(self.wd, 'components')
+        self.settings = QtCore.QSettings(
+            os.path.join(self.dataDir, 'settings.ini'),
+            QtCore.QSettings.IniFormat
+        )
 
         self.loadEncoderOptions()
         self.videoFormats = Core.appendUppercase([
@@ -169,13 +173,23 @@ class Core():
         its own showMessage(**kwargs) method for displaying errors.
         '''
         if not os.path.exists(filepath):
-            loader.showMessage(msg='Project file not found')
+            loader.showMessage(msg='Project file not found.')
             return
 
         errcode, data = self.parseAvFile(filepath)
         if errcode == 0:
             try:
-                for i, tup in enumerate(data['Components']):
+                if hasattr(loader, 'window'):
+                    for pair in data['WindowFields']:
+                        widget, value = pair.split('=', 1)
+                        widget = eval('loader.window.%s' % widget)
+                        widget.setText(value.strip())
+
+                for pair in data['Settings']:
+                    key, value = pair.split('=', 1)
+                    self.settings.setValue(key, value.strip())
+
+                for tup in data['Components']:
                     name, vers, preset = tup
                     clearThis = False
                     modified = False
@@ -213,7 +227,7 @@ class Core():
                                 preset['preset']
                             )
                     except KeyError as e:
-                        print('%s missing value %s' % (
+                        print('%s missing value: %s' % (
                             self.selectedComponents[i], e)
                         )
 
@@ -221,23 +235,26 @@ class Core():
                         self.clearPreset(i)
                     if hasattr(loader, 'updateComponentTitle'):
                         loader.updateComponentTitle(i, modified)
+
             except:
                 errcode = 1
                 data = sys.exc_info()
 
         if errcode == 1:
-            typ, value, _ = data
-            if typ.__name__ == KeyError:
+            typ, value, tb = data
+            if typ.__name__ == 'KeyError':
                 # probably just an old version, still loadable
                 print('file missing value: %s' % value)
                 return
             if hasattr(loader, 'createNewProject'):
                 loader.createNewProject()
-            msg = '%s: %s' % (typ.__name__, value)
+            import traceback
+            msg = '%s: %s\n\nTraceback:\n' % (typ.__name__, value)
+            msg += "\n".join(traceback.format_tb(tb))
             loader.showMessage(
                 msg="Project file '%s' is corrupted." % filepath,
                 showCancel=False,
-                icon=QtGui.QMessageBox.Warning,
+                icon='Warning',
                 detail=msg)
 
     def parseAvFile(self, filepath):
@@ -250,7 +267,11 @@ class Core():
             with open(filepath, 'r') as f:
                 def parseLine(line):
                     '''Decides if a file line is a section header'''
-                    validSections = ('Components')
+                    validSections = (
+                        'Components',
+                        'Settings',
+                        'WindowFields'
+                    )
                     line = line.strip()
                     newSection = ''
 
@@ -283,6 +304,8 @@ class Core():
                                 lastCompPreset
                             ))
                             i = 0
+                    elif line and section:
+                        data[section].append(line)
             return 0, data
         except:
             return 1, sys.exc_info()
@@ -354,8 +377,22 @@ class Core():
                 f.write('%s\n' % str(vers))
             f.write(Core.presetToString(saveValueStore))
 
-    def createProjectFile(self, filepath):
+    def createProjectFile(self, filepath, window=None):
         '''Create a project file (.avp) using the current program state'''
+        forbiddenSettingsKeys = [
+            'currentProject',
+            'outputAudioBitrate',
+            'outputAudioCodec',
+            'outputContainer',
+            'outputFormat',
+            'outputFrameRate',
+            'outputHeight',
+            'outputPreset',
+            'outputVideoBitrate',
+            'outputVideoCodec',
+            'outputVideoFormat',
+            'outputWidth',
+        ]
         try:
             if not filepath.endswith(".avp"):
                 filepath += '.avp'
@@ -363,12 +400,28 @@ class Core():
                 os.remove(filepath)
             with open(filepath, 'w') as f:
                 print('creating %s' % filepath)
+
                 f.write('[Components]\n')
                 for comp in self.selectedComponents:
                     saveValueStore = comp.savePreset()
                     f.write('%s\n' % str(comp))
                     f.write('%s\n' % str(comp.version()))
                     f.write('%s\n' % Core.presetToString(saveValueStore))
+
+                f.write('[Settings]\n')
+                for key in self.settings.allKeys():
+                    if key not in forbiddenSettingsKeys:
+                        f.write('%s=%s\n' % (key, self.settings.value(key)))
+
+                if window:
+                    f.write('[WindowFields]\n')
+                    f.write(
+                        'lineEdit_audioFile=%s\n'
+                        'lineEdit_outputFile=%s\n' % (
+                            window.lineEdit_audioFile.text(),
+                            window.lineEdit_outputFile.text()
+                        )
+                    )
             return True
         except:
             return False
