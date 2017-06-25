@@ -1,11 +1,11 @@
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtCore, QtWidgets
 import string
 import os
 
 import core
 
 
-class PresetManager(QtGui.QDialog):
+class PresetManager(QtWidgets.QDialog):
     def __init__(self, window, parent):
         super().__init__(parent.window)
         self.parent = parent
@@ -52,8 +52,8 @@ class PresetManager(QtGui.QDialog):
         )
 
         # make auto-completion for search bar
-        self.autocomplete = QtGui.QStringListModel()
-        completer = QtGui.QCompleter()
+        self.autocomplete = QtCore.QStringListModel()
+        completer = QtWidgets.QCompleter()
         completer.setModel(self.autocomplete)
         self.window.lineEdit_search.setCompleter(completer)
         self.window.lineEdit_search.textChanged.connect(
@@ -136,11 +136,11 @@ class PresetManager(QtGui.QDialog):
         while True:
             index = componentList.currentRow()
             currentPreset = selectedComponents[index].currentPreset
-            newName, OK = QtGui.QInputDialog.getText(
+            newName, OK = QtWidgets.QInputDialog.getText(
                 self.parent.window,
                 'Audio Visualizer',
                 'New Preset Name:',
-                QtGui.QLineEdit.Normal,
+                QtWidgets.QLineEdit.Normal,
                 currentPreset
             )
             if OK:
@@ -175,7 +175,7 @@ class PresetManager(QtGui.QDialog):
                 msg="%s already exists! Overwrite it?" %
                     os.path.basename(path),
                 showCancel=True,
-                icon=QtGui.QMessageBox.Warning,
+                icon=QtWidgets.QMessageBox.Warning,
                 parent=window)
             if not ch:
                 # user clicked cancel
@@ -208,7 +208,7 @@ class PresetManager(QtGui.QDialog):
         ch = self.parent.showMessage(
             msg='Really delete %s?' % name,
             showCancel=True,
-            icon=QtGui.QMessageBox.Warning,
+            icon=QtWidgets.QMessageBox.Warning,
             parent=self.window
         )
         if not ch:
@@ -235,11 +235,11 @@ class PresetManager(QtGui.QDialog):
 
         while True:
             index = presetList.currentRow()
-            newName, OK = QtGui.QInputDialog.getText(
+            newName, OK = QtWidgets.QInputDialog.getText(
                 self.window,
                 'Preset Manager',
                 'Rename Preset:',
-                QtGui.QLineEdit.Normal,
+                QtWidgets.QLineEdit.Normal,
                 self.presetRows[index][2]
             )
             if OK:
@@ -262,7 +262,7 @@ class PresetManager(QtGui.QDialog):
             break
 
     def openImportDialog(self):
-        filename = QtGui.QFileDialog.getOpenFileName(
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.window, "Import Preset File",
             self.settings.value("presetDir"),
             "Preset Files (*.avl)")
@@ -287,7 +287,7 @@ class PresetManager(QtGui.QDialog):
     def openExportDialog(self):
         if not self.window.listWidget_presets.selectedItems():
             return
-        filename = QtGui.QFileDialog.getSaveFileName(
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
             self.window, "Export Preset",
             self.settings.value("presetDir"),
             "Preset Files (*.avl)")

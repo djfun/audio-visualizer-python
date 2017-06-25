@@ -1,51 +1,19 @@
-from cx_Freeze import setup, Executable
-import sys
-
-# Dependencies are automatically detected, but it might need
-# fine tuning.
-
-buildOptions = dict(
-    packages=[],
-    excludes=[
-        "apport",
-        "apt",
-        "curses",
-        "distutils",
-        "email",
-        "html",
-        "http",
-        "xmlrpc",
-        "nose"
-    ],
-    include_files=[
-        "mainwindow.ui",
-        "presetmanager.ui",
-        "background.png",
-        "encoder-options.json",
-        "components/"
-    ],
-    includes=[
-        'numpy.core._methods',
-        'numpy.lib.format'
-    ]
-)
-
-
-base = 'Win32GUI' if sys.platform == 'win32' else None
-
-executables = [
-    Executable(
-        'main.py',
-        base=base,
-        targetName='audio-visualizer-python'
-    )
-]
-
-
-setup(
-    name='audio-visualizer-python',
-    version='1.0',
-    description='GUI tool to render visualization videos of audio files',
-    options=dict(build_exe=buildOptions),
-    executables=executables
-)
++from setuptools import setup, find_packages
+  		  
+ -# Dependencies are automatically detected, but it might need		 +setup(name='audio_visualizer_python',
+ -# fine tuning.		 +      version='1.0',
+ -buildOptions = dict(packages = [], excludes = [		 +      description='a little GUI tool to render visualization \
+ -  "apport",		 +                   videos of audio files',
+ -  "apt",		 +      license='MIT',
+ -  "ctypes",		 +      url='https://github.com/djfun/audio-visualizer-python',
+ -  "curses",		 +      packages=find_packages(),
+ -  "distutils",		 +      package_data={
+ -  "email",		 +          'src': ['*'],
+ -  "html",		 +      },
+ -  "http",		 +      install_requires=['pillow-simd', 'numpy', ''],
+ -  "json",		 +      entry_points={
+ -  "xmlrpc",		 +          'gui_scripts': [
+ -  "nose"		 +              'audio-visualizer-python = avpython.main:main'
+ -  ], include_files = ["main.ui"])		 +          ]
+ -		 +      }
+ -import sys		 +      )

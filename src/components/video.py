@@ -1,5 +1,5 @@
 from PIL import Image, ImageDraw
-from PyQt4 import uic, QtGui, QtCore
+from PyQt5 import uic, QtGui, QtCore, QtWidgets
 import os
 import subprocess
 import threading
@@ -180,7 +180,7 @@ class Component(__base__.Component):
 
     def pickVideo(self):
         imgDir = self.settings.value("backgroundDir", os.path.expanduser("~"))
-        filename = QtGui.QFileDialog.getOpenFileName(
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
             imgDir, "Video Files (%s)" % " ".join(self.videoFormats)
         )

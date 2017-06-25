@@ -1,5 +1,5 @@
-from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtCore import pyqtSignal, pyqtSlot
+from PyQt5 import QtCore, QtGui, uic
+from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
 from PIL.ImageQt import ImageQt
 import core
@@ -25,7 +25,7 @@ class Worker(QtCore.QObject):
         self.background.paste(Image.open(os.path.join(
             self.core.wd, "background.png")))
 
-    @pyqtSlot(str, list)
+    @pyqtSlot(list)
     def createPreviewImage(self, components):
         dic = {
           "components": components,

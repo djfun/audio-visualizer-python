@@ -1,7 +1,7 @@
 from queue import Queue
-from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtCore import QSettings, Qt
-from PyQt4.QtGui import QMenu, QShortcut
+from PyQt5 import QtCore, QtGui, uic, QtWidgets
+from PyQt5.QtCore import QSettings, Qt
+from PyQt5.QtWidgets import QMenu, QShortcut
 import sys
 import os
 import signal
@@ -15,11 +15,11 @@ from presetmanager import PresetManager
 from main import LoadDefaultSettings
 
 
-class PreviewWindow(QtGui.QLabel):
+class PreviewWindow(QtWidgets.QLabel):
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()
         self.parent = parent
-        self.setFrameStyle(QtGui.QFrame.StyledPanel)
+        self.setFrameStyle(QtWidgets.QFrame.StyledPanel)
         self.pixmap = QtGui.QPixmap(img)
 
     def paintEvent(self, event):
@@ -39,14 +39,14 @@ class PreviewWindow(QtGui.QLabel):
         self.repaint()
 
 
-class MainWindow(QtGui.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
 
     newTask = QtCore.pyqtSignal(list)
     processTask = QtCore.pyqtSignal()
     videoTask = QtCore.pyqtSignal(str, str, list)
 
     def __init__(self, window, project):
-        QtGui.QMainWindow.__init__(self)
+        QtWidgets.QMainWindow.__init__(self)
 
         # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
         self.window = window
@@ -116,7 +116,6 @@ class MainWindow(QtGui.QMainWindow):
             codec = window.comboBox_videoCodec.itemText(i)
             if codec == self.settings.value('outputVideoCodec'):
                 window.comboBox_videoCodec.setCurrentIndex(i)
-                #print(codec)
 
         for i in range(window.comboBox_audioCodec.count()):
             codec = window.comboBox_audioCodec.itemText(i)
@@ -146,10 +145,11 @@ class MainWindow(QtGui.QMainWindow):
 
         # Make component buttons
         self.compMenu = QMenu()
+        self.compActions = []
         for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.__doc__)
-            action.triggered[()].connect(
-                lambda item=i: self.core.insertComponent(0, item, self))
+            action.triggered.connect(
+                lambda _, item=i: self.core.insertComponent(0, item, self))
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
 
@@ -160,12 +160,10 @@ class MainWindow(QtGui.QMainWindow):
         self.window.pushButton_removeComponent.clicked.connect(
             lambda _: self.removeComponent())
 
-        componentList.setContextMenuPolicy(
-            QtCore.Qt.CustomContextMenu)
-        componentList.connect(
-            componentList,
-            QtCore.SIGNAL("customContextMenuRequested(QPoint)"),
-            self.componentContextMenu)
+        componentList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        componentList.customContextMenuRequested.connect(
+            self.componentContextMenu
+        )
 
         currentRes = str(self.settings.value('outputWidth'))+'x' + \
             str(self.settings.value('outputHeight'))
@@ -188,19 +186,19 @@ class MainWindow(QtGui.QMainWindow):
         self.projectMenu = QMenu()
         self.window.menuButton_newProject = self.projectMenu.addAction(
             "New Project")
-        self.window.menuButton_newProject.triggered[()].connect(
+        self.window.menuButton_newProject.triggered.connect(
             self.createNewProject)
 
         self.window.menuButton_openProject = self.projectMenu.addAction(
             "Open Project")
-        self.window.menuButton_openProject.triggered[()].connect(
+        self.window.menuButton_openProject.triggered.connect(
             self.openOpenProjectDialog)
 
         action = self.projectMenu.addAction("Save Project")
-        action.triggered[()].connect(self.saveCurrentProject)
+        action.triggered.connect(self.saveCurrentProject)
 
         action = self.projectMenu.addAction("Save Project As")
-        action.triggered[()].connect(self.openSaveProjectDialog)
+        action.triggered.connect(self.openSaveProjectDialog)
 
         self.window.pushButton_projects.setMenu(self.projectMenu)
 
@@ -243,27 +241,38 @@ class MainWindow(QtGui.QMainWindow):
         self.drawPreview(True)
 
         # Setup Hotkeys
-        QtGui.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)
-        QtGui.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
-        QtGui.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
-        QtGui.QShortcut("Ctrl+N", self.window, self.createNewProject)
+        QtWidgets.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)
+        QtWidgets.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
+        QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
+        QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
 
-        QtGui.QShortcut("Ctrl+T", self.window, activated=lambda:
-                        self.window.pushButton_addComponent.click())
-        QtGui.QShortcut("Ctrl+Space", self.window, activated=lambda:
-                        self.window.listWidget_componentList.setFocus())
-        QtGui.QShortcut("Ctrl+Shift+S", self.window,
-                        self.presetManager.openSavePresetDialog)
-        QtGui.QShortcut("Ctrl+Shift+C", self.window,
-                        self.presetManager.clearPreset)
+        QtWidgets.QShortcut(
+            "Ctrl+T", self.window,
+            activated=lambda: self.window.pushButton_addComponent.click()
+        )
+        QtWidgets.QShortcut(
+            "Ctrl+Space", self.window,
+            activated=lambda: self.window.listWidget_componentList.setFocus()
+        )
+        QtWidgets.QShortcut(
+            "Ctrl+Shift+S", self.window,
+            self.presetManager.openSavePresetDialog
+        )
+        QtWidgets.QShortcut(
+            "Ctrl+Shift+C", self.window, self.presetManager.clearPreset
+        )
 
-        QtGui.QShortcut("Ctrl+Up", self.window,
-                        activated=lambda: self.moveComponent(-1))
-        QtGui.QShortcut("Ctrl+Down", self.window,
-                        activated=lambda: self.moveComponent(1))
-        QtGui.QShortcut("Ctrl+Home", self.window, self.moveComponentTop)
-        QtGui.QShortcut("Ctrl+End", self.window, self.moveComponentBottom)
-        QtGui.QShortcut("Ctrl+r", self.window, self.removeComponent)
+        QtWidgets.QShortcut(
+            "Ctrl+Up", self.window,
+            activated=lambda: self.moveComponent(-1)
+        )
+        QtWidgets.QShortcut(
+            "Ctrl+Down", self.window,
+            activated=lambda: self.moveComponent(1)
+        )
+        QtWidgets.QShortcut("Ctrl+Home", self.window, self.moveComponentTop)
+        QtWidgets.QShortcut("Ctrl+End", self.window, self.moveComponentBottom)
+        QtWidgets.QShortcut("Ctrl+r", self.window, self.removeComponent)
 
     def cleanUp(self):
         self.timer.stop()
@@ -283,7 +292,7 @@ class MainWindow(QtGui.QMainWindow):
     def updateComponentTitle(self, pos, presetStore=False):
         if type(presetStore) == dict:
             name = presetStore['preset']
-            if name == None or name not in self.core.savedPresets:
+            if name is None or name not in self.core.savedPresets:
                 modified = False
             else:
                 modified = (presetStore != self.core.savedPresets[name])
@@ -365,21 +374,22 @@ class MainWindow(QtGui.QMainWindow):
     def openInputFileDialog(self):
         inputDir = self.settings.value("inputDir", os.path.expanduser("~"))
 
-        fileName = QtGui.QFileDialog.getOpenFileName(
+        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.window, "Open Audio File",
             inputDir, "Audio Files (%s)" % " ".join(self.core.audioFormats))
 
-        if not fileName == "":
+        if fileName:
             self.settings.setValue("inputDir", os.path.dirname(fileName))
             self.window.lineEdit_audioFile.setText(fileName)
 
     def openOutputFileDialog(self):
         outputDir = self.settings.value("outputDir", os.path.expanduser("~"))
 
-        fileName = QtGui.QFileDialog.getSaveFileName(
+        fileName, _ = QtWidgets.QFileDialog.getSaveFileName(
             self.window, "Set Output Video File",
             outputDir,
-            "Video Files (%s);; All Files (*)" % " ".join(self.core.videoFormats))
+            "Video Files (%s);; All Files (*)" % " ".join(
+                self.core.videoFormats))
 
         if not fileName == "":
             self.settings.setValue("outputDir", os.path.dirname(fileName))
@@ -550,13 +560,13 @@ class MainWindow(QtGui.QMainWindow):
         '''Drop event for the component listwidget'''
         componentList = self.window.listWidget_componentList
 
-        modelIndexes = [ \
-            componentList.model().index(i) \
-                for i in range(componentList.count()) \
+        modelIndexes = [
+            componentList.model().index(i)
+            for i in range(componentList.count())
         ]
-        rects = [ \
-            componentList.visualRect(modelIndex) \
-                for modelIndex in modelIndexes \
+        rects = [
+            componentList.visualRect(modelIndex)
+            for modelIndex in modelIndexes
         ]
 
         rowPos = [rect.contains(event.pos()) for rect in rects]
@@ -605,9 +615,10 @@ class MainWindow(QtGui.QMainWindow):
         if self.autosaveExists(identical=False):
             ch = self.showMessage(
                 msg="You have unsaved changes in project '%s'. "
-                "Save before %s?" % \
-                    (os.path.basename(self.currentProject)[:-4],
-                    phrase),
+                "Save before %s?" % (
+                    os.path.basename(self.currentProject)[:-4],
+                    phrase
+                ),
                 showCancel=True)
             if ch:
                 success = self.saveProjectChanges()
@@ -616,7 +627,7 @@ class MainWindow(QtGui.QMainWindow):
             os.remove(self.autosavePath)
 
     def openSaveProjectDialog(self):
-        filename = QtGui.QFileDialog.getSaveFileName(
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
             self.window, "Create Project File",
             self.settings.value("projectDir"),
             "Project Files (*.avp)")
@@ -631,7 +642,7 @@ class MainWindow(QtGui.QMainWindow):
         self.core.createProjectFile(filename)
 
     def openOpenProjectDialog(self):
-        filename = QtGui.QFileDialog.getOpenFileName(
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.window, "Open Project File",
             self.settings.value("projectDir"),
             "Project Files (*.avp)")
@@ -660,17 +671,19 @@ class MainWindow(QtGui.QMainWindow):
 
     def showMessage(self, **kwargs):
         parent = kwargs['parent'] if 'parent' in kwargs else self.window
-        msg = QtGui.QMessageBox(parent)
+        msg = QtWidgets.QMessageBox(parent)
         msg.setModal(True)
         msg.setText(kwargs['msg'])
         msg.setIcon(
-            kwargs['icon'] if 'icon' in kwargs else QtGui.QMessageBox.Information)
+            kwargs['icon']
+            if 'icon' in kwargs else QtWidgets.QMessageBox.Information
+        )
         msg.setDetailedText(kwargs['detail'] if 'detail' in kwargs else None)
         if 'showCancel'in kwargs and kwargs['showCancel']:
             msg.setStandardButtons(
-                QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel)
+                QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
         else:
-            msg.setStandardButtons(QtGui.QMessageBox.Ok)
+            msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
         ch = msg.exec_()
         if ch == 1024:
             return True
@@ -690,7 +703,7 @@ class MainWindow(QtGui.QMainWindow):
             return
 
         self.presetManager.findPresets()
-        self.menu = QtGui.QMenu()
+        self.menu = QMenu()
         menuItem = self.menu.addAction("Save Preset")
         menuItem.triggered.connect(
             self.presetManager.openSavePresetDialog
@@ -698,8 +711,10 @@ class MainWindow(QtGui.QMainWindow):
 
         # submenu for opening presets
         try:
-            presets = self.presetManager.presets[str(self.core.selectedComponents[index])]
-            self.submenu = QtGui.QMenu("Open Preset")
+            presets = self.presetManager.presets[
+                str(self.core.selectedComponents[index])
+            ]
+            self.submenu = QMenu("Open Preset")
             self.menu.addMenu(self.submenu)
 
             for version, presetName in presets:

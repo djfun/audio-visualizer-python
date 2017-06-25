@@ -1,4 +1,4 @@
-from PyQt4 import QtGui, uic
+from PyQt5 import QtGui, uic, QtWidgets
 import sys
 import os
 
@@ -48,9 +48,9 @@ if __name__ == "__main__":
         # normal gui launch
         proj = None
 
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("audio-visualizer")
-    app.setOrganizationName("audio-visualizer")
+    # app.setOrganizationName("audio-visualizer")
 
     if mode == 'cmd':
         from command import *
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
         window = uic.loadUi(os.path.join(wd, "mainwindow.ui"))
         # window.adjustSize()
-        desc = QtGui.QDesktopWidget()
+        desc = QtWidgets.QDesktopWidget()
         dpi = desc.physicalDpiX()
 
         topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))

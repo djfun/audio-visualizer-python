@@ -1,4 +1,4 @@
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 from PIL import Image
 import os
 
@@ -89,8 +89,8 @@ class Component(QtCore.QObject):
         and return this as an RGB string and QPushButton stylesheet.
         In a subclass apply stylesheet to any color selection widgets
         '''
-        dialog = QtGui.QColorDialog()
-        dialog.setOption(QtGui.QColorDialog.ShowAlphaChannel, True)
+        dialog = QtWidgets.QColorDialog()
+        dialog.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
         color = dialog.getColor()
         if color.isValid():
             RGBstring = '%s,%s,%s' % (

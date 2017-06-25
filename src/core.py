@@ -1,7 +1,7 @@
 import sys
 import io
 import os
-from PyQt4 import QtCore, QtGui, uic
+from PyQt5 import QtCore, QtGui, uic
 from os.path import expanduser
 import subprocess as sp
 import numpy
@@ -11,7 +11,7 @@ import time
 from collections import OrderedDict
 import json
 from importlib import import_module
-from PyQt4.QtGui import QDesktopServices
+from PyQt5.QtCore import QStandardPaths
 import string
 
 
@@ -19,8 +19,9 @@ class Core():
 
     def __init__(self):
         self.FFMPEG_BIN = self.findFfmpeg()
-        self.dataDir = QDesktopServices.storageLocation(
-            QDesktopServices.DataLocation)
+        self.dataDir = QStandardPaths.writableLocation(
+            QStandardPaths.AppConfigLocation
+        )
         self.presetDir = os.path.join(self.dataDir, 'presets')
         if getattr(sys, 'frozen', False):
             # frozen
@@ -178,8 +179,7 @@ class Core():
                     clearThis = False
 
                     # add loaded named presets to savedPresets dict
-                    if 'preset' in preset and \
-                            preset['preset'] is not None:
+                    if 'preset' in preset and preset['preset'] is not None:
                         nam = preset['preset']
                         filepath2 = os.path.join(
                             self.presetDir, name, str(vers), nam)
@@ -200,8 +200,7 @@ class Core():
                         break
 
                     try:
-                        if 'preset' in preset and \
-                                preset['preset'] is not None:
+                        if 'preset' in preset and preset['preset'] is not None:
                             self.selectedComponents[i].loadPreset(
                                 preset
                             )
@@ -331,8 +330,7 @@ class Core():
             return False
 
     def createPresetFile(
-            self, compName, vers, presetName,
-            saveValueStore, filepath=''):
+            self, compName, vers, presetName, saveValueStore, filepath=''):
         '''Create a preset file (.avl) at filepath using args.
         Or if filepath is empty, create an internal preset using args'''
         if not filepath:
