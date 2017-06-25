@@ -410,13 +410,13 @@ class Core():
                     f.write('%s\n' % str(comp.version()))
                     f.write('%s\n' % Core.presetToString(saveValueStore))
 
-                f.write('[Settings]\n')
+                f.write('\n[Settings]\n')
                 for key in self.settings.allKeys():
                     if key not in forbiddenSettingsKeys:
                         f.write('%s=%s\n' % (key, self.settings.value(key)))
 
                 if window:
-                    f.write('[WindowFields]\n')
+                    f.write('\n[WindowFields]\n')
                     f.write(
                         'lineEdit_audioFile=%s\n'
                         'lineEdit_outputFile=%s\n' % (
