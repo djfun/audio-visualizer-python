@@ -380,19 +380,12 @@ class Core():
 
     def createProjectFile(self, filepath, window=None):
         '''Create a project file (.avp) using the current program state'''
-        forbiddenSettingsKeys = [
-            'currentProject',
-            'outputAudioBitrate',
-            'outputAudioCodec',
-            'outputContainer',
-            'outputFormat',
-            'outputFrameRate',
-            'outputHeight',
-            'outputPreset',
-            'outputVideoBitrate',
-            'outputVideoCodec',
-            'outputVideoFormat',
-            'outputWidth',
+        settingsKeys = [
+            'componentDir',
+            'inputDir',
+            'outputDir',
+            'presetDir',
+            'projectDir',
         ]
         try:
             if not filepath.endswith(".avp"):
@@ -411,7 +404,7 @@ class Core():
 
                 f.write('\n[Settings]\n')
                 for key in self.settings.allKeys():
-                    if key not in forbiddenSettingsKeys:
+                    if key in settingsKeys:
                         f.write('%s=%s\n' % (key, self.settings.value(key)))
 
                 if window:
