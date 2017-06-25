@@ -90,7 +90,8 @@ class Video:
                         'This is a fatal error.' % os.path.basename(
                             self.videoPath
                         ),
-                    detail=str(e)
+                    detail=str(e),
+                    icon='Warning'
                 )
                 self.parent.stopVideo()
                 break

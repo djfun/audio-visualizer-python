@@ -229,7 +229,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 project += '.avp'
             # open a project from the commandline
             if not os.path.dirname(project):
-                project = os.path.join(os.path.expanduser('~'), project)
+                project = os.path.join(
+                    self.settings.value("projectDir"), project
+                )
             self.currentProject = project
             self.settings.setValue("currentProject", project)
             if os.path.exists(self.autosavePath):
@@ -433,7 +435,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.showMessage(
                     msg='Chosen filename matches a directory, which '
                         'cannot be overwritten. Please choose a different '
-                        'filename or move the directory.'
+                        'filename or move the directory.',
+                    icon='Warning',
                 )
                 return
         else:

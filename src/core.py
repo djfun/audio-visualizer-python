@@ -183,7 +183,9 @@ class Core():
                     for pair in data['WindowFields']:
                         widget, value = pair.split('=', 1)
                         widget = eval('loader.window.%s' % widget)
+                        widget.blockSignals(True)
                         widget.setText(value.strip())
+                        widget.blockSignals(False)
 
                 for pair in data['Settings']:
                     key, value = pair.split('=', 1)
