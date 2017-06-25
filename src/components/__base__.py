@@ -1,4 +1,4 @@
-from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt5 import uic, QtGui, QtCore, QtWidgets
 from PIL import Image
 import os
 
@@ -113,6 +113,9 @@ class Component(QtCore.QObject):
             return tup
         except:
             return (255, 255, 255)
+
+    def loadUi(self, filename):
+        return uic.loadUi(os.path.join(self.core.componentsPath, filename))
 
     '''
     ### Reference methods for creating a new component

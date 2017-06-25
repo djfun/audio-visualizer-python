@@ -1,6 +1,6 @@
 from PIL import Image, ImageDraw
 from PyQt5.QtGui import QPainter, QColor, QFont
-from PyQt5 import uic, QtGui, QtCore, QtWidgets
+from PyQt5 import QtGui, QtCore, QtWidgets
 from PIL.ImageQt import ImageQt
 import os
 import io
@@ -29,8 +29,7 @@ class Component(__base__.Component):
         self.xPosition = width / 2 - fm.width(self.title)/2
         self.yPosition = height / 2 * 1.036
 
-        page = uic.loadUi(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 'text.ui'))
+        page = self.loadUi('text.ui')
         page.comboBox_textAlign.addItem("Left")
         page.comboBox_textAlign.addItem("Middle")
         page.comboBox_textAlign.addItem("Right")

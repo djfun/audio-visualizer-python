@@ -29,6 +29,7 @@ class Core():
         else:
             # unfrozen
             self.wd = os.path.dirname(os.path.realpath(__file__))
+        self.componentsPath = os.path.join(self.wd, 'components')
 
         self.loadEncoderOptions()
         self.videoFormats = Core.appendUppercase([
@@ -66,14 +67,12 @@ class Core():
 
     def findComponents(self):
         def findComponents():
-            srcPath = os.path.join(self.wd, 'components')
-            if os.path.exists(srcPath):
-                for f in sorted(os.listdir(srcPath)):
-                    name, ext = os.path.splitext(f)
-                    if name.startswith("__"):
-                        continue
-                    elif ext == '.py':
-                        yield name
+            for f in sorted(os.listdir(self.componentsPath)):
+                name, ext = os.path.splitext(f)
+                if name.startswith("__"):
+                    continue
+                elif ext == '.py':
+                    yield name
         self.modules = [
             import_module('components.%s' % name)
             for name in findComponents()
@@ -93,10 +92,12 @@ class Core():
             return None
 
         component = self.modules[moduleIndex].Component(
-            moduleIndex, compPos, self)
+            moduleIndex, compPos, self
+        )
         self.selectedComponents.insert(
             compPos,
-            component)
+            component
+        )
         self.componentListChanged()
 
         # init component's widget for loading/saving presets

@@ -1,5 +1,5 @@
 from PIL import Image, ImageDraw
-from PyQt5 import uic, QtGui, QtCore, QtWidgets
+from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtGui import QColor
 from PIL.ImageQt import ImageQt
 import os
@@ -13,8 +13,7 @@ class Component(__base__.Component):
 
     def widget(self, parent):
         self.parent = parent
-        page = uic.loadUi(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 'color.ui'))
+        page = self.loadUi('color.ui')
 
         self.color1 = (0, 0, 0)
         self.color2 = (133, 133, 133)
@@ -177,7 +176,7 @@ class Component(__base__.Component):
             self.sizeWidth, self.sizeHeight
         )
         painter.end()
-        imBytes = image.bits().asstring(image.numBytes())
+        imBytes = image.bits().asstring(image.byteCount())
         return Image.frombytes('RGBA', (width, height), imBytes)
 
     def loadPreset(self, pr, presetName=None):
