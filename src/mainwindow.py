@@ -485,7 +485,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window.pushButton_removeComponent.setEnabled(False)
             self.window.pushButton_listMoveDown.setEnabled(False)
             self.window.pushButton_listMoveUp.setEnabled(False)
-            self.window.listWidget_componentList.setEnabled(False)
             self.window.menuButton_newProject.setEnabled(False)
             self.window.menuButton_openProject.setEnabled(False)
         else:
@@ -504,7 +503,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window.pushButton_removeComponent.setEnabled(True)
             self.window.pushButton_listMoveDown.setEnabled(True)
             self.window.pushButton_listMoveUp.setEnabled(True)
-            self.window.listWidget_componentList.setEnabled(True)
             self.window.menuButton_newProject.setEnabled(True)
             self.window.menuButton_openProject.setEnabled(True)
             self.drawPreview(True)
@@ -566,6 +564,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.changeComponentWidget()
         self.drawPreview()
 
+    @disableWhenEncoding
     def moveComponent(self, change):
         '''Moves a component relatively from its current position'''
         componentList = self.window.listWidget_componentList
@@ -587,16 +586,19 @@ class MainWindow(QtWidgets.QMainWindow):
             stackedWidget.setCurrentIndex(newRow)
             self.drawPreview()
 
+    @disableWhenEncoding
     def moveComponentTop(self):
         componentList = self.window.listWidget_componentList
         row = -componentList.currentRow()
         self.moveComponent(row)
 
+    @disableWhenEncoding
     def moveComponentBottom(self):
         componentList = self.window.listWidget_componentList
         row = len(componentList)-componentList.currentRow()-1
         self.moveComponent(row)
 
+    @disableWhenEncoding
     def dragComponent(self, event):
         '''Drop event for the component listwidget'''
         componentList = self.window.listWidget_componentList
@@ -739,6 +741,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return True
         return False
 
+    @disableWhenEncoding
     def componentContextMenu(self, QPos):
         '''Appears when right-clicking a component in the list'''
         componentList = self.window.listWidget_componentList
