@@ -20,11 +20,15 @@ class Component(__base__.Component):
     def widget(self, parent):
         self.parent = parent
         self.visColor = (255, 255, 255)
+        self.scale = 20
+        self.y = 0
+        self.canceled = False
 
         page = self.loadUi('original.ui')
         page.comboBox_visLayout.addItem("Classic")
         page.comboBox_visLayout.addItem("Split")
         page.comboBox_visLayout.addItem("Bottom")
+        page.comboBox_visLayout.addItem("Top")
         page.comboBox_visLayout.setCurrentIndex(0)
         page.comboBox_visLayout.currentIndexChanged.connect(self.update)
         page.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
@@ -33,13 +37,17 @@ class Component(__base__.Component):
             % QColor(*self.visColor).name()
         page.pushButton_visColor.setStyleSheet(btnStyle)
         page.lineEdit_visColor.textChanged.connect(self.update)
+        page.spinBox_scale.valueChanged.connect(self.update)
+        page.spinBox_y.valueChanged.connect(self.update)
+
         self.page = page
-        self.canceled = False
         return page
 
     def update(self):
         self.layout = self.page.comboBox_visLayout.currentIndex()
         self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
+        self.scale = self.page.spinBox_scale.value()
+        self.y = self.page.spinBox_y.value()
         self.parent.drawPreview()
         super().update()
 
@@ -51,21 +59,26 @@ class Component(__base__.Component):
             % QColor(*pr['visColor']).name()
         self.page.pushButton_visColor.setStyleSheet(btnStyle)
         self.page.comboBox_visLayout.setCurrentIndex(pr['layout'])
+        self.page.spinBox_scale.setValue(pr['scale'])
+        self.page.spinBox_y.setValue(pr['y'])
 
     def savePreset(self):
         return {
             'preset': self.currentPreset,
             'layout': self.layout,
             'visColor': self.visColor,
+            'scale': self.scale,
+            'y': self.y,
         }
 
     def previewRender(self, previewWorker):
         spectrum = numpy.fromfunction(
-            lambda x: 0.008*(x-128)**2, (255,), dtype="int16")
+            lambda x: float(self.scale)/2500*(x-128)**2, (255,), dtype="int16")
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         return self.drawBars(
-            width, height, spectrum, self.visColor, self.layout)
+            width, height, spectrum, self.visColor, self.layout
+        )
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
@@ -125,7 +138,7 @@ class Component(__base__.Component):
         # filter the noise away
         # y[y<80] = 0
 
-        y = 20 * numpy.log10(y)
+        y = self.scale * numpy.log10(y)
         y[numpy.isinf(y)] = 0
 
         if lastSpectrum is not None:
@@ -168,40 +181,60 @@ class Component(__base__.Component):
 
         im = self.blankFrame(width, height)
 
-        if layout == 0:
-            y = 0 - int(height/100*43)
+        if layout == 0:  # Classic
+            y = self.y - int(height/100*43)
             im.paste(imTop, (0, y), mask=imTop)
-            y = 0 + int(height/100*43)
+            y = self.y + int(height/100*43)
             im.paste(imBottom, (0, y), mask=imBottom)
 
-        if layout == 1:
-            y = 0 + int(height/100*10)
+        if layout == 1:  # Split
+            y = self.y + int(height/100*10)
             im.paste(imTop, (0, y), mask=imTop)
-            y = 0 - int(height/100*10)
+            y = self.y - int(height/100*10)
             im.paste(imBottom, (0, y), mask=imBottom)
 
-        if layout == 2:
-            y = 0 + int(height/100*10)
+        if layout == 2:  # Bottom
+            y = self.y + int(height/100*10)
             im.paste(imTop, (0, y), mask=imTop)
+
+        if layout == 3:  # Top
+            y = self.y - int(height/100*10)
+            im.paste(imBottom, (0, y), mask=imBottom)
 
         return im
 
     def command(self, arg):
         if not arg.startswith('preset=') and '=' in arg:
             key, arg = arg.split('=', 1)
-            if key == 'color':
-                self.page.lineEdit_visColor.setText(arg)
-                return
-            elif key == 'layout':
-                if arg == 'classic':
-                    self.page.comboBox_visLayout.setCurrentIndex(0)
-                elif arg == 'split':
-                    self.page.comboBox_visLayout.setCurrentIndex(1)
-                elif arg == 'bottom':
-                    self.page.comboBox_visLayout.setCurrentIndex(2)
-                return
+            try:
+                if key == 'color':
+                    self.page.lineEdit_visColor.setText(arg)
+                    return
+                elif key == 'layout':
+                    if arg == 'classic':
+                        self.page.comboBox_visLayout.setCurrentIndex(0)
+                    elif arg == 'split':
+                        self.page.comboBox_visLayout.setCurrentIndex(1)
+                    elif arg == 'bottom':
+                        self.page.comboBox_visLayout.setCurrentIndex(2)
+                    elif arg == 'top':
+                        self.page.comboBox_visLayout.setCurrentIndex(3)
+                    return
+                elif key == 'scale':
+                    arg = int(arg)
+                    self.page.spinBox_scale.setValue(arg)
+                    return
+                elif key == 'y':
+                    arg = int(arg)
+                    self.page.spinBox_y.setValue(arg)
+                    return
+            except ValueError:
+                print('You must enter a number.')
+                quit(1)
         super().command(arg)
 
     def commandHelp(self):
-        print('Give a layout name:\n    layout=[classic/split/bottom]')
+        print('Give a layout name:\n    layout=[classic/split/bottom/top]')
         print('Specify a color:\n    color=255,255,255')
+        print('Visualizer scale (20 is default):\n    scale=number')
+        print('Y position:\n    y=number')

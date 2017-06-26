@@ -13,6 +13,7 @@ import video_thread
 from presetmanager import PresetManager
 from main import LoadDefaultSettings, disableWhenEncoding
 
+
 class PreviewWindow(QtWidgets.QLabel):
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()

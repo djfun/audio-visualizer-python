@@ -79,6 +79,8 @@ class PresetManager(QtWidgets.QDialog):
                 continue
             for preset in filenames:
                 compName = os.path.basename(os.path.dirname(dirpath))
+                if compName not in self.core.compNames:
+                    continue
                 compVers = os.path.basename(dirpath)
                 try:
                     parseList.append((compName, int(compVers), preset))

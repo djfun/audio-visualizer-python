@@ -11,6 +11,7 @@ class Component(QtCore.QObject):
     def __init__(self, moduleIndex, compPos, core):
         super().__init__()
         self.currentPreset = None
+        self.canceled = False
         self.moduleIndex = moduleIndex
         self.compPos = compPos
         self.core = core
