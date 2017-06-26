@@ -13,7 +13,6 @@ import video_thread
 from presetmanager import PresetManager
 from main import LoadDefaultSettings, disableWhenEncoding
 
-
 class PreviewWindow(QtWidgets.QLabel):
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()
@@ -87,6 +86,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Begin decorating the window and connecting events
         componentList = self.window.listWidget_componentList
+
+        if sys.platform == 'darwin':
+            window.progressBar_createVideo.setTextVisible(False)
+        else:
+            window.progressLabel.setHidden(True)
 
         window.toolButton_selectAudioFile.clicked.connect(
             self.openInputFileDialog)
@@ -487,6 +491,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window.pushButton_listMoveUp.setEnabled(False)
             self.window.menuButton_newProject.setEnabled(False)
             self.window.menuButton_openProject.setEnabled(False)
+            if sys.platform == 'darwin':
+                self.window.progressLabel.setHidden(False)
+            else:
+                self.window.listWidget_componentList.setEnabled(False)
         else:
             self.window.pushButton_createVideo.setEnabled(True)
             self.window.pushButton_Cancel.setEnabled(False)
@@ -505,13 +513,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window.pushButton_listMoveUp.setEnabled(True)
             self.window.menuButton_newProject.setEnabled(True)
             self.window.menuButton_openProject.setEnabled(True)
+            self.window.listWidget_componentList.setEnabled(True)
+            self.window.progressLabel.setHidden(True)
             self.drawPreview(True)
 
     def progressBarUpdated(self, value):
         self.window.progressBar_createVideo.setValue(value)
 
     def progressBarSetText(self, value):
-        self.window.progressBar_createVideo.setFormat(value)
+        if sys.platform == 'darwin':
+            self.window.progressLabel.setText(value)
+        else:
+            self.window.progressBar_createVideo.setFormat(value)
 
     def videoCreated(self):
         self.videoThread.quit()

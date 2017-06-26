@@ -518,9 +518,26 @@
             </item>
            </layout>
           </item>
+          <item>
+           <widget class="QLabel" name="progressLabel">
+            <property name="text">
+             <string/>
+            </property>
+            <property name="scaledContents">
+             <bool>true</bool>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="indent">
+             <number>-1</number>
+            </property>
+           </widget>
+          </item>
          </layout>
          <zorder></zorder>
          <zorder></zorder>
+         <zorder>progressLabel</zorder>
         </widget>
         <widget class="QWidget" name="tab_encoderSettings">
          <attribute name="title">
@@ -802,7 +819,6 @@
     </item>
    </layout>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>
