@@ -65,6 +65,9 @@ class Component(__base__.Component):
         self.yPosition = self.page.spinBox_yTextAlign.value()
         self.textColor = self.RGBFromString(
             self.page.lineEdit_textColor.text())
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+            % QColor(*self.textColor).name()
+        self.page.pushButton_textColor.setStyleSheet(btnStyle)
         self.parent.drawPreview()
         super().update()
 
@@ -133,7 +136,7 @@ class Component(__base__.Component):
         painter = QPainter(image)
         self.titleFont.setPixelSize(self.fontSize)
         painter.setFont(self.titleFont)
-        painter.setPen(QColor(*self.textColor))
+        painter.setPen(QColor(*self.textColor[::-1]))
         painter.drawText(x, y, self.title)
         painter.end()
 
