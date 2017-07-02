@@ -3,7 +3,7 @@ from PyQt5.QtGui import QPainter, QColor, QFont
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PIL.ImageQt import ImageQt
 import os
-import io
+import sys
 from . import __base__
 
 
@@ -136,7 +136,10 @@ class Component(__base__.Component):
         painter = QPainter(image)
         self.titleFont.setPixelSize(self.fontSize)
         painter.setFont(self.titleFont)
-        painter.setPen(QColor(*self.textColor[::-1]))
+        if sys.byteorder == 'big':
+            painter.setPen(QColor(*self.textColor))
+        else:
+            painter.setPen(QColor(*self.textColor[::-1]))
         painter.drawText(x, y, self.title)
         painter.end()
 

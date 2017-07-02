@@ -1,4 +1,4 @@
-from PyQt5 import uic, QtGui, QtCore, QtWidgets
+from PyQt5 import uic, QtCore, QtWidgets
 from PIL import Image
 import os
 

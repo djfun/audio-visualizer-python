@@ -1,11 +1,14 @@
 from cx_Freeze import setup, Executable
 import sys
+import os
 
 # Dependencies are automatically detected, but it might need
 # fine tuning.
 
+deps = [os.path.join('src', p) for p in os.listdir('src') if p]
+deps.append('ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg')
+
 buildOptions = dict(
-    packages=[],
     excludes=[
         "apport",
         "apt",
@@ -17,17 +20,21 @@ buildOptions = dict(
         "xmlrpc",
         "nose"
     ],
-    include_files=[
-        "mainwindow.ui",
-        "presetmanager.ui",
-        "background.png",
-        "encoder-options.json",
-        "components/"
-    ],
     includes=[
-        'numpy.core._methods',
-        'numpy.lib.format'
-    ]
+        "encodings",
+        "json",
+        "filecmp",
+        "numpy.core._methods",
+        "numpy.lib.format",
+        "PyQt5.QtCore",
+        "PyQt5.QtGui",
+        "PyQt5.QtWidgets",
+        "PyQt5.uic",
+        "PIL.Image",
+        "PIL.ImageQt",
+        "PIL.ImageDraw",
+    ],
+    include_files=deps,
 )
 
 
@@ -35,16 +42,16 @@ base = 'Win32GUI' if sys.platform == 'win32' else None
 
 executables = [
     Executable(
-        'main.py',
+        'src/main.py',
         base=base,
         targetName='audio-visualizer-python'
-    )
+    ),
 ]
 
 
 setup(
     name='audio-visualizer-python',
-    version='1.0',
+    version='2.0',
     description='GUI tool to render visualization videos of audio files',
     options=dict(build_exe=buildOptions),
     executables=executables

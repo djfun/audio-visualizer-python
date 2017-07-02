@@ -17,7 +17,6 @@ import string
 class Core():
 
     def __init__(self):
-        self.FFMPEG_BIN = self.findFfmpeg()
         self.dataDir = QStandardPaths.writableLocation(
             QStandardPaths.AppConfigLocation
         )
@@ -63,6 +62,7 @@ class Core():
             '*.xpm',
         ])
 
+        self.FFMPEG_BIN = self.findFfmpeg()
         self.findComponents()
         self.selectedComponents = []
         # copies of named presets to detect modification
@@ -437,15 +437,23 @@ class Core():
             self.encoder_options = json.load(json_file)
 
     def findFfmpeg(self):
-        if sys.platform == "win32":
-            return "ffmpeg.exe"
+        if getattr(sys, 'frozen', False):
+            # The application is frozen
+            if sys.platform == "win32":
+                return os.path.join(self.wd, 'ffmpeg.exe')
+            else:
+                return os.path.join(self.wd, 'ffmpeg')
+
         else:
-            try:
-                with open(os.devnull, "w") as f:
-                    sp.check_call(['ffmpeg', '-version'], stdout=f, stderr=f)
-                return "ffmpeg"
-            except:
-                return "avconv"
+            if sys.platform == "win32":
+                return "ffmpeg.exe"
+            else:
+                try:
+                    with open(os.devnull, "w") as f:
+                        sp.check_call(['ffmpeg', '-version'], stdout=f, stderr=f)
+                    return "ffmpeg"
+                except:
+                    return "avconv"
 
     def readAudioFile(self, filename, parent):
         command = [self.FFMPEG_BIN, '-i', filename]

@@ -1,6 +1,11 @@
 __pycache__
-settings.ini
 build/*
+env/*
 .vscode/*
 *.mkv
 *.mp4
+*.zip
+*.tar
+*.tar.*
+*.exe
+ffmpeg
