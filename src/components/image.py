@@ -3,6 +3,7 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 
 from component import Component
+from frame import BlankFrame
 
 
 class Component(Component):
@@ -53,7 +54,7 @@ class Component(Component):
         return self.drawFrame(width, height)
 
     def drawFrame(self, width, height):
-        frame = self.blankFrame(width, height)
+        frame = BlankFrame(width, height)
         if self.imagePath and os.path.exists(self.imagePath):
             image = Image.open(self.imagePath)
             if self.stretched and image.size != (width, height):

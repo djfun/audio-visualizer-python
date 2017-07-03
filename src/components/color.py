@@ -5,6 +5,7 @@ from PIL.ImageQt import ImageQt
 import os
 
 from component import Component
+from frame import BlankFrame, FloodFrame, FramePainter, PaintColor
 
 
 class Component(Component):
@@ -128,20 +129,19 @@ class Component(Component):
         # in default state, skip all this logic and return a plain fill
         if self.fillType == 0 and shapeSize == (width, height) \
                 and self.x == 0 and self.y == 0:
-            return Image.new("RGBA", (width, height), (r, g, b, 255))
-
-        frame = self.blankFrame(width, height)
+            return FloodFrame(width, height, (r, g, b, 255))
 
         # Return a solid image at x, y
         if self.fillType == 0:
+            frame = BlankFrame(width, height)
             image = Image.new("RGBA", shapeSize, (r, g, b, 255))
             frame.paste(image, box=(self.x, self.y))
             return frame
 
         # Now fills that require using Qt...
         elif self.fillType > 0:
-            image = ImageQt(frame)
-            painter = QtGui.QPainter(image)
+            image = FramePainter(width, height)
+
             if self.stretch:
                 w = width
                 h = height
@@ -164,21 +164,20 @@ class Component(Component):
                 self.RG_centre)
 
         brush.setSpread(self.spread)
-        brush.setColorAt(0.0, QColor(*self.color1))
+        brush.setColorAt(0.0, PaintColor(*self.color1))
         if self.trans:
-            brush.setColorAt(1.0, QColor(0, 0, 0, 0))
+            brush.setColorAt(1.0, PaintColor(0, 0, 0, 0))
         elif self.fillType == 1 and self.stretch:
-            brush.setColorAt(0.2, QColor(*self.color2))
+            brush.setColorAt(0.2, PaintColor(*self.color2))
         else:
-            brush.setColorAt(1.0, QColor(*self.color2))
-        painter.setBrush(brush)
-        painter.drawRect(
+            brush.setColorAt(1.0, PaintColor(*self.color2))
+        image.setBrush(brush)
+        image.drawRect(
             self.x, self.y,
             self.sizeWidth, self.sizeHeight
         )
-        painter.end()
-        imBytes = image.bits().asstring(image.byteCount())
-        return Image.frombytes('RGBA', (width, height), imBytes)
+
+        return image.finalize()
 
     def loadPreset(self, pr, presetName=None):
         super().loadPreset(pr, presetName)

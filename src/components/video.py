@@ -7,6 +7,7 @@ import threading
 from queue import PriorityQueue
 
 from component import Component, BadComponentInit
+from frame import BlankFrame
 
 
 class Video:
@@ -145,7 +146,7 @@ class Component(Component):
         self.updateChunksize(width, height)
         frame = self.getPreviewFrame(width, height)
         if not frame:
-            return self.blankFrame(width, height)
+            return BlankFrame(width, height)
         else:
             return frame
 
@@ -153,7 +154,7 @@ class Component(Component):
         super().preFrameRender(**kwargs)
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
-        self.blankFrame_ = self.blankFrame(width, height)
+        self.blankFrame_ = BlankFrame(width, height)
         self.updateChunksize(width, height)
         self.video = Video(
             ffmpeg=self.parent.core.FFMPEG_BIN, videoPath=self.videoPath,
@@ -279,11 +280,11 @@ def finalizeFrame(self, imageData, width, height):
             '### BAD VIDEO SELECTED ###\n'
             'Video will not export with these settings'
         )
-        return self.blankFrame(width, height)
+        return BlankFrame(width, height)
 
     if self.scale != 100 \
             or self.xPosition != 0 or self.yPosition != 0:
-        frame = self.blankFrame(width, height)
+        frame = BlankFrame(width, height)
         frame.paste(image, box=(self.xPosition, self.yPosition))
     else:
         frame = image

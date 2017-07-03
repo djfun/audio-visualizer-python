@@ -7,6 +7,7 @@ import time
 from copy import copy
 
 from component import Component
+from frame import BlankFrame
 
 
 class Component(Component):
@@ -162,7 +163,7 @@ class Component(Component):
         bF = width / 64
         bH = bF / 2
         bQ = bF / 4
-        imTop = self.blankFrame(width, height)
+        imTop = BlankFrame(width, height)
         draw = ImageDraw.Draw(imTop)
         r, g, b = color
         color2 = (r, g, b, 125)
@@ -180,7 +181,7 @@ class Component(Component):
 
         imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
 
-        im = self.blankFrame(width, height)
+        im = BlankFrame(width, height)
 
         if layout == 0:  # Classic
             y = self.y - int(height/100*43)

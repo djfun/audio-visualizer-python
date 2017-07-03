@@ -1,11 +1,10 @@
 from PIL import Image, ImageDraw
-from PyQt5.QtGui import QPainter, QColor, QFont
+from PyQt5.QtGui import QColor, QFont
 from PyQt5 import QtGui, QtCore, QtWidgets
-from PIL.ImageQt import ImageQt
 import os
-import sys
 
 from component import Component
+from frame import FramePainter
 
 
 class Component(Component):
@@ -131,22 +130,14 @@ class Component(Component):
 
     def addText(self, width, height):
         x, y = self.getXY()
-        im = self.blankFrame(width, height)
-        image = ImageQt(im)
+        image = FramePainter(width, height)
 
-        painter = QPainter(image)
         self.titleFont.setPixelSize(self.fontSize)
-        painter.setFont(self.titleFont)
-        if sys.byteorder == 'big':
-            painter.setPen(QColor(*self.textColor))
-        else:
-            painter.setPen(QColor(*self.textColor[::-1]))
-        painter.drawText(x, y, self.title)
-        painter.end()
+        image.setFont(self.titleFont)
+        image.setPen(self.textColor)
+        image.drawText(x, y, self.title)
 
-        imBytes = image.bits().asstring(image.byteCount())
-
-        return Image.frombytes('RGBA', (width, height), imBytes)
+        return image.finalize()
 
     def pickColor(self):
         RGBstring, btnStyle = super().pickColor()

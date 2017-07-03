@@ -1,11 +1,12 @@
+'''
+    Base classes for components to import.
+'''
 from PyQt5 import uic, QtCore, QtWidgets
-from PIL import Image
 import os
 
 
 class Component(QtCore.QObject):
-    '''A base class for components to inherit from'''
-
+    ''' A class for components to inherit.'''
     # modified = QtCore.pyqtSignal(int, bool)
 
     def __init__(self, moduleIndex, compPos, core):
@@ -81,9 +82,6 @@ class Component(QtCore.QObject):
 
     def commandHelp(self):
         '''Print help text for this Component's commandline arguments'''
-
-    def blankFrame(self, width, height):
-        return Image.new("RGBA", (width, height), (0, 0, 0, 0))
 
     def pickColor(self):
         '''Use color picker to get color input from the user,
