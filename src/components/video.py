@@ -5,7 +5,8 @@ import math
 import subprocess
 import threading
 from queue import PriorityQueue
-from . import __base__
+
+from component import Component, BadComponentInit
 
 
 class Video:
@@ -26,7 +27,7 @@ class Video:
             try:
                 exec('self.%s = kwargs[arg]' % arg)
             except KeyError:
-                raise __base__.BadComponentInit(arg, self.__doc__)
+                raise BadComponentInit(arg, self.__doc__)
 
         self.frameNo = -1
         self.currentFrame = 'None'
@@ -102,7 +103,7 @@ class Video:
                 self.lastFrame = self.currentFrame
 
 
-class Component(__base__.Component):
+class Component(Component):
     '''Video'''
 
     modified = QtCore.pyqtSignal(int, dict)

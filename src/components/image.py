@@ -1,10 +1,11 @@
 from PIL import Image, ImageDraw
 from PyQt5 import QtGui, QtCore, QtWidgets
 import os
-from . import __base__
+
+from component import Component
 
 
-class Component(__base__.Component):
+class Component(Component):
     '''Image'''
 
     modified = QtCore.pyqtSignal(int, dict)

@@ -3,12 +3,13 @@ from PIL import Image, ImageDraw
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtGui import QColor
 import os
-from . import __base__
 import time
 from copy import copy
 
+from component import Component
 
-class Component(__base__.Component):
+
+class Component(Component):
     '''Classic Visualizer'''
 
     modified = QtCore.pyqtSignal(int, dict)

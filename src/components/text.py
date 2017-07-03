@@ -4,10 +4,11 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 from PIL.ImageQt import ImageQt
 import os
 import sys
-from . import __base__
+
+from component import Component
 
 
-class Component(__base__.Component):
+class Component(Component):
     '''Title Text'''
 
     modified = QtCore.pyqtSignal(int, dict)

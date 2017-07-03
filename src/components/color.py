@@ -3,10 +3,11 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtGui import QColor
 from PIL.ImageQt import ImageQt
 import os
-from . import __base__
+
+from component import Component
 
 
-class Component(__base__.Component):
+class Component(Component):
     '''Color'''
 
     modified = QtCore.pyqtSignal(int, dict)
