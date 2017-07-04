@@ -5,7 +5,7 @@ import sys
 
 import core
 import video_thread
-from main import LoadDefaultSettings
+from toolkit import LoadDefaultSettings
 
 
 class Command(QtCore.QObject):

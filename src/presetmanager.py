@@ -3,6 +3,7 @@ import string
 import os
 
 import core
+import toolkit
 
 
 class PresetManager(QtWidgets.QDialog):
@@ -147,7 +148,7 @@ class PresetManager(QtWidgets.QDialog):
                 currentPreset
             )
             if OK:
-                if core.Core.badName(newName):
+                if toolkit.badName(newName):
                     self.warnMessage(self.parent.window)
                     continue
                 if newName:
@@ -252,7 +253,7 @@ class PresetManager(QtWidgets.QDialog):
                 self.presetRows[index][2]
             )
             if OK:
-                if core.Core.badName(newName):
+                if toolkit.badName(newName):
                     self.warnMessage()
                     continue
                 if newName:

@@ -8,6 +8,7 @@ from queue import PriorityQueue
 
 from component import Component, BadComponentInit
 from frame import BlankFrame
+from toolkit import openPipe
 
 
 class Video:
@@ -72,7 +73,7 @@ class Video:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
-        pipe = subprocess.Popen(
+        pipe = openPipe(
             self.command, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=10**8
         )
@@ -217,7 +218,7 @@ class Component(Component):
             '-ss', '90',
             '-vframes', '1',
         ]
-        pipe = subprocess.Popen(
+        pipe = openPipe(
             command, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=10**8
         )

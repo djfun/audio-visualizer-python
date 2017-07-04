@@ -1,21 +1,24 @@
+'''
+    Home to the Core class which tracks the program state
+'''
 import sys
 import os
 from PyQt5 import QtCore, QtGui, uic
-from os.path import expanduser
 import subprocess as sp
 import numpy
-from PIL import Image
-from shutil import rmtree
-import time
-from collections import OrderedDict
 import json
 from importlib import import_module
 from PyQt5.QtCore import QStandardPaths
-import string
+
+import toolkit
 
 
-class Core():
-
+class Core:
+    '''
+        MainWindow and Command module both use an instance of this class
+        to store the program state. This object tracks the components,
+        opens projects and presets, and stores settings/paths to data.
+    '''
     def __init__(self):
         self.dataDir = QStandardPaths.writableLocation(
             QStandardPaths.AppConfigLocation
@@ -34,7 +37,7 @@ class Core():
         )
 
         self.loadEncoderOptions()
-        self.videoFormats = Core.appendUppercase([
+        self.videoFormats = toolkit.appendUppercase([
             '*.mp4',
             '*.mov',
             '*.mkv',
@@ -42,7 +45,7 @@ class Core():
             '*.webm',
             '*.flv',
         ])
-        self.audioFormats = Core.appendUppercase([
+        self.audioFormats = toolkit.appendUppercase([
             '*.mp3',
             '*.wav',
             '*.ogg',
@@ -50,7 +53,7 @@ class Core():
             '*.flac',
             '*.aac',
         ])
-        self.imageFormats = Core.appendUppercase([
+        self.imageFormats = toolkit.appendUppercase([
             '*.png',
             '*.jpg',
             '*.tif',
@@ -175,7 +178,7 @@ class Core():
             return False
         with open(filepath, 'r') as f:
             for line in f:
-                saveValueStore = Core.presetFromString(line.strip())
+                saveValueStore = toolkit.presetFromString(line.strip())
                 break
         return saveValueStore
 
@@ -307,7 +310,7 @@ class Core():
                             lastCompVers = str(line)
                             i += 1
                         elif i == 2:
-                            lastCompPreset = Core.presetFromString(line)
+                            lastCompPreset = toolkit.presetFromString(line)
                             data[section].append((
                                 lastCompName,
                                 lastCompVers,
@@ -357,7 +360,7 @@ class Core():
         with open(internalPath, 'r') as f:
             internalData = [line for line in f]
         try:
-            saveValueStore = Core.presetFromString(internalData[0].strip())
+            saveValueStore = toolkit.presetFromString(internalData[0].strip())
             self.createPresetFile(
                 compName, vers,
                 origName, saveValueStore,
@@ -387,7 +390,7 @@ class Core():
                 f.write('[Components]\n')
                 f.write('%s\n' % compName)
                 f.write('%s\n' % str(vers))
-            f.write(Core.presetToString(saveValueStore))
+            f.write(toolkit.presetToString(saveValueStore))
 
     def createProjectFile(self, filepath, window=None):
         '''Create a project file (.avp) using the current program state'''
@@ -411,7 +414,7 @@ class Core():
                     saveValueStore = comp.savePreset()
                     f.write('%s\n' % str(comp))
                     f.write('%s\n' % str(comp.version()))
-                    f.write('%s\n' % Core.presetToString(saveValueStore))
+                    f.write('%s\n' % toolkit.presetToString(saveValueStore))
 
                 f.write('\n[Settings]\n')
                 for key in self.settings.allKeys():
@@ -450,7 +453,9 @@ class Core():
             else:
                 try:
                     with open(os.devnull, "w") as f:
-                        sp.check_call(['ffmpeg', '-version'], stdout=f, stderr=f)
+                        sp.check_call(
+                            ['ffmpeg', '-version'], stdout=f, stderr=f
+                        )
                     return "ffmpeg"
                 except:
                     return "avconv"
@@ -459,10 +464,9 @@ class Core():
         command = [self.FFMPEG_BIN, '-i', filename]
 
         try:
-            fileInfo = sp.check_output(command, stderr=sp.STDOUT, shell=False)
+            fileInfo = toolkit.checkOutput(command, stderr=sp.STDOUT)
         except sp.CalledProcessError as ex:
             fileInfo = ex.output
-            pass
 
         info = fileInfo.decode("utf-8").split('\n')
         for line in info:
@@ -480,7 +484,7 @@ class Core():
             '-ar', '44100',  # ouput will have 44100 Hz
             '-ac', '1',  # mono (set to '2' for stereo)
             '-']
-        in_pipe = sp.Popen(
+        in_pipe = toolkit.openPipe(
             command, stdout=sp.PIPE, stderr=sp.DEVNULL, bufsize=10**8)
 
         completeAudioArray = numpy.empty(0, dtype="int16")
@@ -525,26 +529,3 @@ class Core():
 
     def reset(self):
         self.canceled = False
-
-    @staticmethod
-    def badName(name):
-        '''Returns whether a name contains non-alphanumeric chars'''
-        return any([letter in string.punctuation for letter in name])
-
-    @staticmethod
-    def presetToString(dictionary):
-        '''Alphabetizes a dict into OrderedDict & returns string repr'''
-        return repr(
-            OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
-        )
-
-    @staticmethod
-    def presetFromString(string):
-        '''Turns a string repr of OrderedDict into a regular dict'''
-        return dict(eval(string))
-
-    @staticmethod
-    def appendUppercase(lst):
-        for form, i in zip(lst, range(len(lst))):
-            lst.append(form.upper())
-        return lst

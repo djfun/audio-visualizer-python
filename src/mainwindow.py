@@ -1,6 +1,6 @@
-from queue import Queue
 from PyQt5 import QtCore, QtGui, uic, QtWidgets
 from PyQt5.QtWidgets import QMenu, QShortcut
+from queue import Queue
 import sys
 import os
 import signal
@@ -11,7 +11,7 @@ import core
 import preview_thread
 import video_thread
 from presetmanager import PresetManager
-from main import LoadDefaultSettings, disableWhenEncoding
+from toolkit import LoadDefaultSettings, disableWhenEncoding
 
 
 class PreviewWindow(QtWidgets.QLabel):

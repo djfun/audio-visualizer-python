@@ -7,41 +7,6 @@ import preview_thread
 import video_thread
 
 
-def disableWhenEncoding(func):
-    def decorator(*args, **kwargs):
-        if args[0].encoding:
-            return
-        else:
-            return func(*args, **kwargs)
-    return decorator
-
-
-def LoadDefaultSettings(self):
-    self.resolutions = [
-        '1920x1080',
-        '1280x720',
-        '854x480'
-    ]
-
-    default = {
-        "outputWidth": 1280,
-        "outputHeight": 720,
-        "outputFrameRate": 30,
-        "outputAudioCodec": "AAC",
-        "outputAudioBitrate": "192",
-        "outputVideoCodec": "H264",
-        "outputVideoBitrate": "2500",
-        "outputVideoFormat": "yuv420p",
-        "outputPreset": "medium",
-        "outputFormat": "mp4",
-        "outputContainer": "MP4",
-        "projectDir": os.path.join(self.dataDir, 'projects'),
-    }
-
-    for parm, value in default.items():
-        if self.settings.value(parm) is None:
-            self.settings.setValue(parm, value)
-
 if __name__ == "__main__":
     mode = 'gui'
     if len(sys.argv) > 2:

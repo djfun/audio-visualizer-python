@@ -13,6 +13,7 @@ from copy import copy
 import signal
 
 import core
+from toolkit import openPipe
 
 
 class Worker(QtCore.QObject):
@@ -191,7 +192,7 @@ class Worker(QtCore.QObject):
             self.progressBarUpdate.emit(100)
 
         # Create ffmpeg pipe and queues for frames
-        self.out_pipe = sp.Popen(
+        self.out_pipe = openPipe(
             ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout)
         self.compositeQueue = Queue()
         self.compositeQueue.maxsize = 20
