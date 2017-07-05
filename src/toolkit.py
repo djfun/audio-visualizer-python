@@ -35,13 +35,13 @@ def hideCmdWin(func):
     ''' Stops CMD window from appearing on Windows.
         Adapted from here: http://code.activestate.com/recipes/409002/
     '''
-    def decorator(func, commandList, **kwargs):
+    def decorator(commandList, **kwargs):
         if sys.platform == 'win32':
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             kwargs['startupinfo'] = startupinfo
         return func(commandList, **kwargs)
-    return func
+    return decorator
 
 
 @hideCmdWin
