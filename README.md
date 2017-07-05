@@ -20,15 +20,14 @@ Installation
 
 Download audio-visualizer-python from this repository and run it with `python3 main.py`.
 
-### Manual installation on Windows [Outdated]
-* Download and install Python 3.4 from [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/)
-* Download and install PyQt4 for Python 3.4 and Qt4 from [http://www.riverbankcomputing.co.uk/software/pyqt/download](http://www.riverbankcomputing.co.uk/software/pyqt/download)
-* Download and install numpy from [http://www.scipy.org/scipylib/download.html](http://www.scipy.org/scipylib/download.html). There is an installer available, make sure to get the one for Python 3.4
-* Download and install Pillow from [https://pypi.python.org/pypi/Pillow/3.3.0](https://pypi.python.org/pypi/Pillow/3.3.0)
+### Manual installation on Windows
+* Download and install Python 3.6 from [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/)
+* Add Python to your system PATH (it will ask during the installation process).
+* Open command prompt and run: `pip install pyqt5 numpy pillow-simd`
 * Download and install ffmpeg from [https://www.ffmpeg.org/download.html](https://www.ffmpeg.org/download.html). You can use the static builds.
-* Add ffmpeg to your system PATH environment variable.
+* Add ffmpeg to your system PATH, too. [How to edit the PATH on Windows.](https://www.java.com/en/download/help/path.xml)
 
-Download audio-visualizer-python from this repository and run it from the command line with `C:\Python34\python.exe main.py`.
+Download audio-visualizer-python from this repository and run it from the command line with `python main.py`.
 
 ### Manual installation on macOS [Outdated]
 

@@ -40,7 +40,7 @@ def openPipe(commandList, **kwargs):
 
 
 def _subprocess(func, commandList, **kwargs):
-    if not sys.platform == 'win32':
+    if sys.platform == 'win32':
         # Stop CMD window from appearing on Windows
         # http://code.activestate.com/recipes/409002/
         startupinfo = subprocess.STARTUPINFO()
