@@ -31,22 +31,27 @@ def appendUppercase(lst):
     return lst
 
 
+def hideCmdWin(func):
+    ''' Stops CMD window from appearing on Windows.
+        Adapted from here: http://code.activestate.com/recipes/409002/
+    '''
+    def decorator(func, commandList, **kwargs):
+        if sys.platform == 'win32':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            kwargs['startupinfo'] = startupinfo
+        return func(commandList, **kwargs)
+    return func
+
+
+@hideCmdWin
 def checkOutput(commandList, **kwargs):
-    return _subprocess(subprocess.check_output, commandList, **kwargs)
+    return subprocess.check_output(commandList, **kwargs)
 
 
+@hideCmdWin
 def openPipe(commandList, **kwargs):
-    return _subprocess(subprocess.Popen,  commandList, **kwargs)
-
-
-def _subprocess(func, commandList, **kwargs):
-    if sys.platform == 'win32':
-        # Stop CMD window from appearing on Windows
-        # http://code.activestate.com/recipes/409002/
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        kwargs['startupinfo'] = startupinfo
-    return func(commandList, shell=False, **kwargs)
+    return subprocess.Popen(commandList, **kwargs)
 
 
 def disableWhenEncoding(func):
