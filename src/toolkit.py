@@ -32,11 +32,11 @@ def appendUppercase(lst):
 
 
 def checkOutput(commandList, **kwargs):
-    _subprocess(subprocess.check_output)
+    return _subprocess(subprocess.check_output, commandList, **kwargs)
 
 
 def openPipe(commandList, **kwargs):
-    _subprocess(subprocess.Popen)
+    return _subprocess(subprocess.Popen,  commandList, **kwargs)
 
 
 def _subprocess(func, commandList, **kwargs):
