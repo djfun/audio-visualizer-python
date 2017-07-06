@@ -15,13 +15,11 @@ class Component(Component):
         self.parent = parent
         self.settings = parent.settings
         page = self.loadUi('image.ui')
-        self.imagePath = ''
-        self.x = 0
-        self.y = 0
 
         page.lineEdit_image.textChanged.connect(self.update)
         page.pushButton_image.clicked.connect(self.pickImage)
         page.spinBox_scale.valueChanged.connect(self.update)
+        page.spinBox_rotate.valueChanged.connect(self.update)
         page.checkBox_stretch.stateChanged.connect(self.update)
         page.spinBox_x.valueChanged.connect(self.update)
         page.spinBox_y.valueChanged.connect(self.update)
@@ -32,6 +30,7 @@ class Component(Component):
     def update(self):
         self.imagePath = self.page.lineEdit_image.text()
         self.scale = self.page.spinBox_scale.value()
+        self.rotate = self.page.spinBox_rotate.value()
         self.xPosition = self.page.spinBox_x.value()
         self.yPosition = self.page.spinBox_y.value()
         self.stretched = self.page.checkBox_stretch.isChecked()
@@ -64,12 +63,15 @@ class Component(Component):
                 newWidth = int((image.width / 100) * self.scale)
                 image = image.resize((newWidth, newHeight), Image.ANTIALIAS)
             frame.paste(image, box=(self.xPosition, self.yPosition))
+            if self.rotate != 0:
+                frame = frame.rotate(self.rotate)
         return frame
 
     def loadPreset(self, pr, presetName=None):
         super().loadPreset(pr, presetName)
         self.page.lineEdit_image.setText(pr['image'])
         self.page.spinBox_scale.setValue(pr['scale'])
+        self.page.spinBox_rotate.setValue(pr['rotate'])
         self.page.spinBox_x.setValue(pr['x'])
         self.page.spinBox_y.setValue(pr['y'])
         self.page.checkBox_stretch.setChecked(pr['stretched'])
@@ -79,6 +81,7 @@ class Component(Component):
             'preset': self.currentPreset,
             'image': self.imagePath,
             'scale': self.scale,
+            'rotate': self.rotate,
             'stretched': self.stretched,
             'x': self.xPosition,
             'y': self.yPosition,

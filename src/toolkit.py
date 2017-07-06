@@ -55,6 +55,9 @@ def openPipe(commandList, **kwargs):
 
 
 def disableWhenEncoding(func):
+    ''' Blocks calls to a function while the video is being exported
+        in MainWindow.
+    '''
     def decorator(*args, **kwargs):
         if args[0].encoding:
             return
@@ -64,6 +67,9 @@ def disableWhenEncoding(func):
 
 
 def LoadDefaultSettings(self):
+    ''' Runs once at each program start-up. Fills in default settings
+        for any settings not found in settings.ini
+    '''
     self.resolutions = [
         '1920x1080',
         '1280x720',
