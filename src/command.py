@@ -1,3 +1,8 @@
+'''
+    When using commandline mode, this module's object handles interpreting
+    the arguments and giving them to Core, which tracks the main program state.
+    Then it immediately exports a video.
+'''
 from PyQt5 import QtCore
 import argparse
 import os

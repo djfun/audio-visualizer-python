@@ -1,5 +1,5 @@
 '''
-    Home to the Core class which tracks the program state
+   Home to the Core class which tracks program state. Used by GUI & commandline
 '''
 import sys
 import os

@@ -1,3 +1,9 @@
+'''
+    When using GUI mode, this module's object (the main window) takes
+    user input to construct a program state (stored in the Core object).
+    This shows a preview of the video being created and allows for saving
+    projects and exporting the video at a later time.
+'''
 from PyQt5 import QtCore, QtGui, uic, QtWidgets
 from PyQt5.QtWidgets import QMenu, QShortcut
 from queue import Queue
@@ -79,6 +85,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.previewWorker = preview_thread.Worker(self, self.previewQueue)
         self.previewWorker.moveToThread(self.previewThread)
         self.previewWorker.imageCreated.connect(self.showPreviewImage)
+        self.previewWorker.error.connect(self.cleanUp)
         self.previewThread.start()
 
         self.timer = QtCore.QTimer(self)
@@ -296,11 +303,11 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QShortcut("Ctrl+End", self.window, self.moveComponentBottom)
         QtWidgets.QShortcut("Ctrl+r", self.window, self.removeComponent)
 
+    @QtCore.pyqtSlot()
     def cleanUp(self):
         self.timer.stop()
         self.previewThread.quit()
         self.previewThread.wait()
-        self.autosave()
 
     def updateWindowTitle(self):
         appName = 'Audio Visualizer'

@@ -33,6 +33,7 @@ buildOptions = dict(
         "PIL.Image",
         "PIL.ImageQt",
         "PIL.ImageDraw",
+        "PIL.ImageEnhance",
     ],
     include_files=deps,
 )

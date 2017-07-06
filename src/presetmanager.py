@@ -1,3 +1,7 @@
+'''
+    Preset manager object handles all interactions with presets, including
+    the context menu accessed from MainWindow.
+'''
 from PyQt5 import QtCore, QtWidgets
 import string
 import os

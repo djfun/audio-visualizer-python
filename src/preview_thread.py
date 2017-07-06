@@ -1,3 +1,7 @@
+'''
+    Thread that runs to create QImages for MainWindow's preview label.
+    Processes a queue of component lists.
+'''
 from PyQt5 import QtCore, QtGui, uic
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
@@ -11,6 +15,7 @@ from copy import copy
 class Worker(QtCore.QObject):
 
     imageCreated = pyqtSignal(['QImage'])
+    error = pyqtSignal()
 
     def __init__(self, parent=None, queue=None):
         QtCore.QObject.__init__(self)
@@ -59,12 +64,15 @@ class Worker(QtCore.QObject):
                             "This is a fatal error." %
                             str(component),
                         detail=str(e),
-                        icon='Warning'
+                        icon='Warning',
+                        parent=None  # mainwindow is in a different thread
                     )
-                    quit(1)
-
-            self._image = ImageQt(frame)
-            self.imageCreated.emit(QtGui.QImage(self._image))
+                    from frame import BlankFrame
+                    self.imageCreated.emit(ImageQt(BlankFrame))
+                    self.error.emit()
+                    break
+            else:
+                self.imageCreated.emit(ImageQt(frame))
 
         except Empty:
             True
