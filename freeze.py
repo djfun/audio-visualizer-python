@@ -18,7 +18,8 @@ buildOptions = dict(
         "html",
         "http",
         "xmlrpc",
-        "nose"
+        "nose",
+        'tkinter',
     ],
     includes=[
         "encodings",
