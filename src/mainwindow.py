@@ -557,9 +557,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window.progressLabel.setHidden(True)
             self.drawPreview(True)
 
+    @QtCore.pyqtSlot(int)
     def progressBarUpdated(self, value):
         self.window.progressBar_createVideo.setValue(value)
 
+    @QtCore.pyqtSlot(str)
     def progressBarSetText(self, value):
         if sys.platform == 'darwin':
             self.window.progressLabel.setText(value)

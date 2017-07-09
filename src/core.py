@@ -485,7 +485,8 @@ class Core:
             '-ac', '1',  # mono (set to '2' for stereo)
             '-']
         in_pipe = toolkit.openPipe(
-            command, stdout=sp.PIPE, stderr=sp.DEVNULL, bufsize=10**8)
+            command, stdout=sp.PIPE, stderr=sp.DEVNULL, bufsize=10**8
+        )
 
         completeAudioArray = numpy.empty(0, dtype="int16")
 
@@ -495,7 +496,7 @@ class Core:
             if self.canceled:
                 break
             # read 2 seconds of audio
-            progress = progress + 4
+            progress += 4
             raw_audio = in_pipe.stdout.read(88200*4)
             if len(raw_audio) == 0:
                 break

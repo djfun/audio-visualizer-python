@@ -69,10 +69,13 @@ class Worker(QtCore.QObject):
                             str(component),
                         detail=str(e),
                         icon='Warning',
-                        parent=None  # mainwindow is in a different thread
+                        parent=None  # MainWindow is in a different thread
                     )
-                    from frame import BlankFrame
-                    self.imageCreated.emit(ImageQt(BlankFrame))
+                    self.imageCreated.emit(
+                        QtGui.QImage(ImageQt(
+                            FloodFrame(width, height, (0, 0, 0, 0))
+                        ))
+                    )
                     self.error.emit()
                     break
             else:

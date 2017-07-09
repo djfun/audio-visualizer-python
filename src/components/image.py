@@ -42,7 +42,6 @@ class Component(Component):
         super().update()
 
     def previewRender(self, previewWorker):
-        self.imageFormats = previewWorker.core.imageFormats
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
@@ -110,7 +109,7 @@ class Component(Component):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Image", imgDir,
-            "Image Files (%s)" % " ".join(self.imageFormats))
+            "Image Files (%s)" % " ".join(self.core.imageFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)

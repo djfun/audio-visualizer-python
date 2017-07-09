@@ -19,7 +19,7 @@ import time
 import signal
 
 import core
-from toolkit import openPipe
+from toolkit import openPipe, checkOutput
 from frame import FloodFrame
 
 
@@ -102,32 +102,71 @@ class Worker(QtCore.QObject):
             audioI, frame = self.previewQueue.get()
             if time.time() - self.lastPreview >= 0.06 or audioI == 0:
                 image = Image.alpha_composite(background.copy(), frame)
-                self.imageCreated.emit(ImageQt(image))
+                self.imageCreated.emit(QtGui.QImage(ImageQt(image)))
                 self.lastPreview = time.time()
 
             self.previewQueue.task_done()
 
     @pyqtSlot(str, str, list)
     def createVideo(self, inputFile, outputFile, components):
+        numpy.seterr(divide='ignore')
         self.encoding.emit(True)
         self.components = components
         self.outputFile = outputFile
-
-        self.reset()
-
+        self.extraAudio = []
         self.width = int(self.core.settings.value('outputWidth'))
         self.height = int(self.core.settings.value('outputHeight'))
+
+        self.compositeQueue = Queue()
+        self.compositeQueue.maxsize = 20
+        self.renderQueue = PriorityQueue()
+        self.renderQueue.maxsize = 20
+        self.previewQueue = PriorityQueue()
+
+        self.reset()
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
 
-        self.progressBarSetText.emit('Loading audio file...')
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # READ AUDIO AND INITIALIZE COMPONENTS
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+        self.progressBarSetText.emit("Loading audio file...")
         self.completeAudioArray = self.core.readAudioFile(inputFile, self)
 
-        # test if user has libfdk_aac
-        encoders = sp.check_output(
-            self.core.FFMPEG_BIN + " -encoders -hide_banner",
-            shell=True)
+        self.progressBarUpdate.emit(0)
+        self.progressBarSetText.emit("Starting components...")
+        print('Loaded Components:', ", ".join([
+            "%s) %s" % (num, str(component))
+            for num, component in enumerate(reversed(self.components))
+        ]))
+        self.staticComponents = {}
+        numComps = len(self.components)
+        for compNo, comp in enumerate(self.components):
+            properties = None
+            properties = comp.preFrameRender(
+                worker=self,
+                completeAudioArray=self.completeAudioArray,
+                sampleSize=self.sampleSize,
+                progressBarUpdate=self.progressBarUpdate,
+                progressBarSetText=self.progressBarSetText
+            )
 
+            if properties:
+                if 'static' in properties:
+                    self.staticComponents[compNo] = \
+                        comp.frameRender(compNo, 0).copy()
+                if 'audio' in properties:
+                    self.extraAudio.append(comp.audio())
+
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # DEDUCE ENCODERS
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+        # test if user has libfdk_aac
+        encoders = checkOutput(
+            "%s -encoders -hide_banner" % self.core.FFMPEG_BIN, shell=True
+        )
         encoders = encoders.decode("utf-8")
 
         acodec = self.core.settings.value('outputAudioCodec')
@@ -157,72 +196,66 @@ class Worker(QtCore.QObject):
                 aencoder = encoder
                 break
 
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # CREATE PIPE TO FFMPEG
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
         ffmpegCommand = [
             self.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
             '-y',  # overwrite the output file if it already exists.
+
+            # INPUT VIDEO
             '-f', 'rawvideo',
             '-vcodec', 'rawvideo',
             '-s', str(self.width)+'x'+str(self.height),  # size of one frame
             '-pix_fmt', 'rgba',
-
-            # frames per second
             '-r', self.core.settings.value('outputFrameRate'),
-            '-i', '-',  # The input comes from a pipe
-            '-an',
-            '-i', inputFile,
+            '-i', '-',  # the video input comes from a pipe
+            '-an',  # the video input has no sound
+
+            # INPUT SOUND
+            '-i', inputFile
+        ]
+
+        if self.extraAudio:
+            for extraInputFile in self.extraAudio:
+                ffmpegCommand.extend([
+                    '-i', extraInputFile
+                ])
+            ffmpegCommand.extend([
+                '-filter_complex',
+                'amix=inputs=%s:duration=longest:dropout_transition=3' % str(
+                    len(self.extraAudio) + 1
+                )
+            ])
+
+        ffmpegCommand.extend([
+            # OUTPUT
             '-vcodec', vencoder,
-            '-acodec', aencoder,  # output audio codec
+            '-acodec', aencoder,
             '-b:v', vbitrate,
             '-b:a', abitrate,
             '-pix_fmt', self.core.settings.value('outputVideoFormat'),
             '-preset', self.core.settings.value('outputPreset'),
             '-f', container
-        ]
+        ])
+        print(ffmpegCommand)
 
         if acodec == 'aac':
             ffmpegCommand.append('-strict')
             ffmpegCommand.append('-2')
 
         ffmpegCommand.append(outputFile)
-
-        # ### Now start creating video for output ###
-        numpy.seterr(divide='ignore')
-
-        # Call preFrameRender on all components
-        print('Loaded Components:', ", ".join([
-            "%s) %s" % (num, str(component))
-            for num, component in enumerate(reversed(self.components))
-        ]))
-        self.staticComponents = {}
-        numComps = len(self.components)
-        for compNo, comp in enumerate(self.components):
-            pStr = "Starting components..."
-            self.progressBarSetText.emit(pStr)
-            properties = None
-            properties = comp.preFrameRender(
-                worker=self,
-                completeAudioArray=self.completeAudioArray,
-                sampleSize=self.sampleSize,
-                progressBarUpdate=self.progressBarUpdate,
-                progressBarSetText=self.progressBarSetText
-            )
-
-            if properties and 'static' in properties:
-                self.staticComponents[compNo] = \
-                    comp.frameRender(compNo, 0).copy()
-            self.progressBarUpdate.emit(100)
-
-        # Create ffmpeg pipe and queues for frames
         self.out_pipe = openPipe(
-            ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout)
-        self.compositeQueue = Queue()
-        self.compositeQueue.maxsize = 20
-        self.renderQueue = PriorityQueue()
-        self.renderQueue.maxsize = 20
-        self.previewQueue = PriorityQueue()
+            ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
+        )
 
-        # Threads to render frames and send them back here for piping out
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # START CREATING THE VIDEO
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+        # Make three renderNodes in new threads to create the frames
         self.renderThreads = []
         for i in range(3):
             self.renderThreads.append(
@@ -235,16 +268,17 @@ class Worker(QtCore.QObject):
         self.dispatchThread.daemon = True
         self.dispatchThread.start()
 
+        self.lastPreview = 0.0
         self.previewDispatch = Thread(
             target=self.previewDispatch, name="Render Dispatch Thread")
         self.previewDispatch.daemon = True
         self.previewDispatch.start()
 
+        # Begin piping into ffmpeg!
         frameBuffer = {}
-        self.lastPreview = 0.0
-        self.progressBarUpdate.emit(0)
-        pStr = "Exporting video..."
-        self.progressBarSetText.emit(pStr)
+        progressBarValue = 0
+        self.progressBarUpdate.emit(progressBarValue)
+        self.progressBarSetText.emit("Exporting video...")
         if not self.canceled:
             for audioI in range(
                     0, len(self.completeAudioArray), self.sampleSize):
@@ -253,29 +287,26 @@ class Worker(QtCore.QObject):
                         # if frame's in buffer, pipe it to ffmpeg
                         break
                     # else fetch the next frame & add to the buffer
-                    data = self.renderQueue.get()
-                    frameBuffer[data[0]] = data[1]
+                    audioI_, frame = self.renderQueue.get()
+                    frameBuffer[audioI_] = frame
                     self.renderQueue.task_done()
                 if self.canceled:
                     break
 
                 try:
                     self.out_pipe.stdin.write(frameBuffer[audioI].tobytes())
-                    self.previewQueue.put([audioI, frameBuffer[audioI]])
-                    del frameBuffer[audioI]
+                    self.previewQueue.put([audioI, frameBuffer.pop(audioI)])
                 except:
                     break
 
                 # increase progress bar value
-                if progressBarValue + 1 <= (
-                            audioI / len(self.completeAudioArray)
-                        ) * 100:
-                    progressBarValue = numpy.floor(
-                        (i / len(self.completeAudioArray)) * 100)
+                completion = (audioI / len(self.completeAudioArray)) * 100
+                if progressBarValue + 1 <= completion:
+                    progressBarValue = numpy.floor(completion)
                     self.progressBarUpdate.emit(progressBarValue)
-                    pStr = "Exporting video: " + str(int(progressBarValue)) \
-                        + "%"
-                    self.progressBarSetText.emit(pStr)
+                    self.progressBarSetText.emit(
+                        "Exporting video: %s%%" % str(int(progressBarValue))
+                    )
 
         numpy.seterr(all='print')
 

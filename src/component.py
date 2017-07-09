@@ -48,14 +48,18 @@ class Component(QtCore.QObject):
             if presetName is not None else presetDict['preset']
 
     def preFrameRender(self, **kwargs):
-        ''' Triggered only before a video is exported (video_thread.py)
+        '''
+            Triggered only before a video is exported (video_thread.py)
                 self.worker = the video thread worker
                 self.completeAudioArray = a list of audio samples
                 self.sampleSize = number of audio samples per video frame
                 self.progressBarUpdate = signal to set progress bar number
                 self.progressBarSetText = signal to set progress bar text
-                Use the latter two signals to update the MainWindow if needed
+            Use the latter two signals to update the MainWindow if needed
             for a long initialization procedure (i.e., for a visualizer)
+
+            Return a list of properties to signify if your component is
+            non-animated ('static') or returns sound ('audio').
         '''
         for var, value in kwargs.items():
             exec('self.%s = value' % var)
@@ -135,8 +139,8 @@ class Component(QtCore.QObject):
         return page
 
     def update(self):
-        super().update()
         self.parent.drawPreview()
+        super().update()
 
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
@@ -153,9 +157,17 @@ class Component(QtCore.QObject):
         image = BlankFrame(width, height)
         return image
 
+    def audio(self):
+        \'''
+            Return audio to mix into master as a string (path to audio file),
+            or an object that returns raw audio data [future feature].
+        \'''
+
     @classmethod
     def names(cls):
-        # Alternative names for renaming a component between project files
+        \'''
+            Alternative names for renaming a component between project files.
+        \'''
         return []
     '''
 

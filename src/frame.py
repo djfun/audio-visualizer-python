@@ -14,7 +14,7 @@ class FramePainter(QtGui.QPainter):
     '''
     def __init__(self, width, height):
         image = BlankFrame(width, height)
-        self.image = ImageQt(image)
+        self.image = QtGui.QImage(ImageQt(image))
         super().__init__(self.image)
 
     def setPen(self, RgbTuple):
