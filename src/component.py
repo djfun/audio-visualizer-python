@@ -6,8 +6,11 @@ import os
 
 
 class Component(QtCore.QObject):
-    ''' A class for components to inherit.'''
-    # modified = QtCore.pyqtSignal(int, bool)
+    '''
+        A class for components to inherit. Read comments for documentation
+        on making a valid component. All subclasses must implement this signal:
+            modified = QtCore.pyqtSignal(int, bool)
+    '''
 
     def __init__(self, moduleIndex, compPos, core):
         super().__init__()
@@ -36,30 +39,32 @@ class Component(QtCore.QObject):
         # read your widget values, then call super().update()
 
     def loadPreset(self, presetDict, presetName):
-        '''Subclasses take (presetDict, presetName=None) as args.
-        Must use super().loadPreset(presetDict, presetName) first,
-        then update self.page widgets using the preset dict.
+        '''
+            Subclasses take (presetDict, presetName=None) as args.
+            Must use super().loadPreset(presetDict, presetName) first,
+            then update self.page widgets using the preset dict.
         '''
         self.currentPreset = presetName \
             if presetName is not None else presetDict['preset']
 
     def preFrameRender(self, **kwargs):
-        '''Triggered only before a video is exported (video_thread.py)
-            self.worker = the video thread worker
-            self.completeAudioArray = a list of audio samples
-            self.sampleSize = number of audio samples per video frame
-            self.progressBarUpdate = signal to set progress bar number
-            self.progressBarSetText = signal to set progress bar text
-        Use the latter two signals to update the MainProgram if needed
-        for a long initialization procedure (i.e., for a visualizer)
+        ''' Triggered only before a video is exported (video_thread.py)
+                self.worker = the video thread worker
+                self.completeAudioArray = a list of audio samples
+                self.sampleSize = number of audio samples per video frame
+                self.progressBarUpdate = signal to set progress bar number
+                self.progressBarSetText = signal to set progress bar text
+                Use the latter two signals to update the MainWindow if needed
+            for a long initialization procedure (i.e., for a visualizer)
         '''
         for var, value in kwargs.items():
             exec('self.%s = value' % var)
 
     def command(self, arg):
-        '''Configure a component using argument from the commandline.
-        Use super().command(arg) at the end of a subclass's method,
-        if no arguments are found in that method first
+        '''
+            Configure a component using argument from the commandline.
+            Use super().command(arg) at the end of a subclass's method,
+            if no arguments are found in that method first
         '''
         if arg.startswith('preset='):
             _, preset = arg.split('=', 1)
@@ -84,9 +89,10 @@ class Component(QtCore.QObject):
         '''Print help text for this Component's commandline arguments'''
 
     def pickColor(self):
-        '''Use color picker to get color input from the user,
-        and return this as an RGB string and QPushButton stylesheet.
-        In a subclass apply stylesheet to any color selection widgets
+        '''
+            Use color picker to get color input from the user,
+            and return this as an RGB string and QPushButton stylesheet.
+            In a subclass apply stylesheet to any color selection widgets
         '''
         dialog = QtWidgets.QColorDialog()
         dialog.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
@@ -101,7 +107,7 @@ class Component(QtCore.QObject):
             return None, None
 
     def RGBFromString(self, string):
-        ''' Turns an RGB string like "255, 255, 255" into a tuple '''
+        '''Turns an RGB string like "255, 255, 255" into a tuple'''
         try:
             tup = tuple([int(i) for i in string.split(',')])
             if len(tup) != 3:
@@ -135,13 +141,16 @@ class Component(QtCore.QObject):
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
-        image = Image.new("RGBA", (width, height), (0,0,0,0))
+        from frame import BlankFrame
+        image = BlankFrame(width, height)
         return image
 
-    def frameRender(self, moduleNo, frameNo):
+    def frameRender(self, layerNo, frameNo):
+        audioArrayIndex = frameNo * self.sampleSize
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
-        image = Image.new("RGBA", (width, height), (0,0,0,0))
+        from frame import BlankFrame
+        image = BlankFrame(width, height)
         return image
 
     @classmethod

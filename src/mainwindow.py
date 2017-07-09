@@ -6,6 +6,7 @@
 '''
 from PyQt5 import QtCore, QtGui, uic, QtWidgets
 from PyQt5.QtWidgets import QMenu, QShortcut
+from PIL import Image
 from queue import Queue
 import sys
 import os
@@ -17,7 +18,7 @@ import core
 import preview_thread
 import video_thread
 from presetmanager import PresetManager
-from toolkit import LoadDefaultSettings, disableWhenEncoding
+from toolkit import LoadDefaultSettings, disableWhenEncoding, checkOutput
 
 
 class PreviewWindow(QtWidgets.QLabel):
@@ -268,6 +269,37 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.openProject(self.currentProject, prompt=False)
         self.drawPreview(True)
+
+        # verify Pillow version
+        if not self.settings.value("pilMsgShown") \
+                and 'post' not in Image.PILLOW_VERSION:
+            self.showMessage(
+                msg="You are using the standard version of the "
+                "Python imaging library (Pillow %s). Upgrade "
+                "to the Pillow-SIMD fork to enable hardware accelerations "
+                "and export videos faster." % Image.PILLOW_VERSION
+            )
+            self.settings.setValue("pilMsgShown", True)
+
+        # verify Ffmpeg version
+        if not self.settings.value("ffmpegMsgShown"):
+            try:
+                with open(os.devnull, "w") as f:
+                    ffmpegVers = checkOutput(
+                        ['ffmpeg', '-version'], stderr=f
+                    )
+                goodVersion = str(ffmpegVers).split()[2].startswith('3')
+            except:
+                goodVersion = False
+        else:
+            goodVersion = True
+
+        if not goodVersion:
+            self.showMessage(
+                msg="You're using an old version of Ffmpeg. "
+                "Some features may not work as expected."
+            )
+        self.settings.setValue("ffmpegMsgShown", True)
 
         # Setup Hotkeys
         QtWidgets.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)

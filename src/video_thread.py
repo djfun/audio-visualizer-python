@@ -3,7 +3,7 @@
     an input file, output path, and component list. During export multiple
     threads are created to render the video as quickly as possible. Signals
     are emitted to update MainWindow's progress bar, detail text, and preview.
-    Export can be cancelled with cancel() + reset()
+    Export can be cancelled with cancel()
 '''
 from PyQt5 import QtCore, QtGui, uic
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
@@ -16,11 +16,11 @@ import os
 from queue import Queue, PriorityQueue
 from threading import Thread, Event
 import time
-from copy import copy
 import signal
 
 import core
 from toolkit import openPipe
+from frame import FloodFrame
 
 
 class Worker(QtCore.QObject):
@@ -44,49 +44,65 @@ class Worker(QtCore.QObject):
         self.stopped = False
 
     def renderNode(self):
+        '''
+            Grabs audio data indices at frames to export, from compositeQueue.
+            Sends it to the components' frameRender methods in layer order
+            to create subframes & composite them into the final frame.
+            The resulting frames are collected in the renderQueue
+        '''
         while not self.stopped:
-            i = self.compositeQueue.get()
+            audioI = self.compositeQueue.get()
+            bgI = int(audioI / self.sampleSize)
             frame = None
 
             for compNo, comp in reversed(list(enumerate(self.components))):
                 if compNo in self.staticComponents and \
                         self.staticComponents[compNo] is not None:
-                    if frame is None:
+                    # static component
+                    if frame is None:  # bottom-most layer
                         frame = self.staticComponents[compNo]
                     else:
                         frame = Image.alpha_composite(
-                            frame, self.staticComponents[compNo])
+                            frame, self.staticComponents[compNo]
+                        )
                 else:
-                    if frame is None:
-                        frame = comp.frameRender(compNo, i[0], i[1])
+                    # animated component
+                    if frame is None:  # bottom-most layer
+                        frame = comp.frameRender(compNo, bgI)
                     else:
                         frame = Image.alpha_composite(
-                            frame, comp.frameRender(compNo, i[0], i[1]))
+                            frame, comp.frameRender(compNo, bgI)
+                        )
 
-            self.renderQueue.put([i[0], frame])
+            self.renderQueue.put([audioI, frame])
             self.compositeQueue.task_done()
 
     def renderDispatch(self):
+        '''
+            Places audio data indices in the compositeQueue, to be used
+            by a renderNode later. All indices are multiples of self.sampleSize
+            sampleSize * frameNo = audioI, AKA audio data starting at frameNo
+        '''
         print('Dispatching Frames for Compositing...')
 
-        for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            self.compositeQueue.put([i, self.bgI])
-            # increment tracked video frame for next iteration
-            self.bgI += 1
+        for audioI in range(0, len(self.completeAudioArray), self.sampleSize):
+            self.compositeQueue.put(audioI)
 
     def previewDispatch(self):
-        background = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+        '''
+            Grabs frames from the previewQueue, adds them to the checkerboard
+            and emits a final QImage to the MainWindow for the live preview
+        '''
+        background = FloodFrame(1920, 1080, (0, 0, 0, 0))
         background.paste(Image.open(os.path.join(
             self.core.wd, "background.png")))
         background = background.resize((self.width, self.height))
 
         while not self.stopped:
-            i = self.previewQueue.get()
-            if time.time() - self.lastPreview >= 0.06 or i[0] == 0:
-                image = copy(background)
-                image = Image.alpha_composite(image, i[1])
-                self._image = ImageQt(image)
-                self.imageCreated.emit(QtGui.QImage(self._image))
+            audioI, frame = self.previewQueue.get()
+            if time.time() - self.lastPreview >= 0.06 or audioI == 0:
+                image = Image.alpha_composite(background.copy(), frame)
+                self.imageCreated.emit(ImageQt(image))
                 self.lastPreview = time.time()
 
             self.previewQueue.task_done()
@@ -99,7 +115,6 @@ class Worker(QtCore.QObject):
 
         self.reset()
 
-        self.bgI = 0  # tracked video frame
         self.width = int(self.core.settings.value('outputWidth'))
         self.height = int(self.core.settings.value('outputHeight'))
         progressBarValue = 0
@@ -194,8 +209,8 @@ class Worker(QtCore.QObject):
             )
 
             if properties and 'static' in properties:
-                self.staticComponents[compNo] = copy(
-                    comp.frameRender(compNo, 0, 0))
+                self.staticComponents[compNo] = \
+                    comp.frameRender(compNo, 0).copy()
             self.progressBarUpdate.emit(100)
 
         # Create ffmpeg pipe and queues for frames
@@ -231,9 +246,10 @@ class Worker(QtCore.QObject):
         pStr = "Exporting video..."
         self.progressBarSetText.emit(pStr)
         if not self.canceled:
-            for i in range(0, len(self.completeAudioArray), self.sampleSize):
+            for audioI in range(
+                    0, len(self.completeAudioArray), self.sampleSize):
                 while True:
-                    if i in frameBuffer or self.canceled:
+                    if audioI in frameBuffer or self.canceled:
                         # if frame's in buffer, pipe it to ffmpeg
                         break
                     # else fetch the next frame & add to the buffer
@@ -244,15 +260,16 @@ class Worker(QtCore.QObject):
                     break
 
                 try:
-                    self.out_pipe.stdin.write(frameBuffer[i].tobytes())
-                    self.previewQueue.put([i, frameBuffer[i]])
-                    del frameBuffer[i]
+                    self.out_pipe.stdin.write(frameBuffer[audioI].tobytes())
+                    self.previewQueue.put([audioI, frameBuffer[audioI]])
+                    del frameBuffer[audioI]
                 except:
                     break
 
                 # increase progress bar value
-                if progressBarValue + 1 <= (i / len(self.completeAudioArray)) \
-                        * 100:
+                if progressBarValue + 1 <= (
+                            audioI / len(self.completeAudioArray)
+                        ) * 100:
                     progressBarValue = numpy.floor(
                         (i / len(self.completeAudioArray)) * 100)
                     self.progressBarUpdate.emit(progressBarValue)

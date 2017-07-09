@@ -3,13 +3,15 @@ audio-visualizer-python
 
 This is a little GUI tool which creates an audio visualization video from an input audio file. Different components can be added and layered to change the resulting video and add images, videos, gradients, text, etc. The component setup can be saved as a Project and exporting can be automated using commandline options.
 
-The program works on Linux (Ubuntu 16.04), Windows (Windows 7), and Mac OS X. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and send me a pull request and/or file an issue on this project.
+The program works on Linux, macOS, and Windows. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and send me a pull request and/or file an issue on this project.
 
 I also need a good name that is not as generic as "audio-visualizer-python"!
 
 Dependencies
 ------------
 Python 3, PyQt5, pillow-simd, numpy, and ffmpeg 3.3
+
+**Note:** Pillow may be used as a drop-in replacement for Pillow-SIMD if problems are encountered installing. However this will result in much slower video export times.
 
 Installation
 ------------
@@ -23,7 +25,7 @@ Installation
 Download audio-visualizer-python from this repository and run it with `python3 main.py`.
 
 ### Manual installation on Windows
-* **Not Recommended.** [Compiling Pillow is difficult on Windows](http://pillow.readthedocs.io/en/3.1.x/installation.html#building-on-windows) and required for a manual installation.
+* **Warning:** [Compiling Pillow is difficult on Windows](http://pillow.readthedocs.io/en/3.1.x/installation.html#building-on-windows) and required for the best experience.
 * Download and install Python 3.6 from [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/)
 * Add Python to your system PATH (it will ask during the installation process).
 * Brave treacherous valley of getting prerequisites to [compile Pillow on Windows](https://www.pypkg.com/pypi/pillow-simd/f/winbuild/README.md). This is necessary because binary builds for Pillow-SIMD are not available.
@@ -34,7 +36,7 @@ Download audio-visualizer-python from this repository and run it with `python3 m
 
 Download audio-visualizer-python from this repository and run it from the command line with `python main.py`.
 
-### Manual installation on macOS [Outdated]
+### Manual installation on macOS **[Outdated]**
 
 * Install [Homebrew](http://brew.sh/)
 * Use the following commands to install the needed dependencies:

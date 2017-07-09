@@ -107,7 +107,8 @@ class Component(Component):
             self.progressBarSetText.emit(pStr)
             self.progressBarUpdate.emit(int(progress))
 
-    def frameRender(self, moduleNo, arrayNo, frameNo):
+    def frameRender(self, layerNo, frameNo):
+        arrayNo = frameNo * self.sampleSize
         return self.drawBars(
             self.width, self.height,
             self.spectrumArray[arrayNo],

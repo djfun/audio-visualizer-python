@@ -449,15 +449,15 @@ class Core:
 
         else:
             if sys.platform == "win32":
-                return "ffmpeg.exe"
+                return "ffmpeg"
             else:
                 try:
                     with open(os.devnull, "w") as f:
-                        sp.check_call(
-                            ['ffmpeg', '-version'], stdout=f, stderr=f
+                        toolkit.checkOutput(
+                            ['ffmpeg', '-version'], stderr=f
                         )
                     return "ffmpeg"
-                except:
+                except sp.CalledProcessError:
                     return "avconv"
 
     def readAudioFile(self, filename, parent):

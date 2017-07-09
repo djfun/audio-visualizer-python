@@ -9,7 +9,8 @@ from PIL.ImageQt import ImageQt
 import core
 from queue import Queue, Empty
 import os
-from copy import copy
+
+from frame import FloodFrame
 
 
 class Worker(QtCore.QObject):
@@ -22,11 +23,13 @@ class Worker(QtCore.QObject):
         parent.newTask.connect(self.createPreviewImage)
         parent.processTask.connect(self.process)
         self.parent = parent
-        self.core = core.Core()
+        self.core = self.parent.core
         self.queue = queue
         self.core.settings = parent.settings
         self.stackedWidget = parent.window.stackedWidget
-        self.background = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+
+        # create checkerboard background to represent transparency
+        self.background = FloodFrame(1920, 1080, (0, 0, 0, 0))
         self.background.paste(Image.open(os.path.join(
             self.core.wd, "background.png")))
 
@@ -49,7 +52,7 @@ class Worker(QtCore.QObject):
 
             width = int(self.core.settings.value('outputWidth'))
             height = int(self.core.settings.value('outputHeight'))
-            frame = copy(self.background)
+            frame = self.background.copy()
             frame = frame.resize((width, height))
 
             components = nextPreviewInformation["components"]
@@ -58,6 +61,7 @@ class Worker(QtCore.QObject):
                     frame = Image.alpha_composite(
                         frame, component.previewRender(self)
                     )
+
                 except ValueError as e:
                     self.parent.showMessage(
                         msg="Bad frame returned by %s's previewRender method. "

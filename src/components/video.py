@@ -165,7 +165,7 @@ class Component(Component):
             component=self, scale=self.scale
         ) if os.path.exists(self.videoPath) else None
 
-    def frameRender(self, moduleNo, arrayNo, frameNo):
+    def frameRender(self, layerNo, frameNo):
         if self.video:
             return self.video.frame(frameNo)
         else:

@@ -51,7 +51,7 @@ class Component(Component):
         super().preFrameRender(**kwargs)
         return ['static']
 
-    def frameRender(self, moduleNo, arrayNo, frameNo):
+    def frameRender(self, layerNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)

@@ -104,6 +104,9 @@ class Component(Component):
             self.page.checkBox_trans.setEnabled(True)
             self.page.checkBox_stretch.setEnabled(True)
             self.page.comboBox_spread.setEnabled(True)
+        if self.trans:
+            self.page.lineEdit_color2.setEnabled(False)
+            self.page.pushButton_color2.setEnabled(False)
         self.page.fillWidget.setCurrentIndex(self.fillType)
 
         self.parent.drawPreview()
@@ -118,7 +121,7 @@ class Component(Component):
         super().preFrameRender(**kwargs)
         return ['static']
 
-    def frameRender(self, moduleNo, arrayNo, frameNo):
+    def frameRender(self, layerNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))
         height = int(self.worker.core.settings.value('outputHeight'))
         return self.drawFrame(width, height)
