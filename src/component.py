@@ -27,6 +27,13 @@ class Component(QtCore.QObject):
         # change this number to identify new versions of a component
         return 1
 
+    def properties(self):
+        '''
+            Return a list of properties to signify if your component is
+            non-animated ('static') or returns sound ('audio').
+        '''
+        return []
+
     def cancel(self):
         # please stop any lengthy process in response to this variable
         self.canceled = True
@@ -57,9 +64,6 @@ class Component(QtCore.QObject):
                 self.progressBarSetText = signal to set progress bar text
             Use the latter two signals to update the MainWindow if needed
             for a long initialization procedure (i.e., for a visualizer)
-
-            Return a list of properties to signify if your component is
-            non-animated ('static') or returns sound ('audio').
         '''
         for var, value in kwargs.items():
             exec('self.%s = value' % var)

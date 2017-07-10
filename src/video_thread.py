@@ -33,8 +33,8 @@ class Worker(QtCore.QObject):
 
     def __init__(self, parent=None):
         QtCore.QObject.__init__(self)
-        self.core = core.Core()
-        self.core.settings = parent.settings
+        self.core = parent.core
+        self.settings = parent.core.settings
         self.modules = parent.core.modules
         self.parent = parent
         parent.videoTask.connect(self.createVideo)
@@ -114,8 +114,8 @@ class Worker(QtCore.QObject):
         self.components = components
         self.outputFile = outputFile
         self.extraAudio = []
-        self.width = int(self.core.settings.value('outputWidth'))
-        self.height = int(self.core.settings.value('outputHeight'))
+        self.width = int(self.settings.value('outputWidth'))
+        self.height = int(self.settings.value('outputHeight'))
 
         self.compositeQueue = Queue()
         self.compositeQueue.maxsize = 20
@@ -128,7 +128,7 @@ class Worker(QtCore.QObject):
         self.progressBarUpdate.emit(progressBarValue)
 
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-        # READ AUDIO AND INITIALIZE COMPONENTS
+        # READ AUDIO, INITIALIZE COMPONENTS, OPEN A PIPE TO FFMPEG
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
         self.progressBarSetText.emit("Loading audio file...")
@@ -143,8 +143,7 @@ class Worker(QtCore.QObject):
         self.staticComponents = {}
         numComps = len(self.components)
         for compNo, comp in enumerate(self.components):
-            properties = None
-            properties = comp.preFrameRender(
+            comp.preFrameRender(
                 worker=self,
                 completeAudioArray=self.completeAudioArray,
                 sampleSize=self.sampleSize,
@@ -152,101 +151,12 @@ class Worker(QtCore.QObject):
                 progressBarSetText=self.progressBarSetText
             )
 
-            if properties:
-                if 'static' in properties:
-                    self.staticComponents[compNo] = \
-                        comp.frameRender(compNo, 0).copy()
-                if 'audio' in properties:
-                    self.extraAudio.append(comp.audio())
+            if 'static' in comp.properties():
+                self.staticComponents[compNo] = \
+                    comp.frameRender(compNo, 0).copy()
 
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-        # DEDUCE ENCODERS
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-        # test if user has libfdk_aac
-        encoders = checkOutput(
-            "%s -encoders -hide_banner" % self.core.FFMPEG_BIN, shell=True
-        )
-        encoders = encoders.decode("utf-8")
-
-        acodec = self.core.settings.value('outputAudioCodec')
-
-        options = self.core.encoder_options
-        containerName = self.core.settings.value('outputContainer')
-        vcodec = self.core.settings.value('outputVideoCodec')
-        vbitrate = str(self.core.settings.value('outputVideoBitrate'))+'k'
-        acodec = self.core.settings.value('outputAudioCodec')
-        abitrate = str(self.core.settings.value('outputAudioBitrate'))+'k'
-
-        for cont in options['containers']:
-            if cont['name'] == containerName:
-                container = cont['container']
-                break
-
-        vencoders = options['video-codecs'][vcodec]
-        aencoders = options['audio-codecs'][acodec]
-
-        for encoder in vencoders:
-            if encoder in encoders:
-                vencoder = encoder
-                break
-
-        for encoder in aencoders:
-            if encoder in encoders:
-                aencoder = encoder
-                break
-
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-        # CREATE PIPE TO FFMPEG
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-        ffmpegCommand = [
-            self.core.FFMPEG_BIN,
-            '-thread_queue_size', '512',
-            '-y',  # overwrite the output file if it already exists.
-
-            # INPUT VIDEO
-            '-f', 'rawvideo',
-            '-vcodec', 'rawvideo',
-            '-s', str(self.width)+'x'+str(self.height),  # size of one frame
-            '-pix_fmt', 'rgba',
-            '-r', self.core.settings.value('outputFrameRate'),
-            '-i', '-',  # the video input comes from a pipe
-            '-an',  # the video input has no sound
-
-            # INPUT SOUND
-            '-i', inputFile
-        ]
-
-        if self.extraAudio:
-            for extraInputFile in self.extraAudio:
-                ffmpegCommand.extend([
-                    '-i', extraInputFile
-                ])
-            ffmpegCommand.extend([
-                '-filter_complex',
-                'amix=inputs=%s:duration=longest:dropout_transition=3' % str(
-                    len(self.extraAudio) + 1
-                )
-            ])
-
-        ffmpegCommand.extend([
-            # OUTPUT
-            '-vcodec', vencoder,
-            '-acodec', aencoder,
-            '-b:v', vbitrate,
-            '-b:a', abitrate,
-            '-pix_fmt', self.core.settings.value('outputVideoFormat'),
-            '-preset', self.core.settings.value('outputPreset'),
-            '-f', container
-        ])
+        ffmpegCommand = self.core.createFfmpegCommand(inputFile, outputFile)
         print(ffmpegCommand)
-
-        if acodec == 'aac':
-            ffmpegCommand.append('-strict')
-            ffmpegCommand.append('-2')
-
-        ffmpegCommand.append(outputFile)
         self.out_pipe = openPipe(
             ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
         )

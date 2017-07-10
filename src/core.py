@@ -460,6 +460,99 @@ class Core:
                 except sp.CalledProcessError:
                     return "avconv"
 
+    def createFfmpegCommand(self, inputFile, outputFile):
+        '''
+            Constructs the major ffmpeg command used to export the video
+        '''
+
+        # Test if user has libfdk_aac
+        encoders = toolkit.checkOutput(
+            "%s -encoders -hide_banner" % self.FFMPEG_BIN, shell=True
+        )
+        encoders = encoders.decode("utf-8")
+
+        acodec = self.settings.value('outputAudioCodec')
+
+        options = self.encoder_options
+        containerName = self.settings.value('outputContainer')
+        vcodec = self.settings.value('outputVideoCodec')
+        vbitrate = str(self.settings.value('outputVideoBitrate'))+'k'
+        acodec = self.settings.value('outputAudioCodec')
+        abitrate = str(self.settings.value('outputAudioBitrate'))+'k'
+
+        for cont in options['containers']:
+            if cont['name'] == containerName:
+                container = cont['container']
+                break
+
+        vencoders = options['video-codecs'][vcodec]
+        aencoders = options['audio-codecs'][acodec]
+
+        for encoder in vencoders:
+            if encoder in encoders:
+                vencoder = encoder
+                break
+
+        for encoder in aencoders:
+            if encoder in encoders:
+                aencoder = encoder
+                break
+
+        ffmpegCommand = [
+            self.FFMPEG_BIN,
+            '-thread_queue_size', '512',
+            '-y',  # overwrite the output file if it already exists.
+
+            # INPUT VIDEO
+            '-f', 'rawvideo',
+            '-vcodec', 'rawvideo',
+            '-s', '%sx%s' % (
+                self.settings.value('outputWidth'),
+                self.settings.value('outputHeight'),
+            ),
+            '-pix_fmt', 'rgba',
+            '-r', self.settings.value('outputFrameRate'),
+            '-i', '-',  # the video input comes from a pipe
+            '-an',  # the video input has no sound
+
+            # INPUT SOUND
+            '-i', inputFile
+        ]
+
+        extraAudio = [
+            comp.audio() for comp in self.selectedComponents
+            if 'audio' in comp.properties()
+        ]
+        if extraAudio:
+            for extraInputFile in extraAudio:
+                ffmpegCommand.extend([
+                    '-i', extraInputFile
+                ])
+            ffmpegCommand.extend([
+                '-filter_complex',
+                'amix=inputs=%s:duration=longest:dropout_transition=3' % str(
+                    len(extraAudio) + 1
+                )
+            ])
+
+        ffmpegCommand.extend([
+            # OUTPUT
+            '-vcodec', vencoder,
+            '-acodec', aencoder,
+            '-b:v', vbitrate,
+            '-b:a', abitrate,
+            '-pix_fmt', self.settings.value('outputVideoFormat'),
+            '-preset', self.settings.value('outputPreset'),
+            '-f', container
+        ])
+
+        if acodec == 'aac':
+            ffmpegCommand.append('-strict')
+            ffmpegCommand.append('-2')
+
+        ffmpegCommand.append(outputFile)
+        return ffmpegCommand
+
     def readAudioFile(self, filename, parent):
         command = [self.FFMPEG_BIN, '-i', filename]
 

@@ -31,7 +31,9 @@ class Component(Component):
         return self.frameRender(self.compPos, 0)
 
     def preFrameRender(self, **kwargs):
-        # super().preFrameRender(**kwargs)
+        pass
+
+    def properties(self):
         return ['static', 'audio']
 
     def audio(self):

@@ -119,8 +119,7 @@ class Component(Component):
         height = int(previewWorker.core.settings.value('outputHeight'))
         return self.addText(width, height)
 
-    def preFrameRender(self, **kwargs):
-        super().preFrameRender(**kwargs)
+    def properties(self):
         return ['static']
 
     def frameRender(self, layerNo, frameNo):
