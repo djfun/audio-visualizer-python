@@ -524,7 +524,7 @@ class Core:
             if 'audio' in comp.properties()
         ]
         if extraAudio:
-            for extraInputFile in extraAudio:
+            for extraInputFile, params in extraAudio:
                 ffmpegCommand.extend([
                     '-i', extraInputFile
                 ])
@@ -532,7 +532,7 @@ class Core:
                 '-filter_complex',
                 'amix=inputs=%s:duration=longest:dropout_transition=3' % str(
                     len(extraAudio) + 1
-                )
+                ),
             ])
 
         ffmpegCommand.extend([

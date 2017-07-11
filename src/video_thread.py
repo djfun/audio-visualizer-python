@@ -151,6 +151,15 @@ class Worker(QtCore.QObject):
                 progressBarSetText=self.progressBarSetText
             )
 
+            if 'error' in comp.properties():
+                self.canceled = True
+                errMsg = "Component #%s encountered an error!" % compNo \
+                    if comp.error() is None else comp.error()
+                self.parent.showMessage(
+                        msg=errMsg,
+                        icon='Warning',
+                        parent=None  # MainWindow is in a different thread
+                    )
             if 'static' in comp.properties():
                 self.staticComponents[compNo] = \
                     comp.frameRender(compNo, 0).copy()

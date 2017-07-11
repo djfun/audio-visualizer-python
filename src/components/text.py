@@ -75,15 +75,15 @@ class Component(Component):
         '''Returns true x, y after considering alignment settings'''
         fm = QtGui.QFontMetrics(self.titleFont)
         if self.alignment == 0:             # Left
-            x = self.xPosition
+            x = int(self.xPosition)
 
         if self.alignment == 1:             # Middle
             offset = fm.width(self.title)/2
-            x = self.xPosition - offset
+            x = int(self.xPosition - offset)
 
         if self.alignment == 2:             # Right
             offset = fm.width(self.title)
-            x = self.xPosition - offset
+            x = int(self.xPosition - offset)
         return x, self.yPosition
 
     def loadPreset(self, pr, presetName=None):
@@ -128,12 +128,12 @@ class Component(Component):
         return self.addText(width, height)
 
     def addText(self, width, height):
-        x, y = self.getXY()
-        image = FramePainter(width, height)
 
+        image = FramePainter(width, height)
         self.titleFont.setPixelSize(self.fontSize)
         image.setFont(self.titleFont)
         image.setPen(self.textColor)
+        x, y = self.getXY()
         image.drawText(x, y, self.title)
 
         return image.finalize()

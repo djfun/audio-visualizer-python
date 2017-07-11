@@ -25,8 +25,8 @@ class Worker(QtCore.QObject):
         self.parent = parent
         self.core = self.parent.core
         self.queue = queue
-        self.core.settings = parent.settings
-        self.stackedWidget = parent.window.stackedWidget
+        self.width = int(self.core.settings.value('outputWidth'))
+        self.height = int(self.core.settings.value('outputHeight'))
 
         # create checkerboard background to represent transparency
         self.background = FloodFrame(1920, 1080, (0, 0, 0, 0))
@@ -50,10 +50,10 @@ class Worker(QtCore.QObject):
                 except Empty:
                     continue
 
-            width = int(self.core.settings.value('outputWidth'))
-            height = int(self.core.settings.value('outputHeight'))
+            if self.background.width != self.width:
+                self.background = self.background.resize(
+                    (self.width, self.height))
             frame = self.background.copy()
-            frame = frame.resize((width, height))
 
             components = nextPreviewInformation["components"]
             for component in reversed(components):
@@ -63,23 +63,21 @@ class Worker(QtCore.QObject):
                     )
 
                 except ValueError as e:
+                    errMsg = "Bad frame returned by %s's preview renderer. " \
+                        "%s. This is a fatal error." % (
+                            str(component), str(e).capitalize()
+                        )
+                    print(errMsg)
                     self.parent.showMessage(
-                        msg="Bad frame returned by %s's previewRender method. "
-                            "This is a fatal error." %
-                            str(component),
+                        msg=errMsg,
                         detail=str(e),
                         icon='Warning',
                         parent=None  # MainWindow is in a different thread
                     )
-                    self.imageCreated.emit(
-                        QtGui.QImage(ImageQt(
-                            FloodFrame(width, height, (0, 0, 0, 0))
-                        ))
-                    )
                     self.error.emit()
                     break
             else:
-                self.imageCreated.emit(ImageQt(frame))
+                self.imageCreated.emit(QtGui.QImage(ImageQt(frame)))
 
         except Empty:
             True

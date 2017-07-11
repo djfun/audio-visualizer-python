@@ -713,6 +713,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def saveCurrentProject(self):
         if self.currentProject:
             self.core.createProjectFile(self.currentProject, self.window)
+            try:
+                os.remove(self.autosavePath)
+            except FileNotFoundError:
+                pass
             self.updateWindowTitle()
         else:
             self.openSaveProjectDialog()

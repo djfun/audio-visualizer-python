@@ -30,9 +30,16 @@ class Component(QtCore.QObject):
     def properties(self):
         '''
             Return a list of properties to signify if your component is
-            non-animated ('static') or returns sound ('audio').
+            non-animated ('static'), returns sound ('audio'), or has
+            encountered an error in configuration ('error').
         '''
         return []
+
+    def error(self):
+        '''
+            Return a string containing an error message, or None for a default.
+        '''
+        return
 
     def cancel(self):
         # please stop any lengthy process in response to this variable

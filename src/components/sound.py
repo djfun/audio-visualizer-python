@@ -28,7 +28,7 @@ class Component(Component):
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
-        return self.frameRender(self.compPos, 0)
+        return BlankFrame(width, height)
 
     def preFrameRender(self, **kwargs):
         pass
@@ -37,7 +37,7 @@ class Component(Component):
         return ['static', 'audio']
 
     def audio(self):
-        return self.sound
+        return (self.sound, {})
 
     def pickSound(self):
         sndDir = self.settings.value("componentDir", os.path.expanduser("~"))
@@ -50,8 +50,8 @@ class Component(Component):
             self.update()
 
     def frameRender(self, layerNo, frameNo):
-        width = int(self.core.settings.value('outputWidth'))
-        height = int(self.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return BlankFrame(width, height)
 
     def loadPreset(self, pr, presetName=None):

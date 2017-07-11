@@ -47,7 +47,15 @@ class Component(Component):
         return self.drawFrame(width, height)
 
     def properties(self):
-        return ['static']
+        props = ['static']
+        if not os.path.exists(self.imagePath):
+            props.append('error')
+        return props
+
+    def error(self):
+        if not os.path.exists(self.imagePath):
+            return "The image path selected on " \
+                "layer %s no longer exists!" % str(self.compPos)
 
     def frameRender(self, layerNo, frameNo):
         width = int(self.worker.core.settings.value('outputWidth'))

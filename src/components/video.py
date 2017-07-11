@@ -123,6 +123,7 @@ class Component(Component):
         page.pushButton_video.clicked.connect(self.pickVideo)
         page.checkBox_loop.stateChanged.connect(self.update)
         page.checkBox_distort.stateChanged.connect(self.update)
+        page.checkBox_useAudio.stateChanged.connect(self.update)
         page.spinBox_scale.valueChanged.connect(self.update)
         page.spinBox_x.valueChanged.connect(self.update)
         page.spinBox_y.valueChanged.connect(self.update)
@@ -133,6 +134,7 @@ class Component(Component):
     def update(self):
         self.videoPath = self.page.lineEdit_video.text()
         self.loopVideo = self.page.checkBox_loop.isChecked()
+        self.useAudio = self.page.checkBox_useAudio.isChecked()
         self.distort = self.page.checkBox_distort.isChecked()
         self.scale = self.page.spinBox_scale.value()
         self.xPosition = self.page.spinBox_x.value()
@@ -150,6 +152,23 @@ class Component(Component):
             return BlankFrame(width, height)
         else:
             return frame
+
+    def properties(self):
+        props = []
+        if self.useAudio:
+            # props.append('audio')
+            pass
+        if not os.path.exists(self.videoPath):
+            props.append('error')
+        return props
+
+    def error(self):
+        if not os.path.exists(self.videoPath):
+            return "The video path selected on " \
+                "layer %s no longer exists!" % str(self.compPos)
+
+    def audio(self):
+        return (self.videoPath, {})
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
@@ -175,6 +194,7 @@ class Component(Component):
         super().loadPreset(pr, presetName)
         self.page.lineEdit_video.setText(pr['video'])
         self.page.checkBox_loop.setChecked(pr['loop'])
+        self.page.checkBox_useAudio.setChecked(pr['useAudio'])
         self.page.checkBox_distort.setChecked(pr['distort'])
         self.page.spinBox_scale.setValue(pr['scale'])
         self.page.spinBox_x.setValue(pr['x'])
@@ -185,6 +205,7 @@ class Component(Component):
             'preset': self.currentPreset,
             'video': self.videoPath,
             'loop': self.loopVideo,
+            'useAudio': self.useAudio,
             'distort': self.distort,
             'scale': self.scale,
             'x': self.xPosition,
