@@ -15,6 +15,7 @@ class Component(Component):
 
     def widget(self, parent):
         self.parent = parent
+        self.settings = self.parent.core.settings
         page = self.loadUi('color.ui')
 
         self.color1 = (0, 0, 0)
@@ -42,9 +43,9 @@ class Component(Component):
         page.spinBox_x.valueChanged.connect(self.update)
         page.spinBox_y.valueChanged.connect(self.update)
         page.spinBox_width.setValue(
-            int(parent.settings.value("outputWidth")))
+            int(self.settings.value("outputWidth")))
         page.spinBox_height.setValue(
-            int(parent.settings.value("outputHeight")))
+            int(self.settings.value("outputHeight")))
 
         page.lineEdit_color1.textChanged.connect(self.update)
         page.lineEdit_color2.textChanged.connect(self.update)
@@ -113,16 +114,16 @@ class Component(Component):
         super().update()
 
     def previewRender(self, previewWorker):
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.drawFrame(width, height)
 
     def properties(self):
         return ['static']
 
     def frameRender(self, layerNo, frameNo):
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.drawFrame(width, height)
 
     def drawFrame(self, width, height):

@@ -11,6 +11,7 @@ from importlib import import_module
 from PyQt5.QtCore import QStandardPaths
 
 import toolkit
+from frame import Frame
 
 
 class Core:
@@ -20,6 +21,7 @@ class Core:
         opens projects and presets, and stores settings/paths to data.
     '''
     def __init__(self):
+        Frame.core = self
         self.dataDir = QStandardPaths.writableLocation(
             QStandardPaths.AppConfigLocation
         )

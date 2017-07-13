@@ -306,6 +306,7 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
         QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
         QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
+        QtWidgets.QShortcut("Ctrl+Alt+Shift+R", self.window, self.drawPreview)
 
         QtWidgets.QShortcut(
             "Ctrl+T", self.window,
@@ -585,6 +586,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autosave(force)
         self.updateWindowTitle()
 
+    @QtCore.pyqtSlot(QtGui.QImage)
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
 

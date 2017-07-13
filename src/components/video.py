@@ -158,14 +158,14 @@ class Component(Component):
         if self.useAudio:
             # props.append('audio')
             pass
-        if not os.path.exists(self.videoPath):
+        if self.videoPath and not os.path.exists(self.videoPath):
             props.append('error')
         return props
 
     def error(self):
         if not os.path.exists(self.videoPath):
-            return "The video path selected on " \
-                "layer %s no longer exists!" % str(self.compPos)
+            return "The video selected on " \
+                "layer %s does not exist!" % str(self.compPos)
 
     def audio(self):
         return (self.videoPath, {})

@@ -21,6 +21,7 @@ class Component(Component):
 
     def widget(self, parent):
         self.parent = parent
+        self.settings = self.parent.core.settings
         self.visColor = (255, 255, 255)
         self.scale = 20
         self.y = 0
@@ -76,8 +77,8 @@ class Component(Component):
     def previewRender(self, previewWorker):
         spectrum = numpy.fromfunction(
             lambda x: float(self.scale)/2500*(x-128)**2, (255,), dtype="int16")
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.drawBars(
             width, height, spectrum, self.visColor, self.layout
         )
@@ -88,8 +89,8 @@ class Component(Component):
         self.smoothConstantUp = 0.8
         self.lastSpectrum = None
         self.spectrumArray = {}
-        self.width = int(self.worker.core.settings.value('outputWidth'))
-        self.height = int(self.worker.core.settings.value('outputHeight'))
+        self.width = int(self.settings.value('outputWidth'))
+        self.height = int(self.settings.value('outputHeight'))
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
             if self.canceled:

@@ -20,7 +20,7 @@ import signal
 
 import core
 from toolkit import openPipe, checkOutput
-from frame import FloodFrame
+from frame import Checkerboard
 
 
 class Worker(QtCore.QObject):
@@ -56,8 +56,10 @@ class Worker(QtCore.QObject):
             frame = None
 
             for compNo, comp in reversed(list(enumerate(self.components))):
-                if compNo in self.staticComponents and \
-                        self.staticComponents[compNo] is not None:
+                if compNo in self.staticComponents:
+                    if self.staticComponents[compNo] is None:
+                        # this layer was merged into a following layer
+                        continue
                     # static component
                     if frame is None:  # bottom-most layer
                         frame = self.staticComponents[compNo]
@@ -93,10 +95,7 @@ class Worker(QtCore.QObject):
             Grabs frames from the previewQueue, adds them to the checkerboard
             and emits a final QImage to the MainWindow for the live preview
         '''
-        background = FloodFrame(1920, 1080, (0, 0, 0, 0))
-        background.paste(Image.open(os.path.join(
-            self.core.wd, "background.png")))
-        background = background.resize((self.width, self.height))
+        background = Checkerboard(self.width, self.height)
 
         while not self.stopped:
             audioI, frame = self.previewQueue.get()
@@ -164,8 +163,20 @@ class Worker(QtCore.QObject):
                 self.staticComponents[compNo] = \
                     comp.frameRender(compNo, 0).copy()
 
+        # Merge consecutive static component frames together
+        for compNo in range(len(self.components), 0, -1):
+            if compNo not in self.staticComponents \
+                    or compNo - 1 not in self.staticComponents:
+                continue
+            self.staticComponents[compNo - 1] = Image.alpha_composite(
+                self.staticComponents.pop(compNo),
+                self.staticComponents[compNo - 1]
+            )
+            self.staticComponents[compNo] = None
+
         ffmpegCommand = self.core.createFfmpegCommand(inputFile, outputFile)
-        print(ffmpegCommand)
+        print('###### FFMPEG COMMAND ######\n %s' % " ".join(ffmpegCommand))
+        print('###### -------------- ######')
         self.out_pipe = openPipe(
             ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
         )

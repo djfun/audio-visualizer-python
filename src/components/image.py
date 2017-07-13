@@ -13,7 +13,7 @@ class Component(Component):
 
     def widget(self, parent):
         self.parent = parent
-        self.settings = parent.settings
+        self.settings = self.parent.core.settings
         page = self.loadUi('image.ui')
 
         page.lineEdit_image.textChanged.connect(self.update)
@@ -42,24 +42,24 @@ class Component(Component):
         super().update()
 
     def previewRender(self, previewWorker):
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.drawFrame(width, height)
 
     def properties(self):
         props = ['static']
-        if not os.path.exists(self.imagePath):
+        if self.imagePath and not os.path.exists(self.imagePath):
             props.append('error')
         return props
 
     def error(self):
         if not os.path.exists(self.imagePath):
-            return "The image path selected on " \
-                "layer %s no longer exists!" % str(self.compPos)
+            return "The image selected on " \
+                "layer %s does not exist!" % str(self.compPos)
 
     def frameRender(self, layerNo, frameNo):
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.drawFrame(width, height)
 
     def drawFrame(self, width, height):

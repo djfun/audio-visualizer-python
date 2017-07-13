@@ -17,10 +17,11 @@ class Component(Component):
         self.titleFont = QFont()
 
     def widget(self, parent):
-        height = int(parent.settings.value('outputHeight'))
-        width = int(parent.settings.value('outputWidth'))
-
         self.parent = parent
+        self.settings = self.parent.core.settings
+        height = int(self.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+
         self.textColor = (255, 255, 255)
         self.title = 'Text'
         self.alignment = 1
@@ -78,12 +79,12 @@ class Component(Component):
             x = int(self.xPosition)
 
         if self.alignment == 1:             # Middle
-            offset = fm.width(self.title)/2
-            x = int(self.xPosition - offset)
+            offset = int(fm.width(self.title)/2)
+            x = self.xPosition - offset
 
         if self.alignment == 2:             # Right
             offset = fm.width(self.title)
-            x = int(self.xPosition - offset)
+            x = self.xPosition - offset
         return x, self.yPosition
 
     def loadPreset(self, pr, presetName=None):
@@ -115,16 +116,16 @@ class Component(Component):
         }
 
     def previewRender(self, previewWorker):
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.addText(width, height)
 
     def properties(self):
         return ['static']
 
     def frameRender(self, layerNo, frameNo):
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.addText(width, height)
 
     def addText(self, width, height):

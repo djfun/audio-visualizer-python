@@ -10,12 +10,12 @@ import core
 from queue import Queue, Empty
 import os
 
-from frame import FloodFrame
+from frame import Checkerboard
 
 
 class Worker(QtCore.QObject):
 
-    imageCreated = pyqtSignal(['QImage'])
+    imageCreated = pyqtSignal(QtGui.QImage)
     error = pyqtSignal()
 
     def __init__(self, parent=None, queue=None):
@@ -24,14 +24,12 @@ class Worker(QtCore.QObject):
         parent.processTask.connect(self.process)
         self.parent = parent
         self.core = self.parent.core
+        self.settings = self.parent.core.settings
         self.queue = queue
-        self.width = int(self.core.settings.value('outputWidth'))
-        self.height = int(self.core.settings.value('outputHeight'))
 
-        # create checkerboard background to represent transparency
-        self.background = FloodFrame(1920, 1080, (0, 0, 0, 0))
-        self.background.paste(Image.open(os.path.join(
-            self.core.wd, "background.png")))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
+        self.background = Checkerboard(width, height)
 
     @pyqtSlot(list)
     def createPreviewImage(self, components):
@@ -42,6 +40,8 @@ class Worker(QtCore.QObject):
 
     @pyqtSlot()
     def process(self):
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         try:
             nextPreviewInformation = self.queue.get(block=False)
             while self.queue.qsize() >= 2:
@@ -50,22 +50,27 @@ class Worker(QtCore.QObject):
                 except Empty:
                     continue
 
-            if self.background.width != self.width:
-                self.background = self.background.resize(
-                    (self.width, self.height))
+            if self.background.width != width \
+                    or self.background.height != height:
+                self.background = Checkerboard(width, height)
+
             frame = self.background.copy()
 
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
+                    newFrame = component.previewRender(self)
                     frame = Image.alpha_composite(
-                        frame, component.previewRender(self)
+                        frame, newFrame
                     )
 
                 except ValueError as e:
                     errMsg = "Bad frame returned by %s's preview renderer. " \
-                        "%s. This is a fatal error." % (
-                            str(component), str(e).capitalize()
+                        "%s. New frame size was %s*%s; should be %s*%s. " \
+                        "This is a fatal error." % (
+                            str(component), str(e).capitalize(),
+                            newFrame.width, newFrame.height,
+                            width, height
                         )
                     print(errMsg)
                     self.parent.showMessage(
@@ -76,8 +81,11 @@ class Worker(QtCore.QObject):
                     )
                     self.error.emit()
                     break
+                except RuntimeError as e:
+                    print(e)
             else:
-                self.imageCreated.emit(QtGui.QImage(ImageQt(frame)))
+                self.frame = ImageQt(frame)
+                self.imageCreated.emit(QtGui.QImage(self.frame))
 
         except Empty:
             True
