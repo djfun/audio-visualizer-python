@@ -527,20 +527,20 @@ class Core:
         ]
         if extraAudio:
             unwantedVideoStreams = []
-            for compNo, params in enumerate(extraAudio):
+            for streamNo, params in enumerate(extraAudio):
                 extraInputFile, params = params
                 ffmpegCommand.extend([
                     '-i', extraInputFile
                 ])
                 if 'map' in params and params['map'] == '-v':
                     # a video stream to remove
-                    unwantedVideoStreams.append(compNo + 1)
+                    unwantedVideoStreams.append(streamNo + 1)
 
             if unwantedVideoStreams:
                 ffmpegCommand.extend(['-map', '0'])
-            for compNo in unwantedVideoStreams:
+            for streamNo in unwantedVideoStreams:
                 ffmpegCommand.extend([
-                    '-map', '-%s:v' % str(compNo)
+                    '-map', '-%s:v' % str(streamNo)
                 ])
             ffmpegCommand.extend([
                 '-filter_complex',

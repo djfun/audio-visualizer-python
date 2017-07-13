@@ -54,18 +54,18 @@ class Worker(QtCore.QObject):
             audioI = self.compositeQueue.get()
             bgI = int(audioI / self.sampleSize)
             frame = None
-
             for compNo, comp in reversed(list(enumerate(self.components))):
-                if compNo in self.staticComponents:
-                    if self.staticComponents[compNo] is None:
+                layerNo = len(self.components) - compNo
+                if layerNo in self.staticComponents:
+                    if self.staticComponents[layerNo] is None:
                         # this layer was merged into a following layer
                         continue
                     # static component
                     if frame is None:  # bottom-most layer
-                        frame = self.staticComponents[compNo]
+                        frame = self.staticComponents[layerNo]
                     else:
                         frame = Image.alpha_composite(
-                            frame, self.staticComponents[compNo]
+                            frame, self.staticComponents[layerNo]
                         )
                 else:
                     # animated component
