@@ -121,7 +121,13 @@ class Component(Component):
         return self.addText(width, height)
 
     def properties(self):
-        return ['static']
+        props = ['static']
+        if not self.title:
+            props.append('error')
+        return props
+
+    def error(self):
+        return "No text provided."
 
     def frameRender(self, layerNo, frameNo):
         width = int(self.settings.value('outputWidth'))

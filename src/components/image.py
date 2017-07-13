@@ -48,14 +48,15 @@ class Component(Component):
 
     def properties(self):
         props = ['static']
-        if self.imagePath and not os.path.exists(self.imagePath):
+        if not os.path.exists(self.imagePath):
             props.append('error')
         return props
 
     def error(self):
+        if not self.imagePath:
+            return "There is no image selected."
         if not os.path.exists(self.imagePath):
-            return "The image selected on " \
-                "layer %s does not exist!" % str(self.compPos)
+            return "The image selected does not exist!"
 
     def frameRender(self, layerNo, frameNo):
         width = int(self.settings.value('outputWidth'))

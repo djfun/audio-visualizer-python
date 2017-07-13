@@ -34,7 +34,16 @@ class Component(Component):
         pass
 
     def properties(self):
-        return ['static', 'audio']
+        props = ['static', 'audio']
+        if not os.path.exists(self.sound):
+            props.append('error')
+        return props
+
+    def error(self):
+        if not self.sound:
+            return "No audio file selected."
+        if not os.path.exists(self.sound):
+            return "The audio file selected no longer exists!"
 
     def audio(self):
         return (self.sound, {})

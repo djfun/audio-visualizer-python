@@ -141,7 +141,7 @@ class Worker(QtCore.QObject):
         ]))
         self.staticComponents = {}
         numComps = len(self.components)
-        for compNo, comp in enumerate(self.components):
+        for compNo, comp in enumerate(reversed(self.components)):
             comp.preFrameRender(
                 worker=self,
                 completeAudioArray=self.completeAudioArray,
@@ -151,26 +151,41 @@ class Worker(QtCore.QObject):
             )
 
             if 'error' in comp.properties():
+                self.cancel()
                 self.canceled = True
                 errMsg = "Component #%s encountered an error!" % compNo \
-                    if comp.error() is None else comp.error()
+                    if comp.error() is None else 'Component #%s (%s): %s' % (
+                        str(compNo),
+                        str(comp),
+                        comp.error()
+                    )
                 self.parent.showMessage(
                         msg=errMsg,
                         icon='Warning',
                         parent=None  # MainWindow is in a different thread
                     )
+                break
             if 'static' in comp.properties():
                 self.staticComponents[compNo] = \
                     comp.frameRender(compNo, 0).copy()
 
+        if self.canceled:
+            print('Export cancelled by component #%s (%s): %s' % (
+                compNo, str(comp), comp.error()
+            ))
+            self.progressBarSetText.emit('Export Canceled')
+            self.encoding.emit(False)
+            self.videoCreated.emit()
+            return
+
         # Merge consecutive static component frames together
-        for compNo in range(len(self.components), 0, -1):
+        for compNo in range(len(self.components)):
             if compNo not in self.staticComponents \
-                    or compNo - 1 not in self.staticComponents:
+                    or compNo + 1 not in self.staticComponents:
                 continue
-            self.staticComponents[compNo - 1] = Image.alpha_composite(
+            self.staticComponents[compNo + 1] = Image.alpha_composite(
                 self.staticComponents.pop(compNo),
-                self.staticComponents[compNo - 1]
+                self.staticComponents[compNo + 1]
             )
             self.staticComponents[compNo] = None
 
@@ -278,6 +293,7 @@ class Worker(QtCore.QObject):
 
     def cancel(self):
         self.canceled = True
+        self.stopped = True
         self.core.cancel()
 
         for comp in self.components:

@@ -115,6 +115,7 @@ class Component(Component):
         self.settings = parent.settings
         page = self.loadUi('video.ui')
         self.videoPath = ''
+        self.badVideo = False
         self.x = 0
         self.y = 0
         self.loopVideo = False
@@ -156,14 +157,18 @@ class Component(Component):
         props = []
         if self.useAudio:
             props.append('audio')
-        if self.videoPath and not os.path.exists(self.videoPath):
+        if not self.videoPath or self.badVideo \
+                or not os.path.exists(self.videoPath):
             props.append('error')
         return props
 
     def error(self):
+        if not self.videoPath:
+            return "There is no video selected."
         if not os.path.exists(self.videoPath):
-            return "The video selected on " \
-                "layer %s does not exist!" % str(self.compPos)
+            return "The video selected does not exist!"
+        if self.badVideo:
+            return "The video selected is corrupt!"
 
     def audio(self):
         return (self.videoPath, {'map': '-v'})
@@ -300,6 +305,7 @@ def finalizeFrame(self, imageData, width, height):
             '### BAD VIDEO SELECTED ###\n'
             'Video will not export with these settings'
         )
+        self.badVideo = True
         return BlankFrame(width, height)
 
     if self.scale != 100 \
@@ -308,4 +314,5 @@ def finalizeFrame(self, imageData, width, height):
         frame.paste(image, box=(self.xPosition, self.yPosition))
     else:
         frame = image
+    self.badVideo = False
     return frame
