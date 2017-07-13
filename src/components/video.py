@@ -143,7 +143,6 @@ class Component(Component):
         super().update()
 
     def previewRender(self, previewWorker):
-        self.videoFormats = previewWorker.core.videoFormats
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         self.updateChunksize(width, height)
@@ -156,8 +155,7 @@ class Component(Component):
     def properties(self):
         props = []
         if self.useAudio:
-            # props.append('audio')
-            pass
+            props.append('audio')
         if self.videoPath and not os.path.exists(self.videoPath):
             props.append('error')
         return props
@@ -168,7 +166,7 @@ class Component(Component):
                 "layer %s does not exist!" % str(self.compPos)
 
     def audio(self):
-        return (self.videoPath, {})
+        return (self.videoPath, {'map': '-v'})
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
@@ -216,7 +214,7 @@ class Component(Component):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
-            imgDir, "Video Files (%s)" % " ".join(self.videoFormats)
+            imgDir, "Video Files (%s)" % " ".join(self.core.videoFormats)
         )
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))

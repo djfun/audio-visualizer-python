@@ -175,8 +175,8 @@ class Worker(QtCore.QObject):
             self.staticComponents[compNo] = None
 
         ffmpegCommand = self.core.createFfmpegCommand(inputFile, outputFile)
-        print('###### FFMPEG COMMAND ######\n %s' % " ".join(ffmpegCommand))
-        print('###### -------------- ######')
+        print('###### FFMPEG COMMAND ######\n%s' % " ".join(ffmpegCommand))
+        print('############################')
         self.out_pipe = openPipe(
             ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
         )
