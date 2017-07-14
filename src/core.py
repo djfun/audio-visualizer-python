@@ -414,6 +414,7 @@ class Core:
                 f.write('[Components]\n')
                 for comp in self.selectedComponents:
                     saveValueStore = comp.savePreset()
+                    saveValueStore['preset'] = comp.currentPreset
                     f.write('%s\n' % str(comp))
                     f.write('%s\n' % str(comp.version()))
                     f.write('%s\n' % toolkit.presetToString(saveValueStore))

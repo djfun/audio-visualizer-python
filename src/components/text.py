@@ -69,7 +69,7 @@ class Component(Component):
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.textColor).name()
         self.page.pushButton_textColor.setStyleSheet(btnStyle)
-        self.parent.drawPreview()
+
         super().update()
 
     def getXY(self):

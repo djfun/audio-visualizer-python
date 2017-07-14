@@ -140,7 +140,7 @@ class Component(Component):
         self.scale = self.page.spinBox_scale.value()
         self.xPosition = self.page.spinBox_x.value()
         self.yPosition = self.page.spinBox_y.value()
-        self.parent.drawPreview()
+
         super().update()
 
     def previewRender(self, previewWorker):

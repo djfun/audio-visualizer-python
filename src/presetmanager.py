@@ -160,6 +160,7 @@ class PresetManager(QtWidgets.QDialog):
                         selectedComponents[index].currentPreset = newName
                         saveValueStore = \
                             selectedComponents[index].savePreset()
+                        saveValueStore['preset'] = newName
                         componentName = str(selectedComponents[index]).strip()
                         vers = selectedComponents[index].version()
                         self.createNewPreset(

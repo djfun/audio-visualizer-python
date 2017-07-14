@@ -38,7 +38,7 @@ class Component(Component):
         self.yPosition = self.page.spinBox_y.value()
         self.stretched = self.page.checkBox_stretch.isChecked()
         self.mirror = self.page.checkBox_mirror.isChecked()
-        self.parent.drawPreview()
+
         super().update()
 
     def previewRender(self, previewWorker):

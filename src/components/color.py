@@ -110,7 +110,6 @@ class Component(Component):
             self.page.pushButton_color2.setEnabled(False)
         self.page.fillWidget.setCurrentIndex(self.fillType)
 
-        self.parent.drawPreview()
         super().update()
 
     def previewRender(self, previewWorker):

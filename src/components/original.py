@@ -51,7 +51,7 @@ class Component(Component):
         self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
         self.scale = self.page.spinBox_scale.value()
         self.y = self.page.spinBox_y.value()
-        self.parent.drawPreview()
+
         super().update()
 
     def loadPreset(self, pr, presetName=None):

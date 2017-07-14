@@ -69,7 +69,6 @@ class Component(Component):
 
     def savePreset(self):
         return {
-            'preset': self.currentPreset,
             'sound': self.sound,
         }
 
