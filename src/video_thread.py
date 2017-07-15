@@ -31,7 +31,6 @@ class Worker(QtCore.QObject):
     progressBarSetText = pyqtSignal(str)
     encoding = pyqtSignal(bool)
 
-
     def __init__(self, parent, inputFile, outputFile, components):
         QtCore.QObject.__init__(self)
         self.core = parent.core
@@ -135,7 +134,9 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
         self.progressBarSetText.emit("Loading audio file...")
-        self.completeAudioArray = self.core.readAudioFile(self.inputFile, self)
+        self.completeAudioArray, duration = self.core.readAudioFile(
+            self.inputFile, self
+        )
 
         self.progressBarUpdate.emit(0)
         self.progressBarSetText.emit("Starting components...")
@@ -144,7 +145,6 @@ class Worker(QtCore.QObject):
             for num, component in enumerate(reversed(self.components))
         ]))
         self.staticComponents = {}
-        numComps = len(self.components)
         for compNo, comp in enumerate(reversed(self.components)):
             comp.preFrameRender(
                 worker=self,
@@ -194,7 +194,7 @@ class Worker(QtCore.QObject):
             self.staticComponents[compNo] = None
 
         ffmpegCommand = self.core.createFfmpegCommand(
-            self.inputFile, self.outputFile
+            self.inputFile, self.outputFile, duration
         )
         print('###### FFMPEG COMMAND ######\n%s' % " ".join(ffmpegCommand))
         print('############################')

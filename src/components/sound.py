@@ -79,6 +79,11 @@ class Component(Component):
         if not arg.startswith('preset=') and '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'path':
+                if '*%s' % os.path.splitext(arg)[1] \
+                        not in self.core.audioFormats:
+                    print("Not a supported audio format")
+                    quit(1)
                 self.page.lineEdit_sound.setText(arg)
                 return
+
         super().command(arg)

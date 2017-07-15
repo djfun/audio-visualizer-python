@@ -116,6 +116,7 @@ class Component(Component):
         page = self.loadUi('video.ui')
         self.videoPath = ''
         self.badVideo = False
+        self.badAudio = False
         self.x = 0
         self.y = 0
         self.loopVideo = False
@@ -161,22 +162,14 @@ class Component(Component):
 
         if self.useAudio:
             props.append('audio')
-            # test if an audio stream really exists
-            audioTestCommand = [
-                self.core.FFMPEG_BIN,
-                '-i', self.videoPath,
-                '-vn', '-f', 'null', '-'
-            ]
-            try:
-                checkOutput(audioTestCommand, stderr=subprocess.DEVNULL)
-            except subprocess.CalledProcessError:
-                self.badAudio = True
+            self.testAudioStream()
+            if self.badAudio:
                 return ['error']
 
         return props
 
     def error(self):
-        if hasattr(self, 'badAudio'):
+        if self.badAudio:
             return "Could not identify an audio stream in this video."
         if not self.videoPath:
             return "There is no video selected."
@@ -184,6 +177,20 @@ class Component(Component):
             return "The video selected does not exist!"
         if self.badVideo:
             return "The video selected is corrupt!"
+
+    def testAudioStream(self):
+        # test if an audio stream really exists
+        audioTestCommand = [
+            self.core.FFMPEG_BIN,
+            '-i', self.videoPath,
+            '-vn', '-f', 'null', '-'
+        ]
+        try:
+            checkOutput(audioTestCommand, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            self.badAudio = True
+        else:
+            self.badAudio = False
 
     def audio(self):
         return (self.videoPath, {'map': '-v'})
@@ -277,7 +284,7 @@ class Component(Component):
         if not arg.startswith('preset=') and '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'path' and os.path.exists(arg):
-                if os.path.splitext(arg)[1] in self.core.videoFormats:
+                if '*%s' % os.path.splitext(arg)[1] in self.core.videoFormats:
                     self.page.lineEdit_video.setText(arg)
                     self.page.spinBox_scale.setValue(100)
                     self.page.checkBox_loop.setChecked(True)
@@ -285,10 +292,17 @@ class Component(Component):
                 else:
                     print("Not a supported video format")
                     quit(1)
+        elif arg == 'audio':
+            if not self.page.lineEdit_video.text():
+                print("'audio' option must follow a video selection")
+                quit(1)
+            self.page.checkBox_useAudio.setChecked(True)
+            return
         super().command(arg)
 
     def commandHelp(self):
         print('Load a video:\n    path=/filepath/to/video.mp4')
+        print('Using audio:\n    path=/filepath/to/video.mp4 audio')
 
 
 def scale(scale, width, height, returntype=None):

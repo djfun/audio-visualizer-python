@@ -7,6 +7,7 @@ from PyQt5 import QtCore
 import argparse
 import os
 import sys
+import time
 
 import core
 from toolkit import LoadDefaultSettings
@@ -118,8 +119,27 @@ class Command(QtCore.QObject):
             self, input, output
         )
         self.worker.videoCreated.connect(self.videoCreated)
+        self.lastProgressUpdate = time.time()
+        self.worker.progressBarSetText.connect(self.progressBarSetText)
         self.createVideo.emit()
 
+    @QtCore.pyqtSlot(str)
+    def progressBarSetText(self, value):
+        if 'Export ' in value:
+            # Don't duplicate completion/failure messages
+            return
+        if not value.startswith('Exporting') \
+                and time.time() - self.lastProgressUpdate >= 0.05:
+            # Show most messages very often
+            print(value)
+        elif time.time() - self.lastProgressUpdate >= 2.0:
+            # Give user time to read ffmpeg's output during the export
+            print('##### %s' % value)
+        else:
+            return
+        self.lastProgressUpdate = time.time()
+
+    @QtCore.pyqtSlot()
     def videoCreated(self):
         quit(0)
 

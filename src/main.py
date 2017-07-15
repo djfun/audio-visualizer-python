@@ -8,13 +8,13 @@ import video_thread
 
 
 if __name__ == "__main__":
-    mode = 'gui'
+    mode = 'GUI'
     if len(sys.argv) > 2:
-        mode = 'cmd'
+        mode = 'commandline'
 
     elif len(sys.argv) == 2:
         if sys.argv[1].startswith('-'):
-            mode = 'cmd'
+            mode = 'commandline'
         else:
             # opening a project file with gui
             proj = sys.argv[1]
@@ -22,16 +22,17 @@ if __name__ == "__main__":
         # normal gui launch
         proj = None
 
+    print('Starting Audio Visualizer in %s mode' % mode)
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("audio-visualizer")
     # app.setOrganizationName("audio-visualizer")
 
-    if mode == 'cmd':
+    if mode == 'commandline':
         from command import *
 
         main = Command()
 
-    elif mode == 'gui':
+    elif mode == 'GUI':
         from mainwindow import *
         import atexit
         import signal

@@ -464,10 +464,11 @@ class Core:
                 except sp.CalledProcessError:
                     return "avconv"
 
-    def createFfmpegCommand(self, inputFile, outputFile):
+    def createFfmpegCommand(self, inputFile, outputFile, duration):
         '''
             Constructs the major ffmpeg command used to export the video
         '''
+        duration = str(duration)
 
         # Test if user has libfdk_aac
         encoders = toolkit.checkOutput(
@@ -516,10 +517,12 @@ class Core:
             ),
             '-pix_fmt', 'rgba',
             '-r', self.settings.value('outputFrameRate'),
+            '-t', duration,
             '-i', '-',  # the video input comes from a pipe
             '-an',  # the video input has no sound
 
             # INPUT SOUND
+            '-t', duration,
             '-i', inputFile
         ]
 
@@ -532,6 +535,7 @@ class Core:
             for streamNo, params in enumerate(extraAudio):
                 extraInputFile, params = params
                 ffmpegCommand.extend([
+                    '-t', duration,
                     '-i', extraInputFile
                 ])
                 if 'map' in params and params['map'] == '-v':
@@ -632,7 +636,7 @@ class Core:
         completeAudioArrayCopy[:len(completeAudioArray)] = completeAudioArray
         completeAudioArray = completeAudioArrayCopy
 
-        return completeAudioArray
+        return (completeAudioArray, duration)
 
     def newVideoWorker(self, loader, audioFile, outputPath):
         self.videoThread = QtCore.QThread(loader)
