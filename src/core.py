@@ -12,6 +12,7 @@ from PyQt5.QtCore import QStandardPaths
 
 import toolkit
 from frame import Frame
+import video_thread
 
 
 class Core:
@@ -632,6 +633,21 @@ class Core:
         completeAudioArray = completeAudioArrayCopy
 
         return completeAudioArray
+
+    def newVideoWorker(self, loader, audioFile, outputPath):
+        self.videoThread = QtCore.QThread(loader)
+        videoWorker = video_thread.Worker(
+            loader, audioFile, outputPath, self.selectedComponents
+        )
+        videoWorker.moveToThread(self.videoThread)
+        videoWorker.videoCreated.connect(self.videoCreated)
+
+        self.videoThread.start()
+        return videoWorker
+
+    def videoCreated(self):
+        self.videoThread.quit()
+        self.videoThread.wait()
 
     def cancel(self):
         self.canceled = True

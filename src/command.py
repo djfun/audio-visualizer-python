@@ -9,13 +9,12 @@ import os
 import sys
 
 import core
-import video_thread
 from toolkit import LoadDefaultSettings
 
 
 class Command(QtCore.QObject):
 
-    videoTask = QtCore.pyqtSignal(str, str, list)
+    createVideo = QtCore.pyqtSignal()
 
     def __init__(self):
         QtCore.QObject.__init__(self)
@@ -112,21 +111,16 @@ class Command(QtCore.QObject):
             quit(1)
 
     def createAudioVisualisation(self, input, output):
-        self.videoThread = QtCore.QThread(self)
-        self.videoWorker = video_thread.Worker(self)
-        self.videoWorker.moveToThread(self.videoThread)
-        self.videoWorker.videoCreated.connect(self.videoCreated)
-
-        self.videoThread.start()
-        self.videoTask.emit(
-          input,
-          output,
-          list(reversed(self.core.selectedComponents))
+        self.core.selectedComponents = list(
+            reversed(self.core.selectedComponents))
+        self.core.componentListChanged()
+        self.worker = self.core.newVideoWorker(
+            self, input, output
         )
+        self.worker.videoCreated.connect(self.videoCreated)
+        self.createVideo.emit()
 
     def videoCreated(self):
-        self.videoThread.quit()
-        self.videoThread.wait()
         quit(0)
 
     def showMessage(self, **kwargs):

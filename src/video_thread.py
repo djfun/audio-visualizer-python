@@ -19,7 +19,7 @@ import time
 import signal
 
 import core
-from toolkit import openPipe, checkOutput
+from toolkit import openPipe
 from frame import Checkerboard
 
 
@@ -31,13 +31,19 @@ class Worker(QtCore.QObject):
     progressBarSetText = pyqtSignal(str)
     encoding = pyqtSignal(bool)
 
-    def __init__(self, parent=None):
+
+    def __init__(self, parent, inputFile, outputFile, components):
         QtCore.QObject.__init__(self)
         self.core = parent.core
         self.settings = parent.core.settings
         self.modules = parent.core.modules
+        parent.createVideo.connect(self.createVideo)
+
         self.parent = parent
-        parent.videoTask.connect(self.createVideo)
+        self.components = components
+        self.outputFile = outputFile
+        self.inputFile = inputFile
+
         self.sampleSize = 1470  # 44100 / 30 = 1470
         self.canceled = False
         self.error = False
@@ -55,7 +61,7 @@ class Worker(QtCore.QObject):
             bgI = int(audioI / self.sampleSize)
             frame = None
             for compNo, comp in reversed(list(enumerate(self.components))):
-                layerNo = len(self.components) - compNo
+                layerNo = len(self.components) - compNo - 1
                 if layerNo in self.staticComponents:
                     if self.staticComponents[layerNo] is None:
                         # this layer was merged into a following layer
@@ -106,12 +112,10 @@ class Worker(QtCore.QObject):
 
             self.previewQueue.task_done()
 
-    @pyqtSlot(str, str, list)
-    def createVideo(self, inputFile, outputFile, components):
+    @pyqtSlot()
+    def createVideo(self):
         numpy.seterr(divide='ignore')
         self.encoding.emit(True)
-        self.components = components
-        self.outputFile = outputFile
         self.extraAudio = []
         self.width = int(self.settings.value('outputWidth'))
         self.height = int(self.settings.value('outputHeight'))
@@ -131,7 +135,7 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
         self.progressBarSetText.emit("Loading audio file...")
-        self.completeAudioArray = self.core.readAudioFile(inputFile, self)
+        self.completeAudioArray = self.core.readAudioFile(self.inputFile, self)
 
         self.progressBarUpdate.emit(0)
         self.progressBarSetText.emit("Starting components...")
@@ -189,7 +193,9 @@ class Worker(QtCore.QObject):
             )
             self.staticComponents[compNo] = None
 
-        ffmpegCommand = self.core.createFfmpegCommand(inputFile, outputFile)
+        ffmpegCommand = self.core.createFfmpegCommand(
+            self.inputFile, self.outputFile
+        )
         print('###### FFMPEG COMMAND ######\n%s' % " ".join(ffmpegCommand))
         print('############################')
         self.out_pipe = openPipe(
@@ -200,9 +206,14 @@ class Worker(QtCore.QObject):
         # START CREATING THE VIDEO
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-        # Make three renderNodes in new threads to create the frames
+        # Make 2 or 3 renderNodes in new threads to create the frames
         self.renderThreads = []
-        for i in range(3):
+        try:
+            numCpus = len(os.sched_getaffinity(0))
+        except:
+            numCpus = os.cpu_count()
+
+        for i in range(2 if numCpus <= 2 else 3):
             self.renderThreads.append(
                 Thread(target=self.renderNode, name="Render Thread"))
             self.renderThreads[i].daemon = True

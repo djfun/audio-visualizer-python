@@ -16,7 +16,6 @@ import time
 
 import core
 import preview_thread
-import video_thread
 from presetmanager import PresetManager
 from toolkit import LoadDefaultSettings, disableWhenEncoding, checkOutput
 
@@ -49,9 +48,9 @@ class PreviewWindow(QtWidgets.QLabel):
 
 class MainWindow(QtWidgets.QMainWindow):
 
-    newTask = QtCore.pyqtSignal(list)
+    createVideo = QtCore.pyqtSignal()
+    newTask = QtCore.pyqtSignal(list)  # for the preview window
     processTask = QtCore.pyqtSignal()
-    videoTask = QtCore.pyqtSignal(str, str, list)
 
     def __init__(self, window, project):
         QtWidgets.QMainWindow.__init__(self)
@@ -497,20 +496,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.canceled = False
         self.progressBarUpdated(-1)
-        self.videoThread = QtCore.QThread(self)
-        self.videoWorker = video_thread.Worker(self)
-        self.videoWorker.moveToThread(self.videoThread)
-        self.videoWorker.videoCreated.connect(self.videoCreated)
+        self.videoWorker = self.core.newVideoWorker(
+            self, audioFile, outputPath
+        )
         self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
         self.videoWorker.progressBarSetText.connect(
             self.progressBarSetText)
         self.videoWorker.imageCreated.connect(self.showPreviewImage)
         self.videoWorker.encoding.connect(self.changeEncodingStatus)
-        self.videoThread.start()
-        self.videoTask.emit(
-            audioFile,
-            outputPath,
-            self.core.selectedComponents)
+        self.createVideo.emit()
 
     def changeEncodingStatus(self, status):
         self.encoding = status
@@ -568,10 +562,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window.progressLabel.setText(value)
         else:
             self.window.progressBar_createVideo.setFormat(value)
-
-    def videoCreated(self):
-        self.videoThread.quit()
-        self.videoThread.wait()
 
     def updateResolution(self):
         resIndex = int(self.window.comboBox_resolution.currentIndex())

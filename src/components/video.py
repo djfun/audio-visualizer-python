@@ -8,7 +8,7 @@ from queue import PriorityQueue
 
 from component import Component, BadComponentInit
 from frame import BlankFrame
-from toolkit import openPipe
+from toolkit import openPipe, checkOutput
 
 
 class Video:
@@ -155,14 +155,29 @@ class Component(Component):
 
     def properties(self):
         props = []
-        if self.useAudio:
-            props.append('audio')
         if not self.videoPath or self.badVideo \
                 or not os.path.exists(self.videoPath):
-            props.append('error')
+            return ['error']
+
+        if self.useAudio:
+            props.append('audio')
+            # test if an audio stream really exists
+            audioTestCommand = [
+                self.core.FFMPEG_BIN,
+                '-i', self.videoPath,
+                '-vn', '-f', 'null', '-'
+            ]
+            try:
+                checkOutput(audioTestCommand, stderr=subprocess.DEVNULL)
+            except subprocess.CalledProcessError:
+                self.badAudio = True
+                return ['error']
+
         return props
 
     def error(self):
+        if hasattr(self, 'badAudio'):
+            return "Could not identify an audio stream in this video."
         if not self.videoPath:
             return "There is no video selected."
         if not os.path.exists(self.videoPath):
@@ -180,7 +195,7 @@ class Component(Component):
         self.blankFrame_ = BlankFrame(width, height)
         self.updateChunksize(width, height)
         self.video = Video(
-            ffmpeg=self.parent.core.FFMPEG_BIN, videoPath=self.videoPath,
+            ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
             width=width, height=height, chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, loopVideo=self.loopVideo,
