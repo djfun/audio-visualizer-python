@@ -17,10 +17,11 @@ class Component(Component):
         self.titleFont = QFont()
 
     def widget(self, parent):
-        height = int(parent.settings.value('outputHeight'))
-        width = int(parent.settings.value('outputWidth'))
-
         self.parent = parent
+        self.settings = self.parent.core.settings
+        height = int(self.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+
         self.textColor = (255, 255, 255)
         self.title = 'Text'
         self.alignment = 1
@@ -68,17 +69,17 @@ class Component(Component):
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.textColor).name()
         self.page.pushButton_textColor.setStyleSheet(btnStyle)
-        self.parent.drawPreview()
+
         super().update()
 
     def getXY(self):
         '''Returns true x, y after considering alignment settings'''
         fm = QtGui.QFontMetrics(self.titleFont)
         if self.alignment == 0:             # Left
-            x = self.xPosition
+            x = int(self.xPosition)
 
         if self.alignment == 1:             # Middle
-            offset = fm.width(self.title)/2
+            offset = int(fm.width(self.title)/2)
             x = self.xPosition - offset
 
         if self.alignment == 2:             # Right
@@ -115,26 +116,31 @@ class Component(Component):
         }
 
     def previewRender(self, previewWorker):
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.addText(width, height)
 
-    def preFrameRender(self, **kwargs):
-        super().preFrameRender(**kwargs)
-        return ['static']
+    def properties(self):
+        props = ['static']
+        if not self.title:
+            props.append('error')
+        return props
+
+    def error(self):
+        return "No text provided."
 
     def frameRender(self, layerNo, frameNo):
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.addText(width, height)
 
     def addText(self, width, height):
-        x, y = self.getXY()
-        image = FramePainter(width, height)
 
+        image = FramePainter(width, height)
         self.titleFont.setPixelSize(self.fontSize)
         image.setFont(self.titleFont)
         image.setPen(self.textColor)
+        x, y = self.getXY()
         image.drawText(x, y, self.title)
 
         return image.finalize()

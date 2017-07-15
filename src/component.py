@@ -24,19 +24,42 @@ class Component(QtCore.QObject):
         return self.__doc__
 
     def version(self):
-        # change this number to identify new versions of a component
+        '''
+            Change this number to identify new versions of a component
+        '''
         return 1
 
+    def properties(self):
+        '''
+            Return a list of properties to signify if your component is
+            non-animated ('static'), returns sound ('audio'), or has
+            encountered an error in configuration ('error').
+        '''
+        return []
+
+    def error(self):
+        '''
+            Return a string containing an error message, or None for a default.
+        '''
+        return
+
     def cancel(self):
-        # please stop any lengthy process in response to this variable
+        '''
+            Stop any lengthy process in response to this variable
+        '''
         self.canceled = True
 
     def reset(self):
         self.canceled = False
 
     def update(self):
-        self.modified.emit(self.compPos, self.savePreset())
-        # read your widget values, then call super().update()
+        '''
+            Read your widget values from self.page, then call super().update()
+        '''
+        self.parent.drawPreview()
+        saveValueStore = self.savePreset()
+        saveValueStore['preset'] = self.currentPreset
+        self.modified.emit(self.compPos, saveValueStore)
 
     def loadPreset(self, presetDict, presetName):
         '''
@@ -48,17 +71,18 @@ class Component(QtCore.QObject):
             if presetName is not None else presetDict['preset']
 
     def preFrameRender(self, **kwargs):
-        ''' Triggered only before a video is exported (video_thread.py)
+        '''
+            Triggered only before a video is exported (video_thread.py)
                 self.worker = the video thread worker
                 self.completeAudioArray = a list of audio samples
                 self.sampleSize = number of audio samples per video frame
                 self.progressBarUpdate = signal to set progress bar number
                 self.progressBarSetText = signal to set progress bar text
-                Use the latter two signals to update the MainWindow if needed
+            Use the latter two signals to update the MainWindow if needed
             for a long initialization procedure (i.e., for a visualizer)
         '''
-        for var, value in kwargs.items():
-            exec('self.%s = value' % var)
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def command(self, arg):
         '''
@@ -128,15 +152,10 @@ class Component(QtCore.QObject):
 
     def widget(self, parent):
         self.parent = parent
-        page = uic.loadUi(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 'example.ui'))
+        page = self.loadUi('example.ui')
         # --- connect widget signals here ---
         self.page = page
         return page
-
-    def update(self):
-        super().update()
-        self.parent.drawPreview()
 
     def previewRender(self, previewWorker):
         width = int(previewWorker.core.settings.value('outputWidth'))
@@ -153,9 +172,21 @@ class Component(QtCore.QObject):
         image = BlankFrame(width, height)
         return image
 
+    def audio(self):
+        \'''
+            Return audio to mix into master as a tuple with two elements:
+            The first element can be:
+                - A string (path to audio file),
+                - Or an object that returns audio data through a pipe
+            The second element must be a dictionary of ffmpeg parameters
+            to apply to the input stream.
+        \'''
+
     @classmethod
     def names(cls):
-        # Alternative names for renaming a component between project files
+        \'''
+            Alternative names for renaming a component between project files.
+        \'''
         return []
     '''
 

@@ -5,6 +5,11 @@ from PyQt5 import QtGui
 from PIL import Image
 from PIL.ImageQt import ImageQt
 import sys
+import os
+
+
+class Frame:
+    '''Controller class for all frames.'''
 
 
 class FramePainter(QtGui.QPainter):
@@ -14,7 +19,7 @@ class FramePainter(QtGui.QPainter):
     '''
     def __init__(self, width, height):
         image = BlankFrame(width, height)
-        self.image = ImageQt(image)
+        self.image = QtGui.QImage(ImageQt(image))
         super().__init__(self.image)
 
     def setPen(self, RgbTuple):
@@ -43,5 +48,19 @@ def FloodFrame(width, height, RgbaTuple):
 
 
 def BlankFrame(width, height):
-    '''The base frame used by each component to start drawing'''
+    '''The base frame used by each component to start drawing.'''
     return FloodFrame(width, height, (0, 0, 0, 0))
+
+
+def Checkerboard(width, height):
+    '''
+        A checkerboard to represent transparency to the user.
+        TODO: Would be cool to generate this image with numpy instead.
+    '''
+    image = FloodFrame(1920, 1080, (0, 0, 0, 0))
+    image.paste(Image.open(
+        os.path.join(Frame.core.wd, "background.png")),
+        (0, 0)
+    )
+    image = image.resize((width, height))
+    return image

@@ -11,6 +11,8 @@ from importlib import import_module
 from PyQt5.QtCore import QStandardPaths
 
 import toolkit
+from frame import Frame
+import video_thread
 
 
 class Core:
@@ -20,6 +22,7 @@ class Core:
         opens projects and presets, and stores settings/paths to data.
     '''
     def __init__(self):
+        Frame.core = self
         self.dataDir = QStandardPaths.writableLocation(
             QStandardPaths.AppConfigLocation
         )
@@ -412,6 +415,7 @@ class Core:
                 f.write('[Components]\n')
                 for comp in self.selectedComponents:
                     saveValueStore = comp.savePreset()
+                    saveValueStore['preset'] = comp.currentPreset
                     f.write('%s\n' % str(comp))
                     f.write('%s\n' % str(comp.version()))
                     f.write('%s\n' % toolkit.presetToString(saveValueStore))
@@ -460,6 +464,115 @@ class Core:
                 except sp.CalledProcessError:
                     return "avconv"
 
+    def createFfmpegCommand(self, inputFile, outputFile, duration):
+        '''
+            Constructs the major ffmpeg command used to export the video
+        '''
+        duration = str(duration)
+
+        # Test if user has libfdk_aac
+        encoders = toolkit.checkOutput(
+            "%s -encoders -hide_banner" % self.FFMPEG_BIN, shell=True
+        )
+        encoders = encoders.decode("utf-8")
+
+        acodec = self.settings.value('outputAudioCodec')
+
+        options = self.encoder_options
+        containerName = self.settings.value('outputContainer')
+        vcodec = self.settings.value('outputVideoCodec')
+        vbitrate = str(self.settings.value('outputVideoBitrate'))+'k'
+        acodec = self.settings.value('outputAudioCodec')
+        abitrate = str(self.settings.value('outputAudioBitrate'))+'k'
+
+        for cont in options['containers']:
+            if cont['name'] == containerName:
+                container = cont['container']
+                break
+
+        vencoders = options['video-codecs'][vcodec]
+        aencoders = options['audio-codecs'][acodec]
+
+        for encoder in vencoders:
+            if encoder in encoders:
+                vencoder = encoder
+                break
+
+        for encoder in aencoders:
+            if encoder in encoders:
+                aencoder = encoder
+                break
+
+        ffmpegCommand = [
+            self.FFMPEG_BIN,
+            '-thread_queue_size', '512',
+            '-y',  # overwrite the output file if it already exists.
+
+            # INPUT VIDEO
+            '-f', 'rawvideo',
+            '-vcodec', 'rawvideo',
+            '-s', '%sx%s' % (
+                self.settings.value('outputWidth'),
+                self.settings.value('outputHeight'),
+            ),
+            '-pix_fmt', 'rgba',
+            '-r', self.settings.value('outputFrameRate'),
+            '-t', duration,
+            '-i', '-',  # the video input comes from a pipe
+            '-an',  # the video input has no sound
+
+            # INPUT SOUND
+            '-t', duration,
+            '-i', inputFile
+        ]
+
+        extraAudio = [
+            comp.audio() for comp in self.selectedComponents
+            if 'audio' in comp.properties()
+        ]
+        if extraAudio:
+            unwantedVideoStreams = []
+            for streamNo, params in enumerate(extraAudio):
+                extraInputFile, params = params
+                ffmpegCommand.extend([
+                    '-t', duration,
+                    '-i', extraInputFile
+                ])
+                if 'map' in params and params['map'] == '-v':
+                    # a video stream to remove
+                    unwantedVideoStreams.append(streamNo + 1)
+
+            if unwantedVideoStreams:
+                ffmpegCommand.extend(['-map', '0'])
+            for streamNo in unwantedVideoStreams:
+                ffmpegCommand.extend([
+                    '-map', '-%s:v' % str(streamNo)
+                ])
+            ffmpegCommand.extend([
+                '-filter_complex',
+                'amix=inputs=%s:duration=first:dropout_transition=3' % str(
+                    len(extraAudio) + 1
+                ),
+            ])
+
+        ffmpegCommand.extend([
+            # OUTPUT
+            '-vcodec', vencoder,
+            '-acodec', aencoder,
+            '-b:v', vbitrate,
+            '-b:a', abitrate,
+            '-pix_fmt', self.settings.value('outputVideoFormat'),
+            '-preset', self.settings.value('outputPreset'),
+            '-f', container
+        ])
+
+        if acodec == 'aac':
+            ffmpegCommand.append('-strict')
+            ffmpegCommand.append('-2')
+
+        ffmpegCommand.append(outputFile)
+        return ffmpegCommand
+
     def readAudioFile(self, filename, parent):
         command = [self.FFMPEG_BIN, '-i', filename]
 
@@ -485,7 +598,8 @@ class Core:
             '-ac', '1',  # mono (set to '2' for stereo)
             '-']
         in_pipe = toolkit.openPipe(
-            command, stdout=sp.PIPE, stderr=sp.DEVNULL, bufsize=10**8)
+            command, stdout=sp.PIPE, stderr=sp.DEVNULL, bufsize=10**8
+        )
 
         completeAudioArray = numpy.empty(0, dtype="int16")
 
@@ -495,7 +609,7 @@ class Core:
             if self.canceled:
                 break
             # read 2 seconds of audio
-            progress = progress + 4
+            progress += 4
             raw_audio = in_pipe.stdout.read(88200*4)
             if len(raw_audio) == 0:
                 break
@@ -522,7 +636,22 @@ class Core:
         completeAudioArrayCopy[:len(completeAudioArray)] = completeAudioArray
         completeAudioArray = completeAudioArrayCopy
 
-        return completeAudioArray
+        return (completeAudioArray, duration)
+
+    def newVideoWorker(self, loader, audioFile, outputPath):
+        self.videoThread = QtCore.QThread(loader)
+        videoWorker = video_thread.Worker(
+            loader, audioFile, outputPath, self.selectedComponents
+        )
+        videoWorker.moveToThread(self.videoThread)
+        videoWorker.videoCreated.connect(self.videoCreated)
+
+        self.videoThread.start()
+        return videoWorker
+
+    def videoCreated(self):
+        self.videoThread.quit()
+        self.videoThread.wait()
 
     def cancel(self):
         self.canceled = True

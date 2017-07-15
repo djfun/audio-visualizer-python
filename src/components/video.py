@@ -8,7 +8,7 @@ from queue import PriorityQueue
 
 from component import Component, BadComponentInit
 from frame import BlankFrame
-from toolkit import openPipe
+from toolkit import openPipe, checkOutput
 
 
 class Video:
@@ -115,6 +115,8 @@ class Component(Component):
         self.settings = parent.settings
         page = self.loadUi('video.ui')
         self.videoPath = ''
+        self.badVideo = False
+        self.badAudio = False
         self.x = 0
         self.y = 0
         self.loopVideo = False
@@ -123,6 +125,7 @@ class Component(Component):
         page.pushButton_video.clicked.connect(self.pickVideo)
         page.checkBox_loop.stateChanged.connect(self.update)
         page.checkBox_distort.stateChanged.connect(self.update)
+        page.checkBox_useAudio.stateChanged.connect(self.update)
         page.spinBox_scale.valueChanged.connect(self.update)
         page.spinBox_x.valueChanged.connect(self.update)
         page.spinBox_y.valueChanged.connect(self.update)
@@ -133,15 +136,15 @@ class Component(Component):
     def update(self):
         self.videoPath = self.page.lineEdit_video.text()
         self.loopVideo = self.page.checkBox_loop.isChecked()
+        self.useAudio = self.page.checkBox_useAudio.isChecked()
         self.distort = self.page.checkBox_distort.isChecked()
         self.scale = self.page.spinBox_scale.value()
         self.xPosition = self.page.spinBox_x.value()
         self.yPosition = self.page.spinBox_y.value()
-        self.parent.drawPreview()
+
         super().update()
 
     def previewRender(self, previewWorker):
-        self.videoFormats = previewWorker.core.videoFormats
         width = int(previewWorker.core.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
         self.updateChunksize(width, height)
@@ -151,6 +154,47 @@ class Component(Component):
         else:
             return frame
 
+    def properties(self):
+        props = []
+        if not self.videoPath or self.badVideo \
+                or not os.path.exists(self.videoPath):
+            return ['error']
+
+        if self.useAudio:
+            props.append('audio')
+            self.testAudioStream()
+            if self.badAudio:
+                return ['error']
+
+        return props
+
+    def error(self):
+        if self.badAudio:
+            return "Could not identify an audio stream in this video."
+        if not self.videoPath:
+            return "There is no video selected."
+        if not os.path.exists(self.videoPath):
+            return "The video selected does not exist!"
+        if self.badVideo:
+            return "The video selected is corrupt!"
+
+    def testAudioStream(self):
+        # test if an audio stream really exists
+        audioTestCommand = [
+            self.core.FFMPEG_BIN,
+            '-i', self.videoPath,
+            '-vn', '-f', 'null', '-'
+        ]
+        try:
+            checkOutput(audioTestCommand, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            self.badAudio = True
+        else:
+            self.badAudio = False
+
+    def audio(self):
+        return (self.videoPath, {'map': '-v'})
+
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
         width = int(self.worker.core.settings.value('outputWidth'))
@@ -158,7 +202,7 @@ class Component(Component):
         self.blankFrame_ = BlankFrame(width, height)
         self.updateChunksize(width, height)
         self.video = Video(
-            ffmpeg=self.parent.core.FFMPEG_BIN, videoPath=self.videoPath,
+            ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
             width=width, height=height, chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, loopVideo=self.loopVideo,
@@ -175,6 +219,7 @@ class Component(Component):
         super().loadPreset(pr, presetName)
         self.page.lineEdit_video.setText(pr['video'])
         self.page.checkBox_loop.setChecked(pr['loop'])
+        self.page.checkBox_useAudio.setChecked(pr['useAudio'])
         self.page.checkBox_distort.setChecked(pr['distort'])
         self.page.spinBox_scale.setValue(pr['scale'])
         self.page.spinBox_x.setValue(pr['x'])
@@ -185,6 +230,7 @@ class Component(Component):
             'preset': self.currentPreset,
             'video': self.videoPath,
             'loop': self.loopVideo,
+            'useAudio': self.useAudio,
             'distort': self.distort,
             'scale': self.scale,
             'x': self.xPosition,
@@ -195,7 +241,7 @@ class Component(Component):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
-            imgDir, "Video Files (%s)" % " ".join(self.videoFormats)
+            imgDir, "Video Files (%s)" % " ".join(self.core.videoFormats)
         )
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
@@ -238,7 +284,7 @@ class Component(Component):
         if not arg.startswith('preset=') and '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'path' and os.path.exists(arg):
-                if os.path.splitext(arg)[1] in self.core.videoFormats:
+                if '*%s' % os.path.splitext(arg)[1] in self.core.videoFormats:
                     self.page.lineEdit_video.setText(arg)
                     self.page.spinBox_scale.setValue(100)
                     self.page.checkBox_loop.setChecked(True)
@@ -246,10 +292,17 @@ class Component(Component):
                 else:
                     print("Not a supported video format")
                     quit(1)
+        elif arg == 'audio':
+            if not self.page.lineEdit_video.text():
+                print("'audio' option must follow a video selection")
+                quit(1)
+            self.page.checkBox_useAudio.setChecked(True)
+            return
         super().command(arg)
 
     def commandHelp(self):
         print('Load a video:\n    path=/filepath/to/video.mp4')
+        print('Using audio:\n    path=/filepath/to/video.mp4 audio')
 
 
 def scale(scale, width, height, returntype=None):
@@ -281,6 +334,7 @@ def finalizeFrame(self, imageData, width, height):
             '### BAD VIDEO SELECTED ###\n'
             'Video will not export with these settings'
         )
+        self.badVideo = True
         return BlankFrame(width, height)
 
     if self.scale != 100 \
@@ -289,4 +343,5 @@ def finalizeFrame(self, imageData, width, height):
         frame.paste(image, box=(self.xPosition, self.yPosition))
     else:
         frame = image
+    self.badVideo = False
     return frame

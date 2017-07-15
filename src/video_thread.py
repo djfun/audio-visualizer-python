@@ -20,7 +20,7 @@ import signal
 
 import core
 from toolkit import openPipe
-from frame import FloodFrame
+from frame import Checkerboard
 
 
 class Worker(QtCore.QObject):
@@ -31,13 +31,18 @@ class Worker(QtCore.QObject):
     progressBarSetText = pyqtSignal(str)
     encoding = pyqtSignal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent, inputFile, outputFile, components):
         QtCore.QObject.__init__(self)
-        self.core = core.Core()
-        self.core.settings = parent.settings
+        self.core = parent.core
+        self.settings = parent.core.settings
         self.modules = parent.core.modules
+        parent.createVideo.connect(self.createVideo)
+
         self.parent = parent
-        parent.videoTask.connect(self.createVideo)
+        self.components = components
+        self.outputFile = outputFile
+        self.inputFile = inputFile
+
         self.sampleSize = 1470  # 44100 / 30 = 1470
         self.canceled = False
         self.error = False
@@ -54,16 +59,18 @@ class Worker(QtCore.QObject):
             audioI = self.compositeQueue.get()
             bgI = int(audioI / self.sampleSize)
             frame = None
-
             for compNo, comp in reversed(list(enumerate(self.components))):
-                if compNo in self.staticComponents and \
-                        self.staticComponents[compNo] is not None:
+                layerNo = len(self.components) - compNo - 1
+                if layerNo in self.staticComponents:
+                    if self.staticComponents[layerNo] is None:
+                        # this layer was merged into a following layer
+                        continue
                     # static component
                     if frame is None:  # bottom-most layer
-                        frame = self.staticComponents[compNo]
+                        frame = self.staticComponents[layerNo]
                     else:
                         frame = Image.alpha_composite(
-                            frame, self.staticComponents[compNo]
+                            frame, self.staticComponents[layerNo]
                         )
                 else:
                     # animated component
@@ -93,114 +100,53 @@ class Worker(QtCore.QObject):
             Grabs frames from the previewQueue, adds them to the checkerboard
             and emits a final QImage to the MainWindow for the live preview
         '''
-        background = FloodFrame(1920, 1080, (0, 0, 0, 0))
-        background.paste(Image.open(os.path.join(
-            self.core.wd, "background.png")))
-        background = background.resize((self.width, self.height))
+        background = Checkerboard(self.width, self.height)
 
         while not self.stopped:
             audioI, frame = self.previewQueue.get()
             if time.time() - self.lastPreview >= 0.06 or audioI == 0:
                 image = Image.alpha_composite(background.copy(), frame)
-                self.imageCreated.emit(ImageQt(image))
+                self.imageCreated.emit(QtGui.QImage(ImageQt(image)))
                 self.lastPreview = time.time()
 
             self.previewQueue.task_done()
 
-    @pyqtSlot(str, str, list)
-    def createVideo(self, inputFile, outputFile, components):
+    @pyqtSlot()
+    def createVideo(self):
+        numpy.seterr(divide='ignore')
         self.encoding.emit(True)
-        self.components = components
-        self.outputFile = outputFile
+        self.extraAudio = []
+        self.width = int(self.settings.value('outputWidth'))
+        self.height = int(self.settings.value('outputHeight'))
+
+        self.compositeQueue = Queue()
+        self.compositeQueue.maxsize = 20
+        self.renderQueue = PriorityQueue()
+        self.renderQueue.maxsize = 20
+        self.previewQueue = PriorityQueue()
 
         self.reset()
-
-        self.width = int(self.core.settings.value('outputWidth'))
-        self.height = int(self.core.settings.value('outputHeight'))
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
 
-        self.progressBarSetText.emit('Loading audio file...')
-        self.completeAudioArray = self.core.readAudioFile(inputFile, self)
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # READ AUDIO, INITIALIZE COMPONENTS, OPEN A PIPE TO FFMPEG
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-        # test if user has libfdk_aac
-        encoders = sp.check_output(
-            self.core.FFMPEG_BIN + " -encoders -hide_banner",
-            shell=True)
+        self.progressBarSetText.emit("Loading audio file...")
+        self.completeAudioArray, duration = self.core.readAudioFile(
+            self.inputFile, self
+        )
 
-        encoders = encoders.decode("utf-8")
-
-        acodec = self.core.settings.value('outputAudioCodec')
-
-        options = self.core.encoder_options
-        containerName = self.core.settings.value('outputContainer')
-        vcodec = self.core.settings.value('outputVideoCodec')
-        vbitrate = str(self.core.settings.value('outputVideoBitrate'))+'k'
-        acodec = self.core.settings.value('outputAudioCodec')
-        abitrate = str(self.core.settings.value('outputAudioBitrate'))+'k'
-
-        for cont in options['containers']:
-            if cont['name'] == containerName:
-                container = cont['container']
-                break
-
-        vencoders = options['video-codecs'][vcodec]
-        aencoders = options['audio-codecs'][acodec]
-
-        for encoder in vencoders:
-            if encoder in encoders:
-                vencoder = encoder
-                break
-
-        for encoder in aencoders:
-            if encoder in encoders:
-                aencoder = encoder
-                break
-
-        ffmpegCommand = [
-            self.core.FFMPEG_BIN,
-            '-thread_queue_size', '512',
-            '-y',  # overwrite the output file if it already exists.
-            '-f', 'rawvideo',
-            '-vcodec', 'rawvideo',
-            '-s', str(self.width)+'x'+str(self.height),  # size of one frame
-            '-pix_fmt', 'rgba',
-
-            # frames per second
-            '-r', self.core.settings.value('outputFrameRate'),
-            '-i', '-',  # The input comes from a pipe
-            '-an',
-            '-i', inputFile,
-            '-vcodec', vencoder,
-            '-acodec', aencoder,  # output audio codec
-            '-b:v', vbitrate,
-            '-b:a', abitrate,
-            '-pix_fmt', self.core.settings.value('outputVideoFormat'),
-            '-preset', self.core.settings.value('outputPreset'),
-            '-f', container
-        ]
-
-        if acodec == 'aac':
-            ffmpegCommand.append('-strict')
-            ffmpegCommand.append('-2')
-
-        ffmpegCommand.append(outputFile)
-
-        # ### Now start creating video for output ###
-        numpy.seterr(divide='ignore')
-
-        # Call preFrameRender on all components
+        self.progressBarUpdate.emit(0)
+        self.progressBarSetText.emit("Starting components...")
         print('Loaded Components:', ", ".join([
             "%s) %s" % (num, str(component))
             for num, component in enumerate(reversed(self.components))
         ]))
         self.staticComponents = {}
-        numComps = len(self.components)
-        for compNo, comp in enumerate(self.components):
-            pStr = "Starting components..."
-            self.progressBarSetText.emit(pStr)
-            properties = None
-            properties = comp.preFrameRender(
+        for compNo, comp in enumerate(reversed(self.components)):
+            comp.preFrameRender(
                 worker=self,
                 completeAudioArray=self.completeAudioArray,
                 sampleSize=self.sampleSize,
@@ -208,23 +154,66 @@ class Worker(QtCore.QObject):
                 progressBarSetText=self.progressBarSetText
             )
 
-            if properties and 'static' in properties:
+            if 'error' in comp.properties():
+                self.cancel()
+                self.canceled = True
+                errMsg = "Component #%s encountered an error!" % compNo \
+                    if comp.error() is None else 'Component #%s (%s): %s' % (
+                        str(compNo),
+                        str(comp),
+                        comp.error()
+                    )
+                self.parent.showMessage(
+                        msg=errMsg,
+                        icon='Warning',
+                        parent=None  # MainWindow is in a different thread
+                    )
+                break
+            if 'static' in comp.properties():
                 self.staticComponents[compNo] = \
                     comp.frameRender(compNo, 0).copy()
-            self.progressBarUpdate.emit(100)
 
-        # Create ffmpeg pipe and queues for frames
+        if self.canceled:
+            print('Export cancelled by component #%s (%s): %s' % (
+                compNo, str(comp), comp.error()
+            ))
+            self.progressBarSetText.emit('Export Canceled')
+            self.encoding.emit(False)
+            self.videoCreated.emit()
+            return
+
+        # Merge consecutive static component frames together
+        for compNo in range(len(self.components)):
+            if compNo not in self.staticComponents \
+                    or compNo + 1 not in self.staticComponents:
+                continue
+            self.staticComponents[compNo + 1] = Image.alpha_composite(
+                self.staticComponents.pop(compNo),
+                self.staticComponents[compNo + 1]
+            )
+            self.staticComponents[compNo] = None
+
+        ffmpegCommand = self.core.createFfmpegCommand(
+            self.inputFile, self.outputFile, duration
+        )
+        print('###### FFMPEG COMMAND ######\n%s' % " ".join(ffmpegCommand))
+        print('############################')
         self.out_pipe = openPipe(
-            ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout)
-        self.compositeQueue = Queue()
-        self.compositeQueue.maxsize = 20
-        self.renderQueue = PriorityQueue()
-        self.renderQueue.maxsize = 20
-        self.previewQueue = PriorityQueue()
+            ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
+        )
 
-        # Threads to render frames and send them back here for piping out
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # START CREATING THE VIDEO
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+        # Make 2 or 3 renderNodes in new threads to create the frames
         self.renderThreads = []
-        for i in range(3):
+        try:
+            numCpus = len(os.sched_getaffinity(0))
+        except:
+            numCpus = os.cpu_count()
+
+        for i in range(2 if numCpus <= 2 else 3):
             self.renderThreads.append(
                 Thread(target=self.renderNode, name="Render Thread"))
             self.renderThreads[i].daemon = True
@@ -235,16 +224,17 @@ class Worker(QtCore.QObject):
         self.dispatchThread.daemon = True
         self.dispatchThread.start()
 
+        self.lastPreview = 0.0
         self.previewDispatch = Thread(
             target=self.previewDispatch, name="Render Dispatch Thread")
         self.previewDispatch.daemon = True
         self.previewDispatch.start()
 
+        # Begin piping into ffmpeg!
         frameBuffer = {}
-        self.lastPreview = 0.0
-        self.progressBarUpdate.emit(0)
-        pStr = "Exporting video..."
-        self.progressBarSetText.emit(pStr)
+        progressBarValue = 0
+        self.progressBarUpdate.emit(progressBarValue)
+        self.progressBarSetText.emit("Exporting video...")
         if not self.canceled:
             for audioI in range(
                     0, len(self.completeAudioArray), self.sampleSize):
@@ -253,29 +243,26 @@ class Worker(QtCore.QObject):
                         # if frame's in buffer, pipe it to ffmpeg
                         break
                     # else fetch the next frame & add to the buffer
-                    data = self.renderQueue.get()
-                    frameBuffer[data[0]] = data[1]
+                    audioI_, frame = self.renderQueue.get()
+                    frameBuffer[audioI_] = frame
                     self.renderQueue.task_done()
                 if self.canceled:
                     break
 
                 try:
                     self.out_pipe.stdin.write(frameBuffer[audioI].tobytes())
-                    self.previewQueue.put([audioI, frameBuffer[audioI]])
-                    del frameBuffer[audioI]
+                    self.previewQueue.put([audioI, frameBuffer.pop(audioI)])
                 except:
                     break
 
                 # increase progress bar value
-                if progressBarValue + 1 <= (
-                            audioI / len(self.completeAudioArray)
-                        ) * 100:
-                    progressBarValue = numpy.floor(
-                        (i / len(self.completeAudioArray)) * 100)
+                completion = (audioI / len(self.completeAudioArray)) * 100
+                if progressBarValue + 1 <= completion:
+                    progressBarValue = numpy.floor(completion)
                     self.progressBarUpdate.emit(progressBarValue)
-                    pStr = "Exporting video: " + str(int(progressBarValue)) \
-                        + "%"
-                    self.progressBarSetText.emit(pStr)
+                    self.progressBarSetText.emit(
+                        "Exporting video: %s%%" % str(int(progressBarValue))
+                    )
 
         numpy.seterr(all='print')
 
@@ -317,6 +304,7 @@ class Worker(QtCore.QObject):
 
     def cancel(self):
         self.canceled = True
+        self.stopped = True
         self.core.cancel()
 
         for comp in self.components:

@@ -7,15 +7,15 @@ from PyQt5 import QtCore
 import argparse
 import os
 import sys
+import time
 
 import core
-import video_thread
 from toolkit import LoadDefaultSettings
 
 
 class Command(QtCore.QObject):
 
-    videoTask = QtCore.pyqtSignal(str, str, list)
+    createVideo = QtCore.pyqtSignal()
 
     def __init__(self):
         QtCore.QObject.__init__(self)
@@ -112,21 +112,35 @@ class Command(QtCore.QObject):
             quit(1)
 
     def createAudioVisualisation(self, input, output):
-        self.videoThread = QtCore.QThread(self)
-        self.videoWorker = video_thread.Worker(self)
-        self.videoWorker.moveToThread(self.videoThread)
-        self.videoWorker.videoCreated.connect(self.videoCreated)
-
-        self.videoThread.start()
-        self.videoTask.emit(
-          input,
-          output,
-          list(reversed(self.core.selectedComponents))
+        self.core.selectedComponents = list(
+            reversed(self.core.selectedComponents))
+        self.core.componentListChanged()
+        self.worker = self.core.newVideoWorker(
+            self, input, output
         )
+        self.worker.videoCreated.connect(self.videoCreated)
+        self.lastProgressUpdate = time.time()
+        self.worker.progressBarSetText.connect(self.progressBarSetText)
+        self.createVideo.emit()
 
+    @QtCore.pyqtSlot(str)
+    def progressBarSetText(self, value):
+        if 'Export ' in value:
+            # Don't duplicate completion/failure messages
+            return
+        if not value.startswith('Exporting') \
+                and time.time() - self.lastProgressUpdate >= 0.05:
+            # Show most messages very often
+            print(value)
+        elif time.time() - self.lastProgressUpdate >= 2.0:
+            # Give user time to read ffmpeg's output during the export
+            print('##### %s' % value)
+        else:
+            return
+        self.lastProgressUpdate = time.time()
+
+    @QtCore.pyqtSlot()
     def videoCreated(self):
-        self.videoThread.quit()
-        self.videoThread.wait()
         quit(0)
 
     def showMessage(self, **kwargs):

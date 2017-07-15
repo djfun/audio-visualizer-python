@@ -13,7 +13,7 @@ class Component(Component):
 
     def widget(self, parent):
         self.parent = parent
-        self.settings = parent.settings
+        self.settings = self.parent.core.settings
         page = self.loadUi('image.ui')
 
         page.lineEdit_image.textChanged.connect(self.update)
@@ -38,22 +38,29 @@ class Component(Component):
         self.yPosition = self.page.spinBox_y.value()
         self.stretched = self.page.checkBox_stretch.isChecked()
         self.mirror = self.page.checkBox_mirror.isChecked()
-        self.parent.drawPreview()
+
         super().update()
 
     def previewRender(self, previewWorker):
-        self.imageFormats = previewWorker.core.imageFormats
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.drawFrame(width, height)
 
-    def preFrameRender(self, **kwargs):
-        super().preFrameRender(**kwargs)
-        return ['static']
+    def properties(self):
+        props = ['static']
+        if not os.path.exists(self.imagePath):
+            props.append('error')
+        return props
+
+    def error(self):
+        if not self.imagePath:
+            return "There is no image selected."
+        if not os.path.exists(self.imagePath):
+            return "The image selected does not exist!"
 
     def frameRender(self, layerNo, frameNo):
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return self.drawFrame(width, height)
 
     def drawFrame(self, width, height):
@@ -110,7 +117,7 @@ class Component(Component):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Image", imgDir,
-            "Image Files (%s)" % " ".join(self.imageFormats))
+            "Image Files (%s)" % " ".join(self.core.imageFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)

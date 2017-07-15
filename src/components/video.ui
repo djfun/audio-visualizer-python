@@ -190,16 +190,20 @@
       </widget>
      </item>
      <item>
-      <spacer name="horizontalSpacer_10">
+      <widget class="QCheckBox" name="checkBox_useAudio">
+       <property name="text">
+        <string>Use Audio</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::Fixed</enum>
-       </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>5</width>
+         <width>40</width>
          <height>20</height>
         </size>
        </property>
@@ -255,9 +259,6 @@
       </size>
      </property>
     </spacer>
-   </item>
-   <item>
-    <widget class="QWidget" name="widget" native="true"/>
    </item>
   </layout>
  </widget>
