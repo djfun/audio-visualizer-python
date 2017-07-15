@@ -6,7 +6,6 @@ from PyQt5 import QtCore, QtGui, uic
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
 from PIL.ImageQt import ImageQt
-import core
 from queue import Queue, Empty
 import os
 

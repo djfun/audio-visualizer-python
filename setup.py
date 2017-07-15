@@ -1,19 +1,34 @@
-+from setuptools import setup, find_packages
-  		  
- -# Dependencies are automatically detected, but it might need		 +setup(name='audio_visualizer_python',
- -# fine tuning.		 +      version='1.0',
- -buildOptions = dict(packages = [], excludes = [		 +      description='a little GUI tool to render visualization \
- -  "apport",		 +                   videos of audio files',
- -  "apt",		 +      license='MIT',
- -  "ctypes",		 +      url='https://github.com/djfun/audio-visualizer-python',
- -  "curses",		 +      packages=find_packages(),
- -  "distutils",		 +      package_data={
- -  "email",		 +          'src': ['*'],
- -  "html",		 +      },
- -  "http",		 +      install_requires=['pillow-simd', 'numpy', ''],
- -  "json",		 +      entry_points={
- -  "xmlrpc",		 +          'gui_scripts': [
- -  "nose"		 +              'audio-visualizer-python = avpython.main:main'
- -  ], include_files = ["main.ui"])		 +          ]
- -		 +      }
- -import sys		 +      )
+from setuptools import setup
+import os
+
+
+def package_files(directory):
+    paths = []
+    for (path, directories, filenames) in os.walk(directory):
+        for filename in filenames:
+            paths.append(os.path.join('..', path, filename))
+    return paths
+
+
+setup(
+    name='audio_visualizer_python',
+    version='2.0.0',
+    description='A little GUI tool to create audio visualization " \
+        "videos out of audio files',
+    license='MIT',
+    url='https://github.com/djfun/audio-visualizer-python',
+    packages=[
+        'avpython',
+        'avpython.components'
+    ],
+    package_dir={'avpython': 'src'},
+    package_data={
+        'avpython': package_files('src'),
+    },
+    install_requires=['olefile', 'Pillow-SIMD', 'PyQt5', 'numpy'],
+    entry_points={
+        'gui_scripts': [
+            'avp = avpython.main:main'
+        ],
+    }
+)

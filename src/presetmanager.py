@@ -6,7 +6,6 @@ from PyQt5 import QtCore, QtWidgets
 import string
 import os
 
-import core
 import toolkit
 
 
