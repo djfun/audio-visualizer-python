@@ -12,7 +12,7 @@ def main():
         wd = os.path.dirname(os.path.realpath(__file__))
 
     # make local imports work everywhere
-    sys.path.append(wd)
+    sys.path.insert(0, wd)
 
     mode = 'GUI'
     if len(sys.argv) > 2:

@@ -127,6 +127,7 @@ class Component(Component):
         page.checkBox_distort.stateChanged.connect(self.update)
         page.checkBox_useAudio.stateChanged.connect(self.update)
         page.spinBox_scale.valueChanged.connect(self.update)
+        page.spinBox_volume.valueChanged.connect(self.update)
         page.spinBox_x.valueChanged.connect(self.update)
         page.spinBox_y.valueChanged.connect(self.update)
 
@@ -139,8 +140,16 @@ class Component(Component):
         self.useAudio = self.page.checkBox_useAudio.isChecked()
         self.distort = self.page.checkBox_distort.isChecked()
         self.scale = self.page.spinBox_scale.value()
+        self.volume = self.page.spinBox_volume.value()
         self.xPosition = self.page.spinBox_x.value()
         self.yPosition = self.page.spinBox_y.value()
+
+        if self.useAudio:
+            self.page.label_volume.setEnabled(True)
+            self.page.spinBox_volume.setEnabled(True)
+        else:
+            self.page.label_volume.setEnabled(False)
+            self.page.spinBox_volume.setEnabled(False)
 
         super().update()
 
@@ -193,7 +202,10 @@ class Component(Component):
             self.badAudio = False
 
     def audio(self):
-        return (self.videoPath, {'map': '-v'})
+        params = {}
+        if self.volume != 1.0:
+            params['volume'] = '=%s:replaygain_noclip=0' % str(self.volume)
+        return (self.videoPath, params)
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
@@ -222,6 +234,7 @@ class Component(Component):
         self.page.checkBox_useAudio.setChecked(pr['useAudio'])
         self.page.checkBox_distort.setChecked(pr['distort'])
         self.page.spinBox_scale.setValue(pr['scale'])
+        self.page.spinBox_volume.setValue(pr['volume'])
         self.page.spinBox_x.setValue(pr['x'])
         self.page.spinBox_y.setValue(pr['y'])
 
@@ -233,6 +246,7 @@ class Component(Component):
             'useAudio': self.useAudio,
             'distort': self.distort,
             'scale': self.scale,
+            'volume': self.volume,
             'x': self.xPosition,
             'y': self.yPosition,
         }

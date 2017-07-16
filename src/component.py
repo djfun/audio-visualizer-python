@@ -178,8 +178,9 @@ class Component(QtCore.QObject):
             The first element can be:
                 - A string (path to audio file),
                 - Or an object that returns audio data through a pipe
-            The second element must be a dictionary of ffmpeg parameters
-            to apply to the input stream.
+            The second element must be a dictionary of ffmpeg filters/options
+            to apply to the input stream. See the filter docs for ideas:
+            https://ffmpeg.org/ffmpeg-filters.html
         \'''
 
     @classmethod

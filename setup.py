@@ -12,11 +12,25 @@ def package_files(directory):
 
 setup(
     name='audio_visualizer_python',
-    version='2.0.0',
-    description='A little GUI tool to create audio visualization " \
-        "videos out of audio files',
+    version='2.0.0rc1',
+    url='https://github.com/djfun/audio-visualizer-python/tree/feature-newgui',
     license='MIT',
-    url='https://github.com/djfun/audio-visualizer-python',
+    description='Create audio visualization videos from a GUI or commandline',
+    long_description="Create customized audio visualization videos and save "
+        "them as Projects to continue editing later. Different components can "
+        "be added and layered to add visualizers, images, videos, gradients, "
+        "text, etc. Use Projects created in the GUI with commandline mode to "
+        "automate your video production workflow without learning any complex "
+        "syntax.",
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3 :: Only',
+        'Intended Audience :: End Users/Desktop',
+        'Topic :: Multimedia :: Video :: Non-Linear Editor',
+    ],
+    keywords=['visualizer', 'visualization', 'commandline video',
+        'video editor', 'ffmpeg', 'podcast']
     packages=[
         'avpython',
         'avpython.components'
@@ -25,7 +39,7 @@ setup(
     package_data={
         'avpython': package_files('src'),
     },
-    install_requires=['olefile', 'Pillow-SIMD', 'PyQt5', 'numpy'],
+    install_requires=['Pillow-SIMD', 'PyQt5', 'numpy'],
     entry_points={
         'gui_scripts': [
             'avp = avpython.main:main'
