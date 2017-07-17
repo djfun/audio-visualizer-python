@@ -13,11 +13,14 @@ def badName(name):
     return any([letter in string.punctuation for letter in name])
 
 
+def alphabetizeDict(dictionary):
+    '''Alphabetizes a dict into OrderedDict '''
+    return OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
+
+
 def presetToString(dictionary):
-    '''Alphabetizes a dict into OrderedDict & returns string repr'''
-    return repr(
-        OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
-    )
+    '''Returns string repr of a preset'''
+    return repr(alphabetizeDict(dictionary))
 
 
 def presetFromString(string):

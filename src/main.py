@@ -2,12 +2,18 @@ from PyQt5 import uic, QtWidgets
 import sys
 import os
 
-import core
-import preview_thread
-import video_thread
 
+def main():
+    if getattr(sys, 'frozen', False):
+        # frozen
+        wd = os.path.dirname(sys.executable)
+    else:
+        # unfrozen
+        wd = os.path.dirname(os.path.realpath(__file__))
 
-if __name__ == "__main__":
+    # make local imports work everywhere
+    sys.path.insert(0, wd)
+
     mode = 'GUI'
     if len(sys.argv) > 2:
         mode = 'commandline'
@@ -28,21 +34,14 @@ if __name__ == "__main__":
     # app.setOrganizationName("audio-visualizer")
 
     if mode == 'commandline':
-        from command import *
+        from command import Command
 
         main = Command()
 
     elif mode == 'GUI':
-        from mainwindow import *
+        from mainwindow import MainWindow
         import atexit
         import signal
-
-        if getattr(sys, 'frozen', False):
-            # frozen
-            wd = os.path.dirname(sys.executable)
-        else:
-            # unfrozen
-            wd = os.path.dirname(os.path.realpath(__file__))
 
         window = uic.loadUi(os.path.join(wd, "mainwindow.ui"))
         # window.adjustSize()
@@ -64,3 +63,7 @@ if __name__ == "__main__":
 
     # applicable to both modes
     sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    main()

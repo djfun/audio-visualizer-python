@@ -17,12 +17,18 @@ class Component(Component):
 
         page.lineEdit_sound.textChanged.connect(self.update)
         page.pushButton_sound.clicked.connect(self.pickSound)
+        page.checkBox_chorus.stateChanged.connect(self.update)
+        page.spinBox_delay.valueChanged.connect(self.update)
+        page.spinBox_volume.valueChanged.connect(self.update)
 
         self.page = page
         return page
 
     def update(self):
         self.sound = self.page.lineEdit_sound.text()
+        self.delay = self.page.spinBox_delay.value()
+        self.volume = self.page.spinBox_volume.value()
+        self.chorus = self.page.checkBox_chorus.isChecked()
         super().update()
 
     def previewRender(self, previewWorker):
@@ -46,7 +52,16 @@ class Component(Component):
             return "The audio file selected no longer exists!"
 
     def audio(self):
-        return (self.sound, {})
+        params = {}
+        if self.delay != 0.0:
+            params['adelay'] = '=%s' % str(int(self.delay * 1000.00))
+        if self.chorus:
+            params['chorus'] = \
+                '=0.5:0.9:50|60|40:0.4|0.32|0.3:0.25|0.4|0.3:2|2.3|1.3'
+        if self.volume != 1.0:
+            params['volume'] = '=%s:replaygain_noclip=0' % str(self.volume)
+
+        return (self.sound, params)
 
     def pickSound(self):
         sndDir = self.settings.value("componentDir", os.path.expanduser("~"))
@@ -66,10 +81,16 @@ class Component(Component):
     def loadPreset(self, pr, presetName=None):
         super().loadPreset(pr, presetName)
         self.page.lineEdit_sound.setText(pr['sound'])
+        self.page.checkBox_chorus.setChecked(pr['chorus'])
+        self.page.spinBox_delay.setValue(pr['delay'])
+        self.page.spinBox_volume.setValue(pr['volume'])
 
     def savePreset(self):
         return {
             'sound': self.sound,
+            'chorus': self.chorus,
+            'delay': self.delay,
+            'volume': self.volume,
         }
 
     def commandHelp(self):

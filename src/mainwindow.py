@@ -305,7 +305,12 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
         QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
         QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
-        QtWidgets.QShortcut("Ctrl+Alt+Shift+R", self.window, self.drawPreview)
+        QtWidgets.QShortcut(
+            "Ctrl+Alt+Shift+R", self.window, self.drawPreview
+        )
+        QtWidgets.QShortcut(
+            "Ctrl+Alt+Shift+F", self.window, self.showFfmpegCommand
+        )
 
         QtWidgets.QShortcut(
             "Ctrl+T", self.window,
@@ -579,6 +584,18 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot(QtGui.QImage)
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
+
+    def showFfmpegCommand(self):
+        from textwrap import wrap
+        command = self.core.createFfmpegCommand(
+            self.window.lineEdit_audioFile.text(),
+            self.window.lineEdit_outputFile.text(),
+            self.core.getAudioDuration(self.window.lineEdit_audioFile.text())
+        )
+        lines = wrap(" ".join(command), 49)
+        self.showMessage(
+            msg="Current FFmpeg command:\n\n %s" % " ".join(lines)
+        )
 
     def insertComponent(self, index):
         componentList = self.window.listWidget_componentList

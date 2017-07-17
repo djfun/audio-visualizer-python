@@ -1,28 +1,31 @@
 audio-visualizer-python
 =======================
+**We need a good name that is not as generic as "audio-visualizer-python"!**
 
-This is a little GUI tool which creates an audio visualization video from an input audio file. Different components can be added and layered to change the resulting video and add images, videos, gradients, text, etc. The component setup can be saved as a Project and exporting can be automated using commandline options.
+This is a little GUI tool which creates an audio visualization video from an input audio file. Different components can be added and layered to change the resulting video and add images, videos, gradients, text, etc. Encoding options can be changed with a variety of different output containers.
 
-The program works on Linux, macOS, and Windows. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and send me a pull request and/or file an issue on this project.
+Projects can be created from the GUI and used in commandline mode for easy automation of video production. Create a template project named `template` with your typical visualizers and watermarks, and add text to the top layer from commandline:
+`avp template -c 99 text "title=Episode 371" -i /this/weeks/audio.ogg -o out`
 
-I also need a good name that is not as generic as "audio-visualizer-python"!
+For more information use `avp --help` or for help with a particular component use `avp -c 0 componentName help`.
+
+The program works on Linux, macOS, and Windows. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and submit a pull request and/or file an issue on this project.
 
 Dependencies
 ------------
-Python 3, PyQt5, pillow-simd, numpy, and ffmpeg 3.3
+Python 3.4, FFmpeg 3.3, PyQt5, Pillow-SIMD, NumPy
 
-**Note:** Pillow may be used as a drop-in replacement for Pillow-SIMD if problems are encountered installing. However this will result in much slower video export times.
+**Note:** Pillow may be used as a drop-in replacement for Pillow-SIMD if problems are encountered installing. However this will result in much slower video export times. For help troubleshooting installation problems, the * For any problems with installing Pillow-SIMD, see the [Pillow installation guide](http://pillow.readthedocs.io/en/3.1.x/installation.html).
 
 Installation
 ------------
 ### Manual installation on Ubuntu 16.04
 * Install pip: `sudo apt-get install python3-pip`
-* Install [prerequisites to compile Pillow](http://pillow.readthedocs.io/en/3.1.x/installation.html#building-on-linux):`sudo apt-get install python3-dev python3-setuptools libtiff5-dev libjpeg8-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python-tk`
-* Prerequisites on **Fedora**:`sudo dnf install python3-devel redhat-rpm-config libtiff-devel libjpeg-devel libzip-devel freetype-devel lcms2-devel libwebp-devel tcl-devel tk-devel`
-* Install dependencies from PyPI: `sudo pip3 install pyqt5 numpy pillow-simd`
+* If Pillow is installed, it must be removed. Nothing should break because Pillow-SIMD is simply a drop-in replacement with better performance.
+* Download audio-visualizer-python from this repository and run `sudo pip3 install .` in this directory
 * Install `ffmpeg` from the [website](http://ffmpeg.org/) or from a PPA (e.g. [https://launchpad.net/~jonathonf/+archive/ubuntu/ffmpeg-3](https://launchpad.net/~jonathonf/+archive/ubuntu/ffmpeg-3)). NOTE: `ffmpeg` in the standard repos is too old (v2.8). Old versions and `avconv` may be used but full functionality is only guaranteed with `ffmpeg` 3.3 or higher.
 
-Download audio-visualizer-python from this repository and run it with `python3 main.py`.
+Run the program with `avp` or `python3 -m avpython`
 
 ### Manual installation on Windows
 * **Warning:** [Compiling Pillow is difficult on Windows](http://pillow.readthedocs.io/en/3.1.x/installation.html#building-on-windows) and required for the best experience.

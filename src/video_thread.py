@@ -18,7 +18,6 @@ from threading import Thread, Event
 import time
 import signal
 
-import core
 from toolkit import openPipe
 from frame import Checkerboard
 
