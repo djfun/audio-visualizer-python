@@ -541,6 +541,10 @@ class Core:
                 extraInputFile, params = params
                 ffmpegCommand.extend([
                     '-t', safeDuration,
+                    # Tell ffmpeg about shorter clips (seemingly not needed)
+                    #   streamDuration = self.getAudioDuration(extraInputFile)
+                    #   if  streamDuration > float(safeDuration)
+                    #   else "{0:.3f}".format(streamDuration),
                     '-i', extraInputFile
                 ])
                 # Construct dataset of extra filters we'll need to add later
@@ -551,7 +555,7 @@ class Core:
                         ffmpegFilter, params[ffmpegFilter]
                     ))
 
-            # Start creating avfilters!
+            # Start creating avfilters! Popen-style, so don't use semicolons;
             extraFilterCommand = []
 
             if globalFilters <= 0:

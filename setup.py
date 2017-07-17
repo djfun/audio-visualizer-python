@@ -30,7 +30,7 @@ setup(
         'Topic :: Multimedia :: Video :: Non-Linear Editor',
     ],
     keywords=['visualizer', 'visualization', 'commandline video',
-        'video editor', 'ffmpeg', 'podcast']
+        'video editor', 'ffmpeg', 'podcast'],
     packages=[
         'avpython',
         'avpython.components'

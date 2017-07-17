@@ -45,7 +45,7 @@ class Video:
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
-            '-filter:v', 'scale=%s:%s' % scale(
+            '-filter_complex', '[0:v] scale=%s:%s' % scale(
                 self.scale, self.width, self.height, str),
             '-vcodec', 'rawvideo', '-',
         ]
@@ -272,7 +272,7 @@ class Component(Component):
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
-            '-filter:v', 'scale=%s:%s' % scale(
+            '-filter_complex', '[0:v] scale=%s:%s' % scale(
                 self.scale, width, height, str),
             '-vcodec', 'rawvideo', '-',
             '-ss', '90',
