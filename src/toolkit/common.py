@@ -1,6 +1,7 @@
 '''
     Common functions
 '''
+from PyQt5 import QtWidgets
 import string
 import os
 import sys
@@ -67,6 +68,39 @@ def disableWhenEncoding(func):
         else:
             return func(*args, **kwargs)
     return decorator
+
+
+def pickColor():
+    '''
+        Use color picker to get color input from the user,
+        and return this as an RGB string and QPushButton stylesheet.
+        In a subclass apply stylesheet to any color selection widgets
+    '''
+    dialog = QtWidgets.QColorDialog()
+    dialog.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
+    color = dialog.getColor()
+    if color.isValid():
+        RGBstring = '%s,%s,%s' % (
+            str(color.red()), str(color.green()), str(color.blue()))
+        btnStyle = "QPushButton{background-color: %s; outline: none;}" \
+            % color.name()
+        return RGBstring, btnStyle
+    else:
+        return None, None
+
+
+def rgbFromString(string):
+    '''Turns an RGB string like "255, 255, 255" into a tuple'''
+    try:
+        tup = tuple([int(i) for i in string.split(',')])
+        if len(tup) != 3:
+            raise ValueError
+        for i in tup:
+            if i > 255 or i < 0:
+                raise ValueError
+        return tup
+    except:
+        return (255, 255, 255)
 
 
 def LoadDefaultSettings(self):

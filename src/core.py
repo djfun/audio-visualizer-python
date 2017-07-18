@@ -11,7 +11,7 @@ from importlib import import_module
 from PyQt5.QtCore import QStandardPaths
 
 import toolkit
-from frame import Frame
+from toolkit.frame import Frame
 import video_thread
 
 

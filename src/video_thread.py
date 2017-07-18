@@ -19,7 +19,7 @@ import time
 import signal
 
 from toolkit import openPipe
-from frame import Checkerboard
+from toolkit.frame import Checkerboard
 
 
 class Worker(QtCore.QObject):

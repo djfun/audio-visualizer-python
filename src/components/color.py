@@ -5,7 +5,8 @@ from PIL.ImageQt import ImageQt
 import os
 
 from component import Component
-from frame import BlankFrame, FloodFrame, FramePainter, PaintColor
+from toolkit.frame import BlankFrame, FloodFrame, FramePainter, PaintColor
+from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
@@ -76,8 +77,8 @@ class Component(Component):
         return page
 
     def update(self):
-        self.color1 = self.RGBFromString(self.page.lineEdit_color1.text())
-        self.color2 = self.RGBFromString(self.page.lineEdit_color2.text())
+        self.color1 = rgbFromString(self.page.lineEdit_color1.text())
+        self.color2 = rgbFromString(self.page.lineEdit_color2.text())
         self.x = self.page.spinBox_x.value()
         self.y = self.page.spinBox_y.value()
         self.sizeWidth = self.page.spinBox_width.value()
@@ -229,7 +230,7 @@ class Component(Component):
         }
 
     def pickColor(self, num):
-        RGBstring, btnStyle = super().pickColor()
+        RGBstring, btnStyle = pickColor()
         if not RGBstring:
             return
         if num == 1:

@@ -3,7 +3,7 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 
 from component import Component
-from frame import BlankFrame
+from toolkit.frame import BlankFrame
 
 
 class Component(Component):

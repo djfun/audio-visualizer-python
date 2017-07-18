@@ -7,7 +7,8 @@ import time
 from copy import copy
 
 from component import Component
-from frame import BlankFrame
+from toolkit.frame import BlankFrame
+from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
@@ -48,7 +49,7 @@ class Component(Component):
 
     def update(self):
         self.layout = self.page.comboBox_visLayout.currentIndex()
-        self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
+        self.visColor = rgbFromString(self.page.lineEdit_visColor.text())
         self.scale = self.page.spinBox_scale.value()
         self.y = self.page.spinBox_y.value()
 
@@ -116,7 +117,7 @@ class Component(Component):
             self.visColor, self.layout)
 
     def pickColor(self):
-        RGBstring, btnStyle = super().pickColor()
+        RGBstring, btnStyle = pickColor()
         if not RGBstring:
             return
         self.page.lineEdit_visColor.setText(RGBstring)

@@ -4,7 +4,8 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 
 from component import Component
-from frame import FramePainter
+from toolkit.frame import FramePainter
+from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
@@ -64,7 +65,7 @@ class Component(Component):
         self.fontSize = self.page.spinBox_fontSize.value()
         self.xPosition = self.page.spinBox_xTextAlign.value()
         self.yPosition = self.page.spinBox_yTextAlign.value()
-        self.textColor = self.RGBFromString(
+        self.textColor = rgbFromString(
             self.page.lineEdit_textColor.text())
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.textColor).name()
@@ -146,7 +147,7 @@ class Component(Component):
         return image.finalize()
 
     def pickColor(self):
-        RGBstring, btnStyle = super().pickColor()
+        RGBstring, btnStyle = pickColor()
         if not RGBstring:
             return
         self.page.lineEdit_textColor.setText(RGBstring)

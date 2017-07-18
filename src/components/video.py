@@ -7,7 +7,7 @@ import threading
 from queue import PriorityQueue
 
 from component import Component, BadComponentInit
-from frame import BlankFrame
+from toolkit.frame import BlankFrame
 from toolkit import openPipe, checkOutput
 
 

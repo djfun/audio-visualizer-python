@@ -9,7 +9,7 @@ from PIL.ImageQt import ImageQt
 from queue import Queue, Empty
 import os
 
-from frame import Checkerboard
+from toolkit.frame import Checkerboard
 
 
 class Worker(QtCore.QObject):
