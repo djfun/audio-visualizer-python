@@ -2,7 +2,7 @@ from cx_Freeze import setup, Executable
 import sys
 import os
 
-from setup import VERSION
+from setup import __version__
 
 
 deps = [os.path.join('src', p) for p in os.listdir('src') if p]
@@ -52,7 +52,7 @@ executables = [
 
 setup(
     name='audio-visualizer-python',
-    version=VERSION,
+    version=__version__,
     description='GUI tool to render visualization videos of audio files',
     options=dict(build_exe=buildOptions),
     executables=executables

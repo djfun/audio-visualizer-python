@@ -113,7 +113,7 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
                 '-t', safeDuration,
                 # Tell ffmpeg about shorter clips (seemingly not needed)
                 #   streamDuration = getAudioDuration(extraInputFile)
-                #   if  streamDuration > float(safeDuration)
+                #   if streamDuration and streamDuration > float(safeDuration)
                 #   else "{0:.3f}".format(streamDuration),
                 '-i', extraInputFile
             ])
@@ -228,11 +228,18 @@ def getAudioDuration(filename):
             d = d.split(' ')[3]
             d = d.split(':')
             duration = float(d[0])*3600 + float(d[1])*60 + float(d[2])
+            break
+    else:
+        # String not found in output
+        return False
     return duration
 
 
 def readAudioFile(filename, parent):
     duration = getAudioDuration(filename)
+    if not duration:
+        print('Audio file doesn\'t exist or unreadable.')
+        return
 
     command = [
         Core.FFMPEG_BIN,

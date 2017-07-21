@@ -2,7 +2,7 @@ from setuptools import setup
 import os
 
 
-VERSION = '2.0.0.rc1'
+__version__ = '2.0.0.rc1'
 
 
 def package_files(directory):
@@ -15,7 +15,7 @@ def package_files(directory):
 
 setup(
     name='audio_visualizer_python',
-    version=VERSION,
+    version=__version__,
     url='https://github.com/djfun/audio-visualizer-python/tree/feature-newgui',
     license='MIT',
     description='Create audio visualization videos from a GUI or commandline',

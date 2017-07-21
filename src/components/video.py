@@ -16,7 +16,7 @@ class Video:
     '''Video Component Frame-Fetcher'''
     def __init__(self, **kwargs):
         mandatoryArgs = [
-            'ffmpeg',     # path to ffmpeg, usually core.FFMPEG_BIN
+            'ffmpeg',     # path to ffmpeg, usually Core.FFMPEG_BIN
             'videoPath',
             'width',
             'height',
@@ -28,7 +28,7 @@ class Video:
         ]
         for arg in mandatoryArgs:
             try:
-                exec('self.%s = kwargs[arg]' % arg)
+                setattr(self, arg, kwargs[arg])
             except KeyError:
                 raise BadComponentInit(arg, self.__doc__)
 

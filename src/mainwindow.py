@@ -178,7 +178,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Make component buttons
         self.compMenu = QMenu()
-        self.compActions = []
         for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.name)
             action.triggered.connect(
@@ -190,6 +189,9 @@ class MainWindow(QtWidgets.QMainWindow):
         componentList.dropEvent = self.dragComponent
         componentList.itemSelectionChanged.connect(
             self.changeComponentWidget
+        )
+        componentList.itemSelectionChanged.connect(
+            self.presetManager.clearPresetListSelection
         )
         self.window.pushButton_removeComponent.clicked.connect(
             lambda: self.removeComponent()
@@ -313,22 +315,23 @@ class MainWindow(QtWidgets.QMainWindow):
             )
         self.settings.setValue("ffmpegMsgShown", True)
 
-        # Setup Hotkeys
+        # Hotkeys for projects
         QtWidgets.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)
         QtWidgets.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
         QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
         QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
-        QtWidgets.QShortcut(
-            "Ctrl+Alt+Shift+R", self.window, self.drawPreview
-        )
-        QtWidgets.QShortcut(
-            "Ctrl+Alt+Shift+F", self.window, self.showFfmpegCommand
-        )
 
-        QtWidgets.QShortcut(
-            "Ctrl+T", self.window,
-            activated=lambda: self.window.pushButton_addComponent.click()
-        )
+        # Hotkeys for component list
+        for inskey in ("Ctrl+T", QtCore.Qt.Key_Insert):
+            QtWidgets.QShortcut(
+                inskey, self.window,
+                activated=lambda: self.window.pushButton_addComponent.click()
+            )
+        for delkey in ("Ctrl+R", QtCore.Qt.Key_Delete):
+            QtWidgets.QShortcut(
+                delkey, self.window.listWidget_componentList,
+                self.removeComponent
+            )
         QtWidgets.QShortcut(
             "Ctrl+Space", self.window,
             activated=lambda: self.window.listWidget_componentList.setFocus()
@@ -342,22 +345,29 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         QtWidgets.QShortcut(
-            "Ctrl+Up", self.window,
+            "Ctrl+Up", self.window.listWidget_componentList,
             activated=lambda: self.moveComponent(-1)
         )
         QtWidgets.QShortcut(
-            "Ctrl+Down", self.window,
+            "Ctrl+Down", self.window.listWidget_componentList,
             activated=lambda: self.moveComponent(1)
         )
         QtWidgets.QShortcut(
-            "Ctrl+Home", self.window,
+            "Ctrl+Home", self.window.listWidget_componentList,
             activated=lambda: self.moveComponent('top')
         )
         QtWidgets.QShortcut(
-            "Ctrl+End", self.window,
+            "Ctrl+End", self.window.listWidget_componentList,
             activated=lambda: self.moveComponent('bottom')
         )
-        QtWidgets.QShortcut("Ctrl+r", self.window, self.removeComponent)
+
+        # Debug Hotkeys
+        QtWidgets.QShortcut(
+            "Ctrl+Alt+Shift+R", self.window, self.drawPreview
+        )
+        QtWidgets.QShortcut(
+            "Ctrl+Alt+Shift+F", self.window, self.showFfmpegCommand
+        )
 
     @QtCore.pyqtSlot()
     def cleanUp(self):
@@ -677,9 +687,7 @@ class MainWindow(QtWidgets.QMainWindow):
             stackedWidget.setCurrentIndex(newRow)
             self.drawPreview()
 
-    @disableWhenEncoding
-    def dragComponent(self, event):
-        '''Used as Qt drop event for the component listwidget'''
+    def getComponentListRects(self):
         componentList = self.window.listWidget_componentList
 
         modelIndexes = [
@@ -690,6 +698,13 @@ class MainWindow(QtWidgets.QMainWindow):
             componentList.visualRect(modelIndex)
             for modelIndex in modelIndexes
         ]
+        return rects
+
+    @disableWhenEncoding
+    def dragComponent(self, event):
+        '''Used as Qt drop event for the component listwidget'''
+        componentList = self.window.listWidget_componentList
+        rects = self.getComponentListRects()
 
         rowPos = [rect.contains(event.pos()) for rect in rects]
         if not any(rowPos):
@@ -826,47 +841,63 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @disableWhenEncoding
     def componentContextMenu(self, QPos):
-        '''Appears when right-clicking a component in the list'''
+        '''Appears when right-clicking the component list'''
         componentList = self.window.listWidget_componentList
-        if not componentList.selectedItems():
-            return
-
-        # don't show menu if clicking empty space
-        parentPosition = componentList.mapToGlobal(QtCore.QPoint(0, 0))
         index = componentList.currentRow()
-        modelIndex = componentList.model().index(index)
-        if not componentList.visualRect(modelIndex).contains(QPos):
-            return
 
-        self.presetManager.findPresets()
         self.menu = QMenu()
-        menuItem = self.menu.addAction("Save Preset")
-        menuItem.triggered.connect(
-            self.presetManager.openSavePresetDialog
-        )
+        parentPosition = componentList.mapToGlobal(QtCore.QPoint(0, 0))
 
-        # submenu for opening presets
-        try:
-            presets = self.presetManager.presets[
-                str(self.core.selectedComponents[index])
-            ]
-            self.submenu = QMenu("Open Preset")
-            self.menu.addMenu(self.submenu)
+        rects = self.getComponentListRects()
+        rowPos = [rect.contains(QPos) for rect in rects]
+        if not any(rowPos):
+            # Insert components at the top if clicking nothing
+            rowPos = 0
+        else:
+            rowPos = rowPos.index(True)
 
-            for version, presetName in presets:
-                menuItem = self.submenu.addAction(presetName)
-                menuItem.triggered.connect(
-                    lambda _, presetName=presetName:
-                        self.presetManager.openPreset(presetName)
-                )
-        except KeyError:
-            pass
-
-        if self.core.selectedComponents[index].currentPreset:
-            menuItem = self.menu.addAction("Clear Preset")
+        if index == rowPos:
+            # Show preset menu if clicking a component
+            self.presetManager.findPresets()
+            menuItem = self.menu.addAction("Save Preset")
             menuItem.triggered.connect(
-                self.presetManager.clearPreset
+                self.presetManager.openSavePresetDialog
             )
+
+            # submenu for opening presets
+            try:
+                presets = self.presetManager.presets[
+                    str(self.core.selectedComponents[index])
+                ]
+                self.presetSubmenu = QMenu("Open Preset")
+                self.menu.addMenu(self.presetSubmenu)
+
+                for version, presetName in presets:
+                    menuItem = self.presetSubmenu.addAction(presetName)
+                    menuItem.triggered.connect(
+                        lambda _, presetName=presetName:
+                            self.presetManager.openPreset(presetName)
+                    )
+            except KeyError:
+                pass
+
+            if self.core.selectedComponents[index].currentPreset:
+                menuItem = self.menu.addAction("Clear Preset")
+                menuItem.triggered.connect(
+                    self.presetManager.clearPreset
+                )
+            self.menu.addSeparator()
+
+        # "Add Component" submenu
+        self.submenu = QMenu("Add")
+        self.menu.addMenu(self.submenu)
+        for i, comp in enumerate(self.core.modules):
+            menuItem = self.submenu.addAction(comp.Component.name)
+            menuItem.triggered.connect(
+                lambda _, item=i: self.core.insertComponent(
+                    rowPos, item, self
+                )
+        )
 
         self.menu.move(parentPosition + QPos)
         self.menu.show()

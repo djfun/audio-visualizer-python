@@ -15,16 +15,14 @@ import video_thread
 class Core:
     '''
         MainWindow and Command module both use an instance of this class
-        to store the main program state. This object tracks the components
-        as an instance, has methods for managing the components and for
-        opening/creating project files and presets.
+        to store the core program state. This object tracks the components,
+        talks to the components and handles opening/creating project files
+        and presets. The class also stores constants as class variables.
     '''
 
     @classmethod
     def storeSettings(cls):
-        '''
-            Stores settings/paths to directories as class variables
-        '''
+        '''Store settings/paths to directories as class variables.'''
         if getattr(sys, 'frozen', False):
             # frozen
             wd = os.path.dirname(sys.executable)
