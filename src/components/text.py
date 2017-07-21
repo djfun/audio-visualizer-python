@@ -9,9 +9,8 @@ from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
-    '''Title Text'''
-
-    modified = QtCore.pyqtSignal(int, dict)
+    name = 'Title Text'
+    version = '1.0.0'
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -19,7 +18,7 @@ class Component(Component):
 
     def widget(self, parent):
         self.parent = parent
-        self.settings = self.parent.core.settings
+        self.settings = parent.settings
         height = int(self.settings.value('outputHeight'))
         width = int(self.settings.value('outputWidth'))
 
@@ -106,7 +105,6 @@ class Component(Component):
 
     def savePreset(self):
         return {
-            'preset': self.currentPreset,
             'title': self.title,
             'titleFont': self.titleFont.toString(),
             'alignment': self.alignment,

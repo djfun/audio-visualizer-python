@@ -6,6 +6,7 @@ import subprocess
 import threading
 from queue import PriorityQueue
 
+from core import Core
 from component import Component, BadComponentInit
 from toolkit.frame import BlankFrame
 from toolkit import openPipe, checkOutput
@@ -106,9 +107,8 @@ class Video:
 
 
 class Component(Component):
-    '''Video'''
-
-    modified = QtCore.pyqtSignal(int, dict)
+    name = 'Video'
+    version = '1.0.0'
 
     def widget(self, parent):
         self.parent = parent
@@ -154,8 +154,8 @@ class Component(Component):
         super().update()
 
     def previewRender(self, previewWorker):
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         self.updateChunksize(width, height)
         frame = self.getPreviewFrame(width, height)
         if not frame:
@@ -190,7 +190,7 @@ class Component(Component):
     def testAudioStream(self):
         # test if an audio stream really exists
         audioTestCommand = [
-            self.core.FFMPEG_BIN,
+            Core.FFMPEG_BIN,
             '-i', self.videoPath,
             '-vn', '-f', 'null', '-'
         ]
@@ -209,12 +209,12 @@ class Component(Component):
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         self.blankFrame_ = BlankFrame(width, height)
         self.updateChunksize(width, height)
         self.video = Video(
-            ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
+            ffmpeg=Core.FFMPEG_BIN, videoPath=self.videoPath,
             width=width, height=height, chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, loopVideo=self.loopVideo,
@@ -240,7 +240,6 @@ class Component(Component):
 
     def savePreset(self):
         return {
-            'preset': self.currentPreset,
             'video': self.videoPath,
             'loop': self.loopVideo,
             'useAudio': self.useAudio,
@@ -255,7 +254,7 @@ class Component(Component):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
-            imgDir, "Video Files (%s)" % " ".join(self.core.videoFormats)
+            imgDir, "Video Files (%s)" % " ".join(Core.videoFormats)
         )
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
@@ -298,7 +297,7 @@ class Component(Component):
         if not arg.startswith('preset=') and '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'path' and os.path.exists(arg):
-                if '*%s' % os.path.splitext(arg)[1] in self.core.videoFormats:
+                if '*%s' % os.path.splitext(arg)[1] in Core.videoFormats:
                     self.page.lineEdit_video.setText(arg)
                     self.page.spinBox_scale.setValue(100)
                     self.page.checkBox_loop.setChecked(True)

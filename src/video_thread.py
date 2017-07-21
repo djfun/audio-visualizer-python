@@ -5,9 +5,9 @@
     are emitted to update MainWindow's progress bar, detail text, and preview.
     Export can be cancelled with cancel()
 '''
-from PyQt5 import QtCore, QtGui, uic
+from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from PIL.ImageQt import ImageQt
 import numpy
 import subprocess as sp
@@ -19,6 +19,7 @@ import time
 import signal
 
 from toolkit import openPipe
+from toolkit.ffmpeg import readAudioFile, createFfmpegCommand
 from toolkit.frame import Checkerboard
 
 
@@ -33,7 +34,7 @@ class Worker(QtCore.QObject):
     def __init__(self, parent, inputFile, outputFile, components):
         QtCore.QObject.__init__(self)
         self.core = parent.core
-        self.settings = parent.core.settings
+        self.settings = parent.settings
         self.modules = parent.core.modules
         parent.createVideo.connect(self.createVideo)
 
@@ -133,12 +134,17 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
         self.progressBarSetText.emit("Loading audio file...")
-        self.completeAudioArray, duration = self.core.readAudioFile(
+        audioFileTraits = readAudioFile(
             self.inputFile, self
         )
+        if audioFileTraits is None:
+            self.cancelExport()
+            return
+        self.completeAudioArray, duration = audioFileTraits
 
         self.progressBarUpdate.emit(0)
         self.progressBarSetText.emit("Starting components...")
+        canceledByComponent = False
         print('Loaded Components:', ", ".join([
             "%s) %s" % (num, str(component))
             for num, component in enumerate(reversed(self.components))
@@ -153,14 +159,15 @@ class Worker(QtCore.QObject):
                 progressBarSetText=self.progressBarSetText
             )
 
-            if 'error' in comp.properties():
+            if 'error' in comp.properties:
                 self.cancel()
                 self.canceled = True
+                canceledByComponent = True
                 errMsg = "Component #%s encountered an error!" % compNo \
-                    if comp.error() is None else 'Component #%s (%s): %s' % (
+                    if comp.error is None else 'Component #%s (%s): %s' % (
                         str(compNo),
                         str(comp),
-                        comp.error()
+                        comp.error
                     )
                 self.parent.showMessage(
                         msg=errMsg,
@@ -168,17 +175,16 @@ class Worker(QtCore.QObject):
                         parent=None  # MainWindow is in a different thread
                     )
                 break
-            if 'static' in comp.properties():
+            if 'static' in comp.properties:
                 self.staticComponents[compNo] = \
                     comp.frameRender(compNo, 0).copy()
 
         if self.canceled:
-            print('Export cancelled by component #%s (%s): %s' % (
-                compNo, str(comp), comp.error()
-            ))
-            self.progressBarSetText.emit('Export Canceled')
-            self.encoding.emit(False)
-            self.videoCreated.emit()
+            if canceledByComponent:
+                print('Export cancelled by component #%s (%s): %s' % (
+                    compNo, str(comp), comp.error
+                ))
+            self.cancelExport()
             return
 
         # Merge consecutive static component frames together
@@ -192,8 +198,8 @@ class Worker(QtCore.QObject):
             )
             self.staticComponents[compNo] = None
 
-        ffmpegCommand = self.core.createFfmpegCommand(
-            self.inputFile, self.outputFile, duration
+        ffmpegCommand = createFfmpegCommand(
+            self.inputFile, self.outputFile, self.components, duration
         )
         print('###### FFMPEG COMMAND ######\n%s' % " ".join(ffmpegCommand))
         print('############################')
@@ -280,7 +286,6 @@ class Worker(QtCore.QObject):
                 pass
             self.progressBarUpdate.emit(0)
             self.progressBarSetText.emit('Export Canceled')
-
         else:
             if self.error:
                 print("Export Failed")
@@ -294,6 +299,12 @@ class Worker(QtCore.QObject):
         self.error = False
         self.canceled = False
         self.stopped = True
+        self.encoding.emit(False)
+        self.videoCreated.emit()
+
+    def cancelExport(self):
+        self.progressBarUpdate.emit(0)
+        self.progressBarSetText.emit('Export Canceled')
         self.encoding.emit(False)
         self.videoCreated.emit()
 

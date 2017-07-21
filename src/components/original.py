@@ -12,17 +12,15 @@ from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
-    '''Classic Visualizer'''
+    name = 'Classic Visualizer'
+    version = '1.0.0'
 
-    modified = QtCore.pyqtSignal(int, dict)
-
-    @classmethod
-    def names(cls):
+    def names():
         return ['Original Audio Visualization']
 
     def widget(self, parent):
         self.parent = parent
-        self.settings = self.parent.core.settings
+        self.settings = parent.settings
         self.visColor = (255, 255, 255)
         self.scale = 20
         self.y = 0
@@ -68,7 +66,6 @@ class Component(Component):
 
     def savePreset(self):
         return {
-            'preset': self.currentPreset,
             'layout': self.layout,
             'visColor': self.visColor,
             'scale': self.scale,

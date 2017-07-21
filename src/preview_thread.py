@@ -22,8 +22,8 @@ class Worker(QtCore.QObject):
         parent.newTask.connect(self.createPreviewImage)
         parent.processTask.connect(self.process)
         self.parent = parent
-        self.core = self.parent.core
-        self.settings = self.parent.core.settings
+        self.core = parent.core
+        self.settings = parent.settings
         self.queue = queue
 
         width = int(self.settings.value('outputWidth'))

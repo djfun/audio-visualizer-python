@@ -9,8 +9,8 @@ import os
 import sys
 import time
 
-import core
-from toolkit import LoadDefaultSettings
+from core import Core
+from toolkit import loadDefaultSettings
 
 
 class Command(QtCore.QObject):
@@ -19,7 +19,7 @@ class Command(QtCore.QObject):
 
     def __init__(self):
         QtCore.QObject.__init__(self)
-        self.core = core.Core()
+        self.core = Core()
         self.dataDir = self.core.dataDir
         self.canceled = False
 
@@ -54,8 +54,8 @@ class Command(QtCore.QObject):
             nargs='*', action='append')
 
         self.args = self.parser.parse_args()
-        self.settings = self.core.settings
-        LoadDefaultSettings(self)
+        self.settings = Core.settings
+        loadDefaultSettings(self)
 
         if self.args.projpath:
             projPath = self.args.projpath

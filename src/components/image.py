@@ -2,18 +2,18 @@ from PIL import Image, ImageDraw, ImageEnhance
 from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 
+from core import Core
 from component import Component
 from toolkit.frame import BlankFrame
 
 
 class Component(Component):
-    '''Image'''
-
-    modified = QtCore.pyqtSignal(int, dict)
+    name = 'Image'
+    version = '1.0.0'
 
     def widget(self, parent):
         self.parent = parent
-        self.settings = self.parent.core.settings
+        self.settings = parent.settings
         page = self.loadUi('image.ui')
 
         page.lineEdit_image.textChanged.connect(self.update)
@@ -102,7 +102,6 @@ class Component(Component):
 
     def savePreset(self):
         return {
-            'preset': self.currentPreset,
             'image': self.imagePath,
             'scale': self.scale,
             'color': self.color,
@@ -117,7 +116,7 @@ class Component(Component):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Image", imgDir,
-            "Image Files (%s)" % " ".join(self.core.imageFormats))
+            "Image Files (%s)" % " ".join(Core.imageFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)

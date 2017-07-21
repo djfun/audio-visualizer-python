@@ -15,11 +15,11 @@ class PresetManager(QtWidgets.QDialog):
         self.parent = parent
         self.core = parent.core
         self.settings = parent.settings
-        self.presetDir = self.core.presetDir
+        self.presetDir = parent.presetDir
         if not self.settings.value('presetDir'):
             self.settings.setValue(
                 "presetDir",
-                os.path.join(self.core.dataDir, 'projects'))
+                os.path.join(parent.dataDir, 'projects'))
 
         self.findPresets()
 
@@ -161,7 +161,7 @@ class PresetManager(QtWidgets.QDialog):
                             selectedComponents[index].savePreset()
                         saveValueStore['preset'] = newName
                         componentName = str(selectedComponents[index]).strip()
-                        vers = selectedComponents[index].version()
+                        vers = selectedComponents[index].version
                         self.createNewPreset(
                             componentName, vers, newName,
                             saveValueStore, window=self.parent.window)
@@ -195,13 +195,13 @@ class PresetManager(QtWidgets.QDialog):
 
     def openPreset(self, presetName, compPos=None):
         componentList = self.parent.window.listWidget_componentList
-        selectedComponents = self.parent.core.selectedComponents
+        selectedComponents = self.core.selectedComponents
 
         index = compPos if compPos is not None else componentList.currentRow()
         if index == -1:
             return
         componentName = str(selectedComponents[index]).strip()
-        version = selectedComponents[index].version()
+        version = selectedComponents[index].version
         dirname = os.path.join(self.presetDir, componentName, str(version))
         filepath = os.path.join(dirname, presetName)
         self.core.openPreset(filepath, index, presetName)
@@ -243,6 +243,7 @@ class PresetManager(QtWidgets.QDialog):
             parent=window if window else self.window)
 
     def openRenamePresetDialog(self):
+        # TODO: maintain consistency by changing this to call createNewPreset()
         presetList = self.window.listWidget_presets
         if presetList.currentRow() == -1:
             return
@@ -273,11 +274,12 @@ class PresetManager(QtWidgets.QDialog):
                     os.rename(oldPath, newPath)
                     self.findPresets()
                     self.drawPresetList()
-
                     for i, comp in enumerate(self.core.selectedComponents):
-                        if comp.currentPreset == oldName:
-                            comp.currentPreset = newName
-                            self.parent.updateComponentTitle(i, True)
+                        if toolkit.getPresetDir(comp) == path \
+                                and comp.currentPreset == oldName:
+                            self.core.openPreset(newPath, i, newName)
+                            self.parent.updateComponentTitle(i, False)
+                            self.parent.drawPreview()
             break
 
     def openImportDialog(self):

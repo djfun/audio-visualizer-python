@@ -8,6 +8,13 @@ import sys
 import subprocess
 from collections import OrderedDict
 
+from toolkit.core import *
+
+
+def getPresetDir(comp):
+    '''Get the preset subdirectory for a particular version of a component'''
+    return os.path.join(Core.presetDir, str(comp), str(comp.version))
+
 
 def badName(name):
     '''Returns whether a name contains non-alphanumeric chars'''
@@ -103,8 +110,9 @@ def rgbFromString(string):
         return (255, 255, 255)
 
 
-def LoadDefaultSettings(self):
-    ''' Runs once at each program start-up. Fills in default settings
+def loadDefaultSettings(self):
+    '''
+        Runs once at each program start-up. Fills in default settings
         for any settings not found in settings.ini
     '''
     self.resolutions = [

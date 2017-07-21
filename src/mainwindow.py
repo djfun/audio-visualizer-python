@@ -14,13 +14,17 @@ import signal
 import filecmp
 import time
 
-import core
+from core import Core
 import preview_thread
 from presetmanager import PresetManager
-from toolkit import LoadDefaultSettings, disableWhenEncoding, checkOutput
+from toolkit import loadDefaultSettings, disableWhenEncoding, checkOutput
 
 
 class PreviewWindow(QtWidgets.QLabel):
+    '''
+        Paints the preview QLabel and maintains the aspect ratio when the
+        window is resized.
+    '''
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()
         self.parent = parent
@@ -47,6 +51,14 @@ class PreviewWindow(QtWidgets.QLabel):
 
 
 class MainWindow(QtWidgets.QMainWindow):
+    '''
+        The MainWindow wraps many Core methods in order to update the GUI
+        accordingly. E.g., instead of self.core.openProject(), it will use
+        self.openProject() and update the window titlebar within the wrapper.
+
+        MainWindow manages the autosave feature, although Core has the
+        primary functions for opening and creating project files.
+    '''
 
     createVideo = QtCore.pyqtSignal()
     newTask = QtCore.pyqtSignal(list)  # for the preview window
@@ -57,25 +69,26 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
         self.window = window
-        self.core = core.Core()
+        self.core = Core()
 
         self.pages = []  # widgets of component settings
         self.lastAutosave = time.time()
         self.encoding = False
 
         # Create data directory, load/create settings
-        self.dataDir = self.core.dataDir
+        self.dataDir = Core.dataDir
+        self.presetDir = Core.presetDir
         self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
-        self.settings = self.core.settings
-        LoadDefaultSettings(self)
+        self.settings = Core.settings
+        loadDefaultSettings(self)
         self.presetManager = PresetManager(
             uic.loadUi(
-                os.path.join(self.core.wd, 'presetmanager.ui')), self)
+                os.path.join(Core.wd, 'presetmanager.ui')), self)
 
         if not os.path.exists(self.dataDir):
             os.makedirs(self.dataDir)
         for neededDirectory in (
-          self.core.presetDir, self.settings.value("projectDir")):
+          self.presetDir, self.settings.value("projectDir")):
             if not os.path.exists(neededDirectory):
                 os.mkdir(neededDirectory)
 
@@ -120,7 +133,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         window.pushButton_Cancel.clicked.connect(self.stopVideo)
 
-        for i, container in enumerate(self.core.encoder_options['containers']):
+        for i, container in enumerate(Core.encoderOptions['containers']):
             window.comboBox_videoContainer.addItem(container['name'])
             if container['name'] == self.settings.value('outputContainer'):
                 selectedContainer = i
@@ -160,14 +173,14 @@ class MainWindow(QtWidgets.QMainWindow):
         window.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
 
         self.previewWindow = PreviewWindow(self, os.path.join(
-            self.core.wd, "background.png"))
+            Core.wd, "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
         # Make component buttons
         self.compMenu = QMenu()
         self.compActions = []
         for i, comp in enumerate(self.core.modules):
-            action = self.compMenu.addAction(comp.Component.__doc__)
+            action = self.compMenu.addAction(comp.Component.name)
             action.triggered.connect(
                 lambda _, item=i: self.core.insertComponent(0, item, self)
             )
@@ -336,8 +349,14 @@ class MainWindow(QtWidgets.QMainWindow):
             "Ctrl+Down", self.window,
             activated=lambda: self.moveComponent(1)
         )
-        QtWidgets.QShortcut("Ctrl+Home", self.window, self.moveComponentTop)
-        QtWidgets.QShortcut("Ctrl+End", self.window, self.moveComponentBottom)
+        QtWidgets.QShortcut(
+            "Ctrl+Home", self.window,
+            activated=lambda: self.moveComponent('top')
+        )
+        QtWidgets.QShortcut(
+            "Ctrl+End", self.window,
+            activated=lambda: self.moveComponent('bottom')
+        )
         QtWidgets.QShortcut("Ctrl+r", self.window, self.removeComponent)
 
     @QtCore.pyqtSlot()
@@ -389,7 +408,7 @@ class MainWindow(QtWidgets.QMainWindow):
         vCodecWidget.clear()
         aCodecWidget.clear()
 
-        for container in self.core.encoder_options['containers']:
+        for container in Core.encoderOptions['containers']:
             if container['name'] == name:
                 for vCodec in container['video-codecs']:
                     vCodecWidget.addItem(vCodec)
@@ -397,6 +416,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     aCodecWidget.addItem(aCodec)
 
     def updateCodecSettings(self):
+        '''Updates settings.ini to match encoder option widgets'''
         vCodecWidget = self.window.comboBox_videoCodec
         vBitrateWidget = self.window.spinBox_vBitrate
         aBitrateWidget = self.window.spinBox_aBitrate
@@ -416,11 +436,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.currentProject:
             if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
-        elif force or time.time() - self.lastAutosave >= 0.1:
+        elif force or time.time() - self.lastAutosave >= 0.2:
             self.core.createProjectFile(self.autosavePath, self.window)
             self.lastAutosave = time.time()
 
     def autosaveExists(self, identical=True):
+        '''Determines if creating the autosave should be blocked.'''
         try:
             if self.currentProject and os.path.exists(self.autosavePath) \
                 and filecmp.cmp(
@@ -432,6 +453,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return False
 
     def saveProjectChanges(self):
+        '''Overwrites project file with autosave file'''
         try:
             os.remove(self.currentProject)
             os.rename(self.autosavePath, self.currentProject)
@@ -447,7 +469,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.window, "Open Audio File",
-            inputDir, "Audio Files (%s)" % " ".join(self.core.audioFormats))
+            inputDir, "Audio Files (%s)" % " ".join(Core.audioFormats))
 
         if fileName:
             self.settings.setValue("inputDir", os.path.dirname(fileName))
@@ -460,7 +482,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window, "Set Output Video File",
             outputDir,
             "Video Files (%s);; All Files (*)" % " ".join(
-                self.core.videoFormats))
+                Core.videoFormats))
 
         if fileName:
             self.settings.setValue("outputDir", os.path.dirname(fileName))
@@ -587,10 +609,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def showFfmpegCommand(self):
         from textwrap import wrap
-        command = self.core.createFfmpegCommand(
+        from toolkit.ffmpeg import createFfmpegCommand
+        command = createFfmpegCommand(
             self.window.lineEdit_audioFile.text(),
             self.window.lineEdit_outputFile.text(),
-            self.core.getAudioDuration(self.window.lineEdit_audioFile.text())
+            self.core.selectedComponents
         )
         lines = wrap(" ".join(command), 49)
         self.showMessage(
@@ -603,7 +626,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         componentList.insertItem(
             index,
-            self.core.selectedComponents[index].__doc__)
+            self.core.selectedComponents[index].name)
         componentList.setCurrentRow(index)
 
         # connect to signal that adds an asterisk when modified
@@ -632,6 +655,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def moveComponent(self, change):
         '''Moves a component relatively from its current position'''
         componentList = self.window.listWidget_componentList
+        if change == 'top':
+            change = -componentList.currentRow()
+        elif change == 'bottom':
+            change = len(componentList)-componentList.currentRow()-1
         stackedWidget = self.window.stackedWidget
 
         row = componentList.currentRow()
@@ -651,20 +678,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.drawPreview()
 
     @disableWhenEncoding
-    def moveComponentTop(self):
-        componentList = self.window.listWidget_componentList
-        row = -componentList.currentRow()
-        self.moveComponent(row)
-
-    @disableWhenEncoding
-    def moveComponentBottom(self):
-        componentList = self.window.listWidget_componentList
-        row = len(componentList)-componentList.currentRow()-1
-        self.moveComponent(row)
-
-    @disableWhenEncoding
     def dragComponent(self, event):
-        '''Drop event for the component listwidget'''
+        '''Used as Qt drop event for the component listwidget'''
         componentList = self.window.listWidget_componentList
 
         modelIndexes = [

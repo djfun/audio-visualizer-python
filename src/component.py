@@ -1,33 +1,87 @@
 '''
-    Base classes for components to import.
+    Base classes for components to import. Read comments for some documentation
+    on making a valid component.
 '''
 from PyQt5 import uic, QtCore, QtWidgets
 import os
 
+from core import Core
+from toolkit.common import getPresetDir
 
-class Component(QtCore.QObject):
+
+class ComponentMetaclass(type(QtCore.QObject)):
     '''
-        A class for components to inherit. Read comments for documentation
-        on making a valid component. All subclasses must implement this signal:
-            modified = QtCore.pyqtSignal(int, bool)
+        Checks the validity of each Component class imported, and
+        mutates some attributes for easier use by the core program.
+        E.g., takes only major version from version string & decorates methods
+    '''
+    def __new__(cls, name, parents, attrs):
+        # print('Creating %s component' % attrs['name'])
+
+        # Turn certain class methods into properties and classmethods
+        for key in ('error', 'properties', 'audio', 'commandHelp'):
+            if key not in attrs:
+                continue
+            attrs[key] = property(attrs[key])
+
+        for key in ('names'):
+            if key not in attrs:
+                continue
+            attrs[key] = classmethod(key)
+
+        # Turn version string into a number
+        try:
+            if 'version' not in attrs:
+                print(
+                    'No version attribute in %s. Defaulting to 1' %
+                    attrs['name'])
+                attrs['version'] = 1
+            else:
+                attrs['version'] = int(attrs['version'].split('.')[0])
+        except ValueError:
+            print('%s component has an invalid version string:\n%s' % (
+                    attrs['name'], str(attrs['version'])))
+        except KeyError:
+            print('%s component has no version string.' % attrs['name'])
+        else:
+            return super().__new__(cls, name, parents, attrs)
+        quit(1)
+
+
+class Component(QtCore.QObject, metaclass=ComponentMetaclass):
+    '''
+        The base class for components to inherit.
     '''
 
-    def __init__(self, moduleIndex, compPos, core):
+    name = 'Component'
+    version = '1.0.0'
+    # The 1st number (before dot, aka the major version) is used to determine
+    # preset compatibility; the rest is ignored so it can be non-numeric.
+
+    modified = QtCore.pyqtSignal(int, dict)
+    # ^ Signal used to tell core program that the component state changed,
+    # you shouldn't need to use this directly, it is used by self.update()
+
+    def __init__(self, moduleIndex, compPos):
         super().__init__()
         self.currentPreset = None
-        self.canceled = False
         self.moduleIndex = moduleIndex
         self.compPos = compPos
-        self.core = core
+
+        # Stop lengthy processes in response to this variable
+        self.canceled = False
 
     def __str__(self):
-        return self.__doc__
+        return self.__class__.name
 
-    def version(self):
-        '''
-            Change this number to identify new versions of a component
-        '''
-        return 1
+    def __repr__(self):
+        return '%s\n%s\n%s' % (
+            self.__class__.name, str(self.__class__.version), self.savePreset()
+        )
+
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # Properties
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
     def properties(self):
         '''
@@ -43,19 +97,32 @@ class Component(QtCore.QObject):
         '''
         return
 
-    def cancel(self):
+    def audio(self):
         '''
-            Stop any lengthy process in response to this variable
+            Return audio to mix into master as a tuple with two elements:
+            The first element can be:
+                - A string (path to audio file),
+                - Or an object that returns audio data through a pipe
+            The second element must be a dictionary of ffmpeg filters/options
+            to apply to the input stream. See the filter docs for ideas:
+            https://ffmpeg.org/ffmpeg-filters.html
         '''
-        self.canceled = True
 
-    def reset(self):
-        self.canceled = False
+    def names():
+        '''
+            Alternative names for renaming a component between project files.
+        '''
+        return []
+
+    def commandHelp(self):
+        '''Help text as string for this component's commandline arguments'''
+
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # Methods
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
     def update(self):
-        '''
-            Read your widget values from self.page, then call super().update()
-        '''
+        '''Read widget values from self.page, then call super().update()'''
         self.parent.drawPreview()
         saveValueStore = self.savePreset()
         saveValueStore['preset'] = self.currentPreset
@@ -92,7 +159,7 @@ class Component(QtCore.QObject):
         '''
         if arg.startswith('preset='):
             _, preset = arg.split('=', 1)
-            path = os.path.join(self.core.getPresetDir(self), preset)
+            path = os.path.join(getPresetDir(self), preset)
             if not os.path.exists(path):
                 print('Couldn\'t locate preset "%s"' % preset)
                 quit(1)
@@ -106,14 +173,19 @@ class Component(QtCore.QObject):
                 self.__doc__, 'Usage:\n'
                 'Open a preset for this component:\n'
                 '    "preset=Preset Name"')
-            self.commandHelp()
+            print(self.commandHelp)
             quit(0)
 
-    def commandHelp(self):
-        '''Print help text for this Component's commandline arguments'''
-
     def loadUi(self, filename):
-        return uic.loadUi(os.path.join(self.core.componentsPath, filename))
+        '''Load a Qt Designer ui file to use for this component's widget'''
+        return uic.loadUi(os.path.join(Core.componentsPath, filename))
+
+    def cancel(self):
+        '''Stop any lengthy process in response to this variable.'''
+        self.canceled = True
+
+    def reset(self):
+        self.canceled = False
 
     '''
     ### Reference methods for creating a new component
@@ -121,47 +193,34 @@ class Component(QtCore.QObject):
 
     def widget(self, parent):
         self.parent = parent
-        page = self.loadUi('example.ui')
+        self.settings = parent.settings
+        self.page = self.loadUi('example.ui')
         # --- connect widget signals here ---
-        self.page = page
-        return page
+        return self.page
 
     def previewRender(self, previewWorker):
-        width = int(previewWorker.core.settings.value('outputWidth'))
+        width = int(self.settings.value('outputWidth'))
         height = int(previewWorker.core.settings.value('outputHeight'))
-        from frame import BlankFrame
+        from toolkit.frame import BlankFrame
         image = BlankFrame(width, height)
         return image
 
     def frameRender(self, layerNo, frameNo):
         audioArrayIndex = frameNo * self.sampleSize
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
-        from frame import BlankFrame
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
+        from toolkit.frame import BlankFrame
         image = BlankFrame(width, height)
         return image
-
-    def audio(self):
-        \'''
-            Return audio to mix into master as a tuple with two elements:
-            The first element can be:
-                - A string (path to audio file),
-                - Or an object that returns audio data through a pipe
-            The second element must be a dictionary of ffmpeg filters/options
-            to apply to the input stream. See the filter docs for ideas:
-            https://ffmpeg.org/ffmpeg-filters.html
-        \'''
-
-    @classmethod
-    def names(cls):
-        \'''
-            Alternative names for renaming a component between project files.
-        \'''
-        return []
     '''
 
 
 class BadComponentInit(Exception):
+    '''
+        General purpose exception components can raise to indicate
+        a Python issue with e.g., dynamic creation of instances or something.
+        Decorative for now, may have future use for logging.
+    '''
     def __init__(self, arg, name):
         string = '''################################
 Mandatory argument "%s" not specified

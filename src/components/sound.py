@@ -1,14 +1,14 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 
+from core import Core
 from component import Component
 from toolkit.frame import BlankFrame
 
 
 class Component(Component):
-    '''Sound'''
-
-    modified = QtCore.pyqtSignal(int, dict)
+    name = 'Sound'
+    version = '1.0.0'
 
     def widget(self, parent):
         self.parent = parent
@@ -32,8 +32,8 @@ class Component(Component):
         super().update()
 
     def previewRender(self, previewWorker):
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        width = int(self.settings.value('outputWidth'))
+        height = int(self.settings.value('outputHeight'))
         return BlankFrame(width, height)
 
     def preFrameRender(self, **kwargs):
@@ -67,7 +67,7 @@ class Component(Component):
         sndDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Sound", sndDir,
-            "Audio Files (%s)" % " ".join(self.core.audioFormats))
+            "Audio Files (%s)" % " ".join(Core.audioFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_sound.setText(filename)
@@ -101,7 +101,7 @@ class Component(Component):
             key, arg = arg.split('=', 1)
             if key == 'path':
                 if '*%s' % os.path.splitext(arg)[1] \
-                        not in self.core.audioFormats:
+                        not in Core.audioFormats:
                     print("Not a supported audio format")
                     quit(1)
                 self.page.lineEdit_sound.setText(arg)

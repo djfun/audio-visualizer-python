@@ -7,9 +7,7 @@ from PIL.ImageQt import ImageQt
 import sys
 import os
 
-
-class Frame:
-    '''Controller class for all frames.'''
+from toolkit.common import Core
 
 
 class FramePainter(QtGui.QPainter):
@@ -59,7 +57,7 @@ def Checkerboard(width, height):
     '''
     image = FloodFrame(1920, 1080, (0, 0, 0, 0))
     image.paste(Image.open(
-        os.path.join(Frame.core.wd, "background.png")),
+        os.path.join(Core.wd, "background.png")),
         (0, 0)
     )
     image = image.resize((width, height))

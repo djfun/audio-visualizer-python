@@ -10,13 +10,12 @@ from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
-    '''Color'''
-
-    modified = QtCore.pyqtSignal(int, dict)
+    name = 'Color'
+    version = '1.0.0'
 
     def widget(self, parent):
         self.parent = parent
-        self.settings = self.parent.core.settings
+        self.settings = parent.settings
         page = self.loadUi('color.ui')
 
         self.color1 = (0, 0, 0)
@@ -211,7 +210,6 @@ class Component(Component):
 
     def savePreset(self):
         return {
-            'preset': self.currentPreset,
             'color1': self.color1,
             'color2': self.color2,
             'x': self.x,
