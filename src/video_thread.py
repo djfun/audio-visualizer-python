@@ -18,6 +18,7 @@ from threading import Thread, Event
 import time
 import signal
 
+import core
 from toolkit import openPipe
 from toolkit.ffmpeg import readAudioFile, createFfmpegCommand
 from toolkit.frame import Checkerboard
@@ -104,7 +105,8 @@ class Worker(QtCore.QObject):
 
         while not self.stopped:
             audioI, frame = self.previewQueue.get()
-            if time.time() - self.lastPreview >= 0.06 or audioI == 0:
+            if core.Core.windowHasFocus \
+                    and time.time() - self.lastPreview >= 0.06 or audioI == 0:
                 image = Image.alpha_composite(background.copy(), frame)
                 self.imageCreated.emit(QtGui.QImage(ImageQt(image)))
                 self.lastPreview = time.time()
@@ -231,7 +233,8 @@ class Worker(QtCore.QObject):
 
         self.lastPreview = 0.0
         self.previewDispatch = Thread(
-            target=self.previewDispatch, name="Render Dispatch Thread")
+            target=self.previewDispatch, name="Render Dispatch Thread"
+        )
         self.previewDispatch.daemon = True
         self.previewDispatch.start()
 

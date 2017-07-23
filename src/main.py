@@ -2,22 +2,17 @@ from PyQt5 import uic, QtWidgets
 import sys
 import os
 
+from __init__ import wd
+
 
 def main():
-    if getattr(sys, 'frozen', False):
-        # frozen
-        wd = os.path.dirname(sys.executable)
-    else:
-        # unfrozen
-        wd = os.path.dirname(os.path.realpath(__file__))
+    app = QtWidgets.QApplication(sys.argv)
+    app.setApplicationName("audio-visualizer")
 
-    # make local imports work everywhere
-    sys.path.insert(0, wd)
-
+    # Determine mode
     mode = 'GUI'
     if len(sys.argv) > 2:
         mode = 'commandline'
-
     elif len(sys.argv) == 2:
         if sys.argv[1].startswith('-'):
             mode = 'commandline'
@@ -28,11 +23,7 @@ def main():
         # normal gui launch
         proj = None
 
-    print('Starting Audio Visualizer in %s mode' % mode)
-    app = QtWidgets.QApplication(sys.argv)
-    app.setApplicationName("audio-visualizer")
-    # app.setOrganizationName("audio-visualizer")
-
+    # Launch program
     if mode == 'commandline':
         from command import Command
 
@@ -61,9 +52,7 @@ def main():
         signal.signal(signal.SIGINT, main.cleanUp)
         atexit.register(main.cleanUp)
 
-    # applicable to both modes
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     main()

@@ -6,7 +6,8 @@ from PyQt5 import QtCore, QtWidgets
 import string
 import os
 
-import toolkit
+from toolkit import badName
+from core import Core
 
 
 class PresetManager(QtWidgets.QDialog):
@@ -151,7 +152,7 @@ class PresetManager(QtWidgets.QDialog):
                 currentPreset
             )
             if OK:
-                if toolkit.badName(newName):
+                if badName(newName):
                     self.warnMessage(self.parent.window)
                     continue
                 if newName:
@@ -236,7 +237,6 @@ class PresetManager(QtWidgets.QDialog):
         os.remove(filepath)
 
     def warnMessage(self, window=None):
-        print(window)
         self.parent.showMessage(
             msg='Preset names must contain only letters, '
             'numbers, and spaces.',
@@ -272,7 +272,7 @@ class PresetManager(QtWidgets.QDialog):
                 self.presetRows[index][2]
             )
             if OK:
-                if toolkit.badName(newName):
+                if badName(newName):
                     self.warnMessage()
                     continue
                 if newName:
@@ -289,7 +289,7 @@ class PresetManager(QtWidgets.QDialog):
                     self.findPresets()
                     self.drawPresetList()
                     for i, comp in enumerate(self.core.selectedComponents):
-                        if toolkit.getPresetDir(comp) == path \
+                        if getPresetDir(comp) == path \
                                 and comp.currentPreset == oldName:
                             self.core.openPreset(newPath, i, newName)
                             self.parent.updateComponentTitle(i, False)
@@ -338,3 +338,8 @@ class PresetManager(QtWidgets.QDialog):
 
     def clearPresetListSelection(self):
         self.window.listWidget_presets.setCurrentRow(-1)
+
+
+def getPresetDir(comp):
+    '''Get the preset subdir for a particular version of a component'''
+    return os.path.join(Core.presetDir, str(comp), str(comp.version))

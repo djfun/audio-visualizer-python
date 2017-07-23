@@ -17,7 +17,7 @@ import time
 from core import Core
 import preview_thread
 from presetmanager import PresetManager
-from toolkit import loadDefaultSettings, disableWhenEncoding, checkOutput
+from toolkit import disableWhenEncoding, disableWhenOpeningProject, checkOutput
 
 
 class PreviewWindow(QtWidgets.QLabel):
@@ -25,6 +25,7 @@ class PreviewWindow(QtWidgets.QLabel):
         Paints the preview QLabel and maintains the aspect ratio when the
         window is resized.
     '''
+
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()
         self.parent = parent
@@ -49,6 +50,14 @@ class PreviewWindow(QtWidgets.QLabel):
         self.pixmap = QtGui.QPixmap(img)
         self.repaint()
 
+    @QtCore.pyqtSlot(str)
+    def threadError(self, msg):
+        self.parent.showMessage(
+            msg=msg,
+            icon='Warning',
+            parent=self
+        )
+
 
 class MainWindow(QtWidgets.QMainWindow):
     '''
@@ -66,13 +75,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, window, project):
         QtWidgets.QMainWindow.__init__(self)
-
         # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
         self.window = window
         self.core = Core()
 
-        self.pages = []  # widgets of component settings
+        # widgets of component settings
+        self.pages = []
         self.lastAutosave = time.time()
+        # list of previous five autosave times, used to reduce update spam
+        self.autosaveTimes = []
+        self.autosaveCooldown = 0.2
         self.encoding = False
 
         # Create data directory, load/create settings
@@ -80,7 +92,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.presetDir = Core.presetDir
         self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
         self.settings = Core.settings
-        loadDefaultSettings(self)
         self.presetManager = PresetManager(
             uic.loadUi(
                 os.path.join(Core.wd, 'presetmanager.ui')), self)
@@ -92,13 +103,17 @@ class MainWindow(QtWidgets.QMainWindow):
             if not os.path.exists(neededDirectory):
                 os.mkdir(neededDirectory)
 
-        # Make queues/timers for the preview thread
+        # Create the preview window and its thread, queues, and timers
+        self.previewWindow = PreviewWindow(self, os.path.join(
+            Core.wd, "background.png"))
+        window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
+
         self.previewQueue = Queue()
         self.previewThread = QtCore.QThread(self)
         self.previewWorker = preview_thread.Worker(self, self.previewQueue)
+        self.previewWorker.error.connect(self.previewWindow.threadError)
         self.previewWorker.moveToThread(self.previewThread)
         self.previewWorker.imageCreated.connect(self.showPreviewImage)
-        self.previewWorker.error.connect(self.cleanUp)
         self.previewThread.start()
 
         self.timer = QtCore.QTimer(self)
@@ -106,6 +121,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.start(500)
 
         # Begin decorating the window and connecting events
+        self.window.installEventFilter(self)
         componentList = self.window.listWidget_componentList
 
         if sys.platform == 'darwin':
@@ -168,13 +184,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         window.spinBox_vBitrate.setValue(vBitrate)
         window.spinBox_aBitrate.setValue(aBitrate)
-
         window.spinBox_vBitrate.valueChanged.connect(self.updateCodecSettings)
         window.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
-
-        self.previewWindow = PreviewWindow(self, os.path.join(
-            Core.wd, "background.png"))
-        window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
         # Make component buttons
         self.compMenu = QMenu()
@@ -204,7 +215,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         currentRes = str(self.settings.value('outputWidth'))+'x' + \
             str(self.settings.value('outputHeight'))
-        for i, res in enumerate(self.resolutions):
+        for i, res in enumerate(Core.resolutions):
             window.comboBox_resolution.addItem(res)
             if res == currentRes:
                 currentRes = i
@@ -375,6 +386,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.previewThread.quit()
         self.previewThread.wait()
 
+    @disableWhenOpeningProject
     def updateWindowTitle(self):
         appName = 'Audio Visualizer'
         try:
@@ -442,13 +454,29 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings.setValue('outputVideoBitrate', currentVideoBitrate)
         self.settings.setValue('outputAudioBitrate', currentAudioBitrate)
 
+    @disableWhenOpeningProject
     def autosave(self, force=False):
         if not self.currentProject:
             if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
-        elif force or time.time() - self.lastAutosave >= 0.2:
+        elif force or time.time() - self.lastAutosave >= self.autosaveCooldown:
             self.core.createProjectFile(self.autosavePath, self.window)
             self.lastAutosave = time.time()
+            if len(self.autosaveTimes) >= 5:
+                # Do some math to reduce autosave spam. This gives a smooth
+                # curve up to 5 seconds cooldown and maintains that for 30 secs
+                # if a component is continuously updated
+                timeDiff = self.lastAutosave - self.autosaveTimes.pop()
+                if not force and timeDiff >= 1.0 \
+                        and timeDiff <= 10.0:
+                    if self.autosaveCooldown / 4.0 < 0.5:
+                        self.autosaveCooldown += 1.0
+                    self.autosaveCooldown = (
+                            5.0 * (self.autosaveCooldown / 5.0)
+                        ) + (self.autosaveCooldown / 5.0) * 2
+                elif force or timeDiff >= self.autosaveCooldown * 5:
+                    self.autosaveCooldown = 0.2
+            self.autosaveTimes.insert(0, self.lastAutosave)
 
     def autosaveExists(self, identical=True):
         '''Determines if creating the autosave should be blocked.'''
@@ -602,15 +630,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateResolution(self):
         resIndex = int(self.window.comboBox_resolution.currentIndex())
-        res = self.resolutions[resIndex].split('x')
+        res = Core.resolutions[resIndex].split('x')
         self.settings.setValue('outputWidth', res[0])
         self.settings.setValue('outputHeight', res[1])
         self.drawPreview()
 
-    def drawPreview(self, force=False):
+    def drawPreview(self, force=False, **kwargs):
+        '''Use autosave keyword arg to force saving or not saving if needed'''
         self.newTask.emit(self.core.selectedComponents)
         # self.processTask.emit()
-        self.autosave(force)
+        if force or 'autosave' in kwargs:
+            if force or kwargs['autosave']:
+                self.autosave(True)
+        else:
+            self.autosave()
         self.updateWindowTitle()
 
     @QtCore.pyqtSlot(QtGui.QImage)
@@ -685,9 +718,13 @@ class MainWindow(QtWidgets.QMainWindow):
             stackedWidget.insertWidget(newRow, page)
             componentList.setCurrentRow(newRow)
             stackedWidget.setCurrentIndex(newRow)
-            self.drawPreview()
+            self.drawPreview(True)
 
-    def getComponentListRects(self):
+    def getComponentListMousePos(self, position):
+        '''
+        Given a QPos, returns the component index under the mouse cursor
+        or -1 if no component is there.
+        '''
         componentList = self.window.listWidget_componentList
 
         modelIndexes = [
@@ -698,20 +735,23 @@ class MainWindow(QtWidgets.QMainWindow):
             componentList.visualRect(modelIndex)
             for modelIndex in modelIndexes
         ]
-        return rects
+        mousePos = [rect.contains(position) for rect in rects]
+        if not any(mousePos):
+            # Not clicking a component
+            mousePos = -1
+        else:
+            mousePos = mousePos.index(True)
+        return mousePos
 
     @disableWhenEncoding
     def dragComponent(self, event):
         '''Used as Qt drop event for the component listwidget'''
         componentList = self.window.listWidget_componentList
-        rects = self.getComponentListRects()
-
-        rowPos = [rect.contains(event.pos()) for rect in rects]
-        if not any(rowPos):
-            return
-
-        i = rowPos.index(True)
-        change = (componentList.currentRow() - i) * -1
+        mousePos = self.getComponentListMousePos(event.pos())
+        if mousePos > -1:
+            change = (componentList.currentRow() - mousePos) * -1
+        else:
+            change = (componentList.count() - componentList.currentRow() -1)
         self.moveComponent(change)
 
     def changeComponentWidget(self):
@@ -814,9 +854,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings.setValue("projectDir", os.path.dirname(filepath))
         # actually load the project using core method
         self.core.openProject(self, filepath)
-        if self.window.listWidget_componentList.count() == 0:
-            self.drawPreview()
-        self.autosave(True)
+        self.drawPreview(autosave=False)
         self.updateWindowTitle()
 
     def showMessage(self, **kwargs):
@@ -843,20 +881,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def componentContextMenu(self, QPos):
         '''Appears when right-clicking the component list'''
         componentList = self.window.listWidget_componentList
-        index = componentList.currentRow()
-
         self.menu = QMenu()
         parentPosition = componentList.mapToGlobal(QtCore.QPoint(0, 0))
 
-        rects = self.getComponentListRects()
-        rowPos = [rect.contains(QPos) for rect in rects]
-        if not any(rowPos):
-            # Insert components at the top if clicking nothing
-            rowPos = 0
-        else:
-            rowPos = rowPos.index(True)
-
-        if index == rowPos:
+        index = self.getComponentListMousePos(QPos)
+        if index > -1:
             # Show preset menu if clicking a component
             self.presetManager.findPresets()
             menuItem = self.menu.addAction("Save Preset")
@@ -891,13 +920,23 @@ class MainWindow(QtWidgets.QMainWindow):
         # "Add Component" submenu
         self.submenu = QMenu("Add")
         self.menu.addMenu(self.submenu)
+        insertCompAtTop = self.settings.value("pref_insertCompAtTop")
         for i, comp in enumerate(self.core.modules):
             menuItem = self.submenu.addAction(comp.Component.name)
             menuItem.triggered.connect(
                 lambda _, item=i: self.core.insertComponent(
-                    rowPos, item, self
+                    0 if insertCompAtTop else index, item, self
                 )
-        )
+            )
 
         self.menu.move(parentPosition + QPos)
         self.menu.show()
+
+    def eventFilter(self, object, event):
+        if event.type() == QtCore.QEvent.WindowActivate \
+                or event.type() == QtCore.QEvent.FocusIn:
+            Core.windowHasFocus = True
+        elif event.type()== QtCore.QEvent.WindowDeactivate \
+                or event.type() == QtCore.QEvent.FocusOut:
+                    Core.windowHasFocus = False
+        return False

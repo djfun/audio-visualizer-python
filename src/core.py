@@ -1,5 +1,6 @@
 '''
    Home to the Core class which tracks program state. Used by GUI & commandline
+   to create a list of components and create a video thread to export.
 '''
 from PyQt5 import QtCore, QtGui, uic
 import sys
@@ -8,7 +9,6 @@ import json
 from importlib import import_module
 
 import toolkit
-from toolkit.ffmpeg import findFfmpeg
 import video_thread
 
 
@@ -16,82 +16,21 @@ class Core:
     '''
         MainWindow and Command module both use an instance of this class
         to store the core program state. This object tracks the components,
-        talks to the components and handles opening/creating project files
-        and presets. The class also stores constants as class variables.
+        talks to the components, handles opening/creating project files
+        and presets, and creates the video thread to export.
+        This class also stores constants as class variables.
     '''
 
-    @classmethod
-    def storeSettings(cls):
-        '''Store settings/paths to directories as class variables.'''
-        if getattr(sys, 'frozen', False):
-            # frozen
-            wd = os.path.dirname(sys.executable)
-        else:
-            wd = os.path.dirname(os.path.realpath(__file__))
-
-        dataDir = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.AppConfigLocation
-        )
-        with open(os.path.join(wd, 'encoder-options.json')) as json_file:
-            encoderOptions = json.load(json_file)
-
-        settings = {
-            'wd': wd,
-            'dataDir': dataDir,
-            'settings': QtCore.QSettings(
-                            os.path.join(dataDir, 'settings.ini'),
-                            QtCore.QSettings.IniFormat),
-            'presetDir': os.path.join(dataDir, 'presets'),
-            'componentsPath': os.path.join(wd, 'components'),
-            'encoderOptions': encoderOptions,
-            'FFMPEG_BIN': findFfmpeg(),
-            'canceled': False,
-        }
-
-        settings['videoFormats'] = toolkit.appendUppercase([
-            '*.mp4',
-            '*.mov',
-            '*.mkv',
-            '*.avi',
-            '*.webm',
-            '*.flv',
-        ])
-        settings['audioFormats'] = toolkit.appendUppercase([
-            '*.mp3',
-            '*.wav',
-            '*.ogg',
-            '*.fla',
-            '*.flac',
-            '*.aac',
-        ])
-        settings['imageFormats'] = toolkit.appendUppercase([
-            '*.png',
-            '*.jpg',
-            '*.tif',
-            '*.tiff',
-            '*.gif',
-            '*.bmp',
-            '*.ico',
-            '*.xbm',
-            '*.xpm',
-        ])
-
-        # Register all settings as class variables
-        for classvar, val in settings.items():
-            setattr(cls, classvar, val)
-        # Make settings accessible to the toolkit package
-        toolkit.init(settings)
-
     def __init__(self):
-        Core.storeSettings()
-
         self.findComponents()
         self.selectedComponents = []
         self.savedPresets = {}  # copies of presets to detect modification
+        self.openingProject = False
 
     def findComponents(self):
+        '''Imports all the component modules'''
         def findComponents():
-            for f in sorted(os.listdir(Core.componentsPath)):
+            for f in os.listdir(Core.componentsPath):
                 name, ext = os.path.splitext(f)
                 if name.startswith("__"):
                     continue
@@ -104,8 +43,13 @@ class Core:
         # store canonical module names and indexes
         self.moduleIndexes = [i for i in range(len(self.modules))]
         self.compNames = [mod.Component.name for mod in self.modules]
-        self.altCompNames = []
+        # alphabetize modules by Component name
+        sortedModules = sorted(zip(self.compNames, self.modules))
+        self.compNames = [y[0] for y in sortedModules]
+        self.modules = [y[1] for y in sortedModules]
+
         # store alternative names for modules
+        self.altCompNames = []
         for i, mod in enumerate(self.modules):
             if hasattr(mod.Component, 'names'):
                 for name in mod.Component.names():
@@ -116,14 +60,17 @@ class Core:
             component.compPos = i
 
     def insertComponent(self, compPos, moduleIndex, loader):
-        '''Creates a new component'''
+        '''
+            Creates a new component using these args:
+            (compPos, moduleIndex in self.modules, MWindow/Command/Core obj)
+        '''
         if compPos < 0 or compPos > len(self.selectedComponents):
             compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
             return None
 
         component = self.modules[moduleIndex].Component(
-            moduleIndex, compPos
+            moduleIndex, compPos, self
         )
         self.selectedComponents.insert(
             compPos,
@@ -206,6 +153,7 @@ class Core:
 
         errcode, data = self.parseAvFile(filepath)
         if errcode == 0:
+            self.openingProject = True
             try:
                 if hasattr(loader, 'window'):
                     for widget, value in data['WindowFields']:
@@ -239,7 +187,8 @@ class Core:
                     i = self.insertComponent(
                         -1,
                         self.moduleIndexFor(name),
-                        loader)
+                        loader
+                    )
                     if i is None:
                         loader.showMessage(msg="Too many components!")
                         break
@@ -284,6 +233,7 @@ class Core:
                 showCancel=False,
                 icon='Warning',
                 detail=msg)
+        self.openingProject = False
 
     def parseAvFile(self, filepath):
         '''Parses an avp (project) or avl (preset package) file.
@@ -467,8 +417,106 @@ class Core:
 
     def cancel(self):
         Core.canceled = True
-        toolkit.cancel()
 
     def reset(self):
         Core.canceled = False
-        toolkit.reset()
+
+    @classmethod
+    def storeSettings(cls):
+        '''Store settings/paths to directories as class variables'''
+        from __init__ import wd
+        from toolkit.ffmpeg import findFfmpeg
+
+        cls.wd = wd
+        dataDir = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.AppConfigLocation
+        )
+        with open(os.path.join(wd, 'encoder-options.json')) as json_file:
+            encoderOptions = json.load(json_file)
+
+        settings = {
+            'dataDir': dataDir,
+            'settings': QtCore.QSettings(
+                            os.path.join(dataDir, 'settings.ini'),
+                            QtCore.QSettings.IniFormat),
+            'presetDir': os.path.join(dataDir, 'presets'),
+            'componentsPath': os.path.join(wd, 'components'),
+            'encoderOptions': encoderOptions,
+            'resolutions': [
+                '1920x1080',
+                '1280x720',
+                '854x480',
+            ],
+            'windowHasFocus': False,
+            'FFMPEG_BIN': findFfmpeg(),
+            'canceled': False,
+        }
+
+        settings['videoFormats'] = toolkit.appendUppercase([
+            '*.mp4',
+            '*.mov',
+            '*.mkv',
+            '*.avi',
+            '*.webm',
+            '*.flv',
+        ])
+        settings['audioFormats'] = toolkit.appendUppercase([
+            '*.mp3',
+            '*.wav',
+            '*.ogg',
+            '*.fla',
+            '*.flac',
+            '*.aac',
+        ])
+        settings['imageFormats'] = toolkit.appendUppercase([
+            '*.png',
+            '*.jpg',
+            '*.tif',
+            '*.tiff',
+            '*.gif',
+            '*.bmp',
+            '*.ico',
+            '*.xbm',
+            '*.xpm',
+        ])
+
+        # Register all settings as class variables
+        for classvar, val in settings.items():
+            setattr(cls, classvar, val)
+
+        cls.loadDefaultSettings()
+
+    @classmethod
+    def loadDefaultSettings(cls):
+        defaultSettings = {
+            "outputWidth": 1280,
+            "outputHeight": 720,
+            "outputFrameRate": 30,
+            "outputAudioCodec": "AAC",
+            "outputAudioBitrate": "192",
+            "outputVideoCodec": "H264",
+            "outputVideoBitrate": "2500",
+            "outputVideoFormat": "yuv420p",
+            "outputPreset": "medium",
+            "outputFormat": "mp4",
+            "outputContainer": "MP4",
+            "projectDir": os.path.join(cls.dataDir, 'projects'),
+            "pref_insertCompAtTop": True,
+        }
+
+        for parm, value in defaultSettings.items():
+            if cls.settings.value(parm) is None:
+                cls.settings.setValue(parm, value)
+
+        # Allow manual editing of prefs. (Surprisingly necessary as Qt seems to
+        # store True as 'true' but interprets a manually-added 'true' as str.)
+        for key in cls.settings.allKeys():
+            if not key.startswith('pref_'):
+                continue
+            val = cls.settings.value(key)
+            if val in ('true', 'false'):
+                cls.settings.setValue(key, True if val == 'true' else False)
+
+
+# always store settings in class variables even if a Core object is not created
+Core.storeSettings()

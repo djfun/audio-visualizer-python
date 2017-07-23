@@ -10,12 +10,13 @@ from queue import Queue, Empty
 import os
 
 from toolkit.frame import Checkerboard
+from toolkit import disableWhenOpeningProject
 
 
 class Worker(QtCore.QObject):
 
     imageCreated = pyqtSignal(QtGui.QImage)
-    error = pyqtSignal()
+    error = pyqtSignal(str)
 
     def __init__(self, parent=None, queue=None):
         QtCore.QObject.__init__(self)
@@ -30,6 +31,7 @@ class Worker(QtCore.QObject):
         height = int(self.settings.value('outputHeight'))
         self.background = Checkerboard(width, height)
 
+    @disableWhenOpeningProject
     @pyqtSlot(list)
     def createPreviewImage(self, components):
         dic = {
@@ -48,7 +50,6 @@ class Worker(QtCore.QObject):
                     self.queue.get(block=False)
                 except Empty:
                     continue
-
             if self.background.width != width \
                     or self.background.height != height:
                 self.background = Checkerboard(width, height)
@@ -65,20 +66,12 @@ class Worker(QtCore.QObject):
 
                 except ValueError as e:
                     errMsg = "Bad frame returned by %s's preview renderer. " \
-                        "%s. New frame size was %s*%s; should be %s*%s. " \
-                        "This is a fatal error." % (
+                        "%s. New frame size was %s*%s; should be %s*%s." % (
                             str(component), str(e).capitalize(),
                             newFrame.width, newFrame.height,
                             width, height
                         )
-                    print(errMsg)
-                    self.parent.showMessage(
-                        msg=errMsg,
-                        detail=str(e),
-                        icon='Warning',
-                        parent=None  # MainWindow is in a different thread
-                    )
-                    self.error.emit()
+                    self.error.emit(errMsg)
                     break
                 except RuntimeError as e:
                     print(e)

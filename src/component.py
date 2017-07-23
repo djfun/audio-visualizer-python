@@ -5,8 +5,28 @@
 from PyQt5 import uic, QtCore, QtWidgets
 import os
 
-from core import Core
-from toolkit.common import getPresetDir
+from presetmanager import getPresetDir
+
+
+def commandWrapper(func):
+    '''Intercepts each component's command() method to check for global args'''
+    def decorator(self, arg):
+        if arg.startswith('preset='):
+            _, preset = arg.split('=', 1)
+            path = os.path.join(getPresetDir(self), preset)
+            if not os.path.exists(path):
+                print('Couldn\'t locate preset "%s"' % preset)
+                quit(1)
+            else:
+                print('Opening "%s" preset on layer %s' % (
+                    preset, self.compPos)
+                )
+                self.core.openPreset(path, self.compPos, preset)
+                # Don't call the component's command() method
+                return
+        else:
+            return func(self, arg)
+    return decorator
 
 
 class ComponentMetaclass(type(QtCore.QObject)):
@@ -16,10 +36,14 @@ class ComponentMetaclass(type(QtCore.QObject)):
         E.g., takes only major version from version string & decorates methods
     '''
     def __new__(cls, name, parents, attrs):
-        # print('Creating %s component' % attrs['name'])
+        if 'ui' not in attrs:
+            # use module name as ui filename by default
+            attrs['ui'] = '%s.ui' % os.path.splitext(
+                    attrs['__module__'].split('.')[-1]
+                )[0]
 
         # Turn certain class methods into properties and classmethods
-        for key in ('error', 'properties', 'audio', 'commandHelp'):
+        for key in ('error', 'properties', 'audio'):
             if key not in attrs:
                 continue
             attrs[key] = property(attrs[key])
@@ -28,6 +52,10 @@ class ComponentMetaclass(type(QtCore.QObject)):
             if key not in attrs:
                 continue
             attrs[key] = classmethod(key)
+
+        # Do not apply these mutations to the base class
+        if parents[0] != QtCore.QObject:
+            attrs['command'] = commandWrapper(attrs['command'])
 
         # Turn version string into a number
         try:
@@ -54,19 +82,24 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     '''
 
     name = 'Component'
+    # ui = 'nameOfNonDefaultUiFile'
     version = '1.0.0'
-    # The 1st number (before dot, aka the major version) is used to determine
+    # The major version (before the first dot) is used to determine
     # preset compatibility; the rest is ignored so it can be non-numeric.
 
     modified = QtCore.pyqtSignal(int, dict)
     # ^ Signal used to tell core program that the component state changed,
     # you shouldn't need to use this directly, it is used by self.update()
 
-    def __init__(self, moduleIndex, compPos):
+    def __init__(self, moduleIndex, compPos, core):
         super().__init__()
-        self.currentPreset = None
         self.moduleIndex = moduleIndex
         self.compPos = compPos
+        self.core = core
+        self.currentPreset = None
+
+        self._trackedWidgets = {}
+        self._presetNames = {}
 
         # Stop lengthy processes in response to this variable
         self.canceled = False
@@ -114,28 +147,103 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
         return []
 
-    def commandHelp(self):
-        '''Help text as string for this component's commandline arguments'''
-
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-    def update(self):
-        '''Read widget values from self.page, then call super().update()'''
-        self.parent.drawPreview()
-        saveValueStore = self.savePreset()
-        saveValueStore['preset'] = self.currentPreset
-        self.modified.emit(self.compPos, saveValueStore)
-
-    def loadPreset(self, presetDict, presetName):
+    def widget(self, parent):
         '''
-            Subclasses take (presetDict, presetName=None) as args.
-            Must use super().loadPreset(presetDict, presetName) first,
+            Call super().widget(*args) to create the component widget
+            which also auto-connects any common widgets (e.g., checkBoxes)
+            to self.update(). Then in a subclass connect special actions
+            (e.g., pushButtons to select a file/colour) and initialize
+        '''
+        self.parent = parent
+        self.settings = parent.settings
+        self.page = self.loadUi(self.__class__.ui)
+
+        # Connect widget signals
+        widgets = {
+            'lineEdit': self.page.findChildren(QtWidgets.QLineEdit),
+            'checkBox': self.page.findChildren(QtWidgets.QCheckBox),
+            'spinBox': self.page.findChildren(QtWidgets.QSpinBox),
+            'comboBox': self.page.findChildren(QtWidgets.QComboBox),
+        }
+        widgets['spinBox'].extend(
+            self.page.findChildren(QtWidgets.QDoubleSpinBox)
+        )
+        for widget in widgets['lineEdit']:
+            widget.textChanged.connect(self.update)
+        for widget in widgets['checkBox']:
+            widget.stateChanged.connect(self.update)
+        for widget in widgets['spinBox']:
+            widget.valueChanged.connect(self.update)
+        for widget in widgets['comboBox']:
+            widget.currentIndexChanged.connect(self.update)
+
+    def trackWidgets(self, trackDict, presetNames=None):
+        '''
+            Name widgets to track in update(), savePreset(), and loadPreset()
+            Accepts a dict with attribute names as keys and widgets as values.
+            Optional: a dict of attribute names to map to preset variable names
+        '''
+        self._trackedWidgets = trackDict
+        if type(presetNames) is dict:
+            self._presetNames = presetNames
+
+    def update(self):
+        '''
+            Reads all tracked widget values into instance attributes
+            and tells the MainWindow that the component was modified.
+            Call at the END of your method if you need to subclass this.
+        '''
+        for attr, widget in self._trackedWidgets.items():
+            if type(widget) == QtWidgets.QLineEdit:
+                setattr(self, attr, widget.text())
+            elif type(widget) == QtWidgets.QSpinBox \
+                    or type(widget) == QtWidgets.QDoubleSpinBox:
+                setattr(self, attr, widget.value())
+            elif type(widget) == QtWidgets.QCheckBox:
+                setattr(self, attr, widget.isChecked())
+            elif type(widget) == QtWidgets.QComboBox:
+                setattr(self, attr, widget.currentIndex())
+        if not self.core.openingProject:
+            self.parent.drawPreview()
+            saveValueStore = self.savePreset()
+            saveValueStore['preset'] = self.currentPreset
+            self.modified.emit(self.compPos, saveValueStore)
+
+    def loadPreset(self, presetDict, presetName=None):
+        '''
+            Subclasses should take (presetDict, *args) as args.
+            Must use super().loadPreset(presetDict, *args) first,
             then update self.page widgets using the preset dict.
         '''
         self.currentPreset = presetName \
             if presetName is not None else presetDict['preset']
+        for attr, widget in self._trackedWidgets.items():
+            val = presetDict[
+                attr if attr not in self._presetNames
+                else self._presetNames[attr]
+            ]
+            if type(widget) == QtWidgets.QLineEdit:
+                widget.setText(val)
+            elif type(widget) == QtWidgets.QSpinBox \
+                    or type(widget) == QtWidgets.QDoubleSpinBox:
+                widget.setValue(val)
+            elif type(widget) == QtWidgets.QCheckBox:
+                widget.setChecked(val)
+            elif type(widget) == QtWidgets.QComboBox:
+                widget.setCurrentIndex(val)
+
+    def savePreset(self):
+        saveValueStore = {}
+        for attr, widget in self._trackedWidgets.items():
+            saveValueStore[
+                attr if attr not in self._presetNames
+                else self._presetNames[attr]
+            ] = getattr(self, attr)
+        return saveValueStore
 
     def preFrameRender(self, **kwargs):
         '''
@@ -151,34 +259,27 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def command(self, arg):
+    def commandHelp(self):
+        '''Help text as string for this component's commandline arguments'''
+
+    def command(self, arg=''):
         '''
-            Configure a component using argument from the commandline.
-            Use super().command(arg) at the end of a subclass's method,
-            if no arguments are found in that method first
+            Configure a component using an arg from the commandline. This is
+            never called if global args like 'preset=' are found in the arg.
+            So simply check for any non-global args in your component and
+            call super().command() at the end to get a Help message.
         '''
-        if arg.startswith('preset='):
-            _, preset = arg.split('=', 1)
-            path = os.path.join(getPresetDir(self), preset)
-            if not os.path.exists(path):
-                print('Couldn\'t locate preset "%s"' % preset)
-                quit(1)
-            else:
-                print('Opening "%s" preset on layer %s' % (
-                    preset, self.compPos)
-                )
-                self.core.openPreset(path, self.compPos, preset)
-        else:
-            print(
-                self.__doc__, 'Usage:\n'
-                'Open a preset for this component:\n'
-                '    "preset=Preset Name"')
-            print(self.commandHelp)
-            quit(0)
+        print(
+            self.__class__.name, 'Usage:\n'
+            'Open a preset for this component:\n'
+            '    "preset=Preset Name"'
+        )
+        self.commandHelp()
+        quit(0)
 
     def loadUi(self, filename):
         '''Load a Qt Designer ui file to use for this component's widget'''
-        return uic.loadUi(os.path.join(Core.componentsPath, filename))
+        return uic.loadUi(os.path.join(self.core.componentsPath, filename))
 
     def cancel(self):
         '''Stop any lengthy process in response to this variable.'''
@@ -191,16 +292,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     ### Reference methods for creating a new component
     ### (Inherit from this class and define these)
 
-    def widget(self, parent):
-        self.parent = parent
-        self.settings = parent.settings
-        self.page = self.loadUi('example.ui')
-        # --- connect widget signals here ---
-        return self.page
-
     def previewRender(self, previewWorker):
         width = int(self.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
+        height = int(self.settings.value('outputHeight'))
         from toolkit.frame import BlankFrame
         image = BlankFrame(width, height)
         return image
@@ -217,7 +311,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
 class BadComponentInit(Exception):
     '''
-        General purpose exception components can raise to indicate
+        General purpose exception that components can raise to indicate
         a Python issue with e.g., dynamic creation of instances or something.
         Decorative for now, may have future use for logging.
     '''

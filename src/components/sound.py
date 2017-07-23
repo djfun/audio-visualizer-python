@@ -10,26 +10,15 @@ class Component(Component):
     name = 'Sound'
     version = '1.0.0'
 
-    def widget(self, parent):
-        self.parent = parent
-        self.settings = parent.settings
-        page = self.loadUi('sound.ui')
-
-        page.lineEdit_sound.textChanged.connect(self.update)
-        page.pushButton_sound.clicked.connect(self.pickSound)
-        page.checkBox_chorus.stateChanged.connect(self.update)
-        page.spinBox_delay.valueChanged.connect(self.update)
-        page.spinBox_volume.valueChanged.connect(self.update)
-
-        self.page = page
-        return page
-
-    def update(self):
-        self.sound = self.page.lineEdit_sound.text()
-        self.delay = self.page.spinBox_delay.value()
-        self.volume = self.page.spinBox_volume.value()
-        self.chorus = self.page.checkBox_chorus.isChecked()
-        super().update()
+    def widget(self, *args):
+        super().widget(*args)
+        self.page.pushButton_sound.clicked.connect(self.pickSound)
+        self.trackWidgets({
+            'sound': self.page.lineEdit_sound,
+            'chorus': self.page.checkBox_chorus,
+            'delay': self.page.spinBox_delay,
+            'volume': self.page.spinBox_volume,
+        })
 
     def previewRender(self, previewWorker):
         width = int(self.settings.value('outputWidth'))
@@ -67,7 +56,7 @@ class Component(Component):
         sndDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Sound", sndDir,
-            "Audio Files (%s)" % " ".join(Core.audioFormats))
+            "Audio Files (%s)" % " ".join(self.core.audioFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_sound.setText(filename)
@@ -78,30 +67,15 @@ class Component(Component):
         height = int(self.settings.value('outputHeight'))
         return BlankFrame(width, height)
 
-    def loadPreset(self, pr, presetName=None):
-        super().loadPreset(pr, presetName)
-        self.page.lineEdit_sound.setText(pr['sound'])
-        self.page.checkBox_chorus.setChecked(pr['chorus'])
-        self.page.spinBox_delay.setValue(pr['delay'])
-        self.page.spinBox_volume.setValue(pr['volume'])
-
-    def savePreset(self):
-        return {
-            'sound': self.sound,
-            'chorus': self.chorus,
-            'delay': self.delay,
-            'volume': self.volume,
-        }
-
     def commandHelp(self):
         print('Path to audio file:\n    path=/filepath/to/sound.ogg')
 
     def command(self, arg):
-        if not arg.startswith('preset=') and '=' in arg:
+        if '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'path':
                 if '*%s' % os.path.splitext(arg)[1] \
-                        not in Core.audioFormats:
+                        not in self.core.audioFormats:
                     print("Not a supported audio format")
                     quit(1)
                 self.page.lineEdit_sound.setText(arg)

@@ -4,18 +4,19 @@
 import numpy
 import sys
 import os
-import subprocess as sp
+import subprocess
 
-from toolkit.common import Core, checkOutput, openPipe
+import core
+from toolkit.common import checkOutput, openPipe
 
 
 def findFfmpeg():
     if getattr(sys, 'frozen', False):
         # The application is frozen
         if sys.platform == "win32":
-            return os.path.join(Core.wd, 'ffmpeg.exe')
+            return os.path.join(core.Core.wd, 'ffmpeg.exe')
         else:
-            return os.path.join(Core.wd, 'ffmpeg')
+            return os.path.join(core.Core.wd, 'ffmpeg')
 
     else:
         if sys.platform == "win32":
@@ -27,7 +28,7 @@ def findFfmpeg():
                         ['ffmpeg', '-version'], stderr=f
                     )
                 return "ffmpeg"
-            except sp.CalledProcessError:
+            except subprocess.CalledProcessError:
                 return "avconv"
 
 
@@ -37,9 +38,9 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
     '''
     if duration == -1:
         duration = getAudioDuration(inputFile)
-
     safeDuration = "{0:.3f}".format(duration - 0.05)  # used by filters
     duration = "{0:.3f}".format(duration + 0.1)  # used by input sources
+    Core = core.Core
 
     # Test if user has libfdk_aac
     encoders = checkOutput(
@@ -213,12 +214,28 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
     return ffmpegCommand
 
 
+def testAudioStream(filename):
+    '''Test if an audio stream definitely exists'''
+    audioTestCommand = [
+        core.Core.FFMPEG_BIN,
+        '-i', filename,
+        '-vn', '-f', 'null', '-'
+    ]
+    try:
+        checkOutput(audioTestCommand, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        return True
+    else:
+        return False
+
+
 def getAudioDuration(filename):
-    command = [Core.FFMPEG_BIN, '-i', filename]
+    '''Try to get duration of audio file as float, or False if not possible'''
+    command = [core.Core.FFMPEG_BIN, '-i', filename]
 
     try:
-        fileInfo = checkOutput(command, stderr=sp.STDOUT)
-    except sp.CalledProcessError as ex:
+        fileInfo = checkOutput(command, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as ex:
         fileInfo = ex.output
 
     info = fileInfo.decode("utf-8").split('\n')
@@ -236,13 +253,17 @@ def getAudioDuration(filename):
 
 
 def readAudioFile(filename, parent):
+    '''
+        Creates the completeAudioArray given to components
+        and used to draw the classic visualizer.
+    '''
     duration = getAudioDuration(filename)
     if not duration:
         print('Audio file doesn\'t exist or unreadable.')
         return
 
     command = [
-        Core.FFMPEG_BIN,
+        core.Core.FFMPEG_BIN,
         '-i', filename,
         '-f', 's16le',
         '-acodec', 'pcm_s16le',
@@ -250,7 +271,8 @@ def readAudioFile(filename, parent):
         '-ac', '1',  # mono (set to '2' for stereo)
         '-']
     in_pipe = openPipe(
-        command, stdout=sp.PIPE, stderr=sp.DEVNULL, bufsize=10**8
+        command,
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**8
     )
 
     completeAudioArray = numpy.empty(0, dtype="int16")
@@ -258,7 +280,7 @@ def readAudioFile(filename, parent):
     progress = 0
     lastPercent = None
     while True:
-        if Core.canceled:
+        if core.Core.canceled:
             return
         # read 2 seconds of audio
         progress += 4

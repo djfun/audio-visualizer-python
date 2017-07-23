@@ -10,7 +10,6 @@ import sys
 import time
 
 from core import Core
-from toolkit import loadDefaultSettings
 
 
 class Command(QtCore.QObject):
@@ -55,7 +54,6 @@ class Command(QtCore.QObject):
 
         self.args = self.parser.parse_args()
         self.settings = Core.settings
-        loadDefaultSettings(self)
 
         if self.args.projpath:
             projPath = self.args.projpath

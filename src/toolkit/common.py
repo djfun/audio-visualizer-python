@@ -8,13 +8,6 @@ import sys
 import subprocess
 from collections import OrderedDict
 
-from toolkit.core import *
-
-
-def getPresetDir(comp):
-    '''Get the preset subdirectory for a particular version of a component'''
-    return os.path.join(Core.presetDir, str(comp), str(comp.version))
-
 
 def badName(name):
     '''Returns whether a name contains non-alphanumeric chars'''
@@ -66,14 +59,20 @@ def openPipe(commandList, **kwargs):
 
 
 def disableWhenEncoding(func):
-    ''' Blocks calls to a function while the video is being exported
-        in MainWindow.
-    '''
-    def decorator(*args, **kwargs):
-        if args[0].encoding:
+    def decorator(self, *args, **kwargs):
+        if self.encoding:
             return
         else:
-            return func(*args, **kwargs)
+            return func(self, *args, **kwargs)
+    return decorator
+
+
+def disableWhenOpeningProject(func):
+    def decorator(self, *args, **kwargs):
+        if self.core.openingProject:
+            return
+        else:
+            return func(self, *args, **kwargs)
     return decorator
 
 
@@ -108,34 +107,3 @@ def rgbFromString(string):
         return tup
     except:
         return (255, 255, 255)
-
-
-def loadDefaultSettings(self):
-    '''
-        Runs once at each program start-up. Fills in default settings
-        for any settings not found in settings.ini
-    '''
-    self.resolutions = [
-        '1920x1080',
-        '1280x720',
-        '854x480'
-    ]
-
-    default = {
-        "outputWidth": 1280,
-        "outputHeight": 720,
-        "outputFrameRate": 30,
-        "outputAudioCodec": "AAC",
-        "outputAudioBitrate": "192",
-        "outputVideoCodec": "H264",
-        "outputVideoBitrate": "2500",
-        "outputVideoFormat": "yuv420p",
-        "outputPreset": "medium",
-        "outputFormat": "mp4",
-        "outputContainer": "MP4",
-        "projectDir": os.path.join(self.dataDir, 'projects'),
-    }
-
-    for parm, value in default.items():
-        if self.settings.value(parm) is None:
-            self.settings.setValue(parm, value)

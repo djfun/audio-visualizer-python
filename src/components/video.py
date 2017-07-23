@@ -9,6 +9,7 @@ from queue import PriorityQueue
 from core import Core
 from component import Component, BadComponentInit
 from toolkit.frame import BlankFrame
+from toolkit.ffmpeg import testAudioStream
 from toolkit import openPipe, checkOutput
 
 
@@ -16,7 +17,7 @@ class Video:
     '''Video Component Frame-Fetcher'''
     def __init__(self, **kwargs):
         mandatoryArgs = [
-            'ffmpeg',     # path to ffmpeg, usually Core.FFMPEG_BIN
+            'ffmpeg',     # path to ffmpeg, usually self.core.FFMPEG_BIN
             'videoPath',
             'width',
             'height',
@@ -110,47 +111,40 @@ class Component(Component):
     name = 'Video'
     version = '1.0.0'
 
-    def widget(self, parent):
-        self.parent = parent
-        self.settings = parent.settings
-        page = self.loadUi('video.ui')
+    def widget(self, *args):
         self.videoPath = ''
         self.badVideo = False
         self.badAudio = False
         self.x = 0
         self.y = 0
         self.loopVideo = False
-
-        page.lineEdit_video.textChanged.connect(self.update)
-        page.pushButton_video.clicked.connect(self.pickVideo)
-        page.checkBox_loop.stateChanged.connect(self.update)
-        page.checkBox_distort.stateChanged.connect(self.update)
-        page.checkBox_useAudio.stateChanged.connect(self.update)
-        page.spinBox_scale.valueChanged.connect(self.update)
-        page.spinBox_volume.valueChanged.connect(self.update)
-        page.spinBox_x.valueChanged.connect(self.update)
-        page.spinBox_y.valueChanged.connect(self.update)
-
-        self.page = page
-        return page
+        super().widget(*args)
+        self.page.pushButton_video.clicked.connect(self.pickVideo)
+        self.trackWidgets(
+            {
+                'videoPath': self.page.lineEdit_video,
+                'loopVideo': self.page.checkBox_loop,
+                'useAudio': self.page.checkBox_useAudio,
+                'distort': self.page.checkBox_distort,
+                'scale': self.page.spinBox_scale,
+                'volume': self.page.spinBox_volume,
+                'xPosition': self.page.spinBox_x,
+                'yPosition': self.page.spinBox_y,
+            }, presetNames={
+                'videoPath': 'video',
+                'loopVideo': 'loop',
+                'xPosition': 'x',
+                'yPosition': 'y',
+            }
+        )
 
     def update(self):
-        self.videoPath = self.page.lineEdit_video.text()
-        self.loopVideo = self.page.checkBox_loop.isChecked()
-        self.useAudio = self.page.checkBox_useAudio.isChecked()
-        self.distort = self.page.checkBox_distort.isChecked()
-        self.scale = self.page.spinBox_scale.value()
-        self.volume = self.page.spinBox_volume.value()
-        self.xPosition = self.page.spinBox_x.value()
-        self.yPosition = self.page.spinBox_y.value()
-
-        if self.useAudio:
+        if self.page.checkBox_useAudio.isChecked():
             self.page.label_volume.setEnabled(True)
             self.page.spinBox_volume.setEnabled(True)
         else:
             self.page.label_volume.setEnabled(False)
             self.page.spinBox_volume.setEnabled(False)
-
         super().update()
 
     def previewRender(self, previewWorker):
@@ -188,18 +182,7 @@ class Component(Component):
             return "The video selected is corrupt!"
 
     def testAudioStream(self):
-        # test if an audio stream really exists
-        audioTestCommand = [
-            Core.FFMPEG_BIN,
-            '-i', self.videoPath,
-            '-vn', '-f', 'null', '-'
-        ]
-        try:
-            checkOutput(audioTestCommand, stderr=subprocess.DEVNULL)
-        except subprocess.CalledProcessError:
-            self.badAudio = True
-        else:
-            self.badAudio = False
+        self.badAudio = testAudioStream(self.videoPath)
 
     def audio(self):
         params = {}
@@ -214,7 +197,7 @@ class Component(Component):
         self.blankFrame_ = BlankFrame(width, height)
         self.updateChunksize(width, height)
         self.video = Video(
-            ffmpeg=Core.FFMPEG_BIN, videoPath=self.videoPath,
+            ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
             width=width, height=height, chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, loopVideo=self.loopVideo,
@@ -227,34 +210,11 @@ class Component(Component):
         else:
             return self.blankFrame_
 
-    def loadPreset(self, pr, presetName=None):
-        super().loadPreset(pr, presetName)
-        self.page.lineEdit_video.setText(pr['video'])
-        self.page.checkBox_loop.setChecked(pr['loop'])
-        self.page.checkBox_useAudio.setChecked(pr['useAudio'])
-        self.page.checkBox_distort.setChecked(pr['distort'])
-        self.page.spinBox_scale.setValue(pr['scale'])
-        self.page.spinBox_volume.setValue(pr['volume'])
-        self.page.spinBox_x.setValue(pr['x'])
-        self.page.spinBox_y.setValue(pr['y'])
-
-    def savePreset(self):
-        return {
-            'video': self.videoPath,
-            'loop': self.loopVideo,
-            'useAudio': self.useAudio,
-            'distort': self.distort,
-            'scale': self.scale,
-            'volume': self.volume,
-            'x': self.xPosition,
-            'y': self.yPosition,
-        }
-
     def pickVideo(self):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page, "Choose Video",
-            imgDir, "Video Files (%s)" % " ".join(Core.videoFormats)
+            imgDir, "Video Files (%s)" % " ".join(self.core.videoFormats)
         )
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
@@ -266,7 +226,7 @@ class Component(Component):
             return
 
         command = [
-            self.parent.core.FFMPEG_BIN,
+            self.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
             '-i', self.videoPath,
             '-f', 'image2pipe',
@@ -294,10 +254,10 @@ class Component(Component):
         self.chunkSize = 4*width*height
 
     def command(self, arg):
-        if not arg.startswith('preset=') and '=' in arg:
+        if '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'path' and os.path.exists(arg):
-                if '*%s' % os.path.splitext(arg)[1] in Core.videoFormats:
+                if '*%s' % os.path.splitext(arg)[1] in self.core.videoFormats:
                     self.page.lineEdit_video.setText(arg)
                     self.page.spinBox_scale.setValue(100)
                     self.page.checkBox_loop.setChecked(True)

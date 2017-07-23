@@ -18,59 +18,46 @@ class Component(Component):
     def names():
         return ['Original Audio Visualization']
 
-    def widget(self, parent):
-        self.parent = parent
-        self.settings = parent.settings
+    def widget(self, *args):
         self.visColor = (255, 255, 255)
         self.scale = 20
         self.y = 0
-        self.canceled = False
+        super().widget(*args)
 
-        page = self.loadUi('original.ui')
-        page.comboBox_visLayout.addItem("Classic")
-        page.comboBox_visLayout.addItem("Split")
-        page.comboBox_visLayout.addItem("Bottom")
-        page.comboBox_visLayout.addItem("Top")
-        page.comboBox_visLayout.setCurrentIndex(0)
-        page.comboBox_visLayout.currentIndexChanged.connect(self.update)
-        page.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
-        page.pushButton_visColor.clicked.connect(lambda: self.pickColor())
+        self.page.comboBox_visLayout.addItem("Classic")
+        self.page.comboBox_visLayout.addItem("Split")
+        self.page.comboBox_visLayout.addItem("Bottom")
+        self.page.comboBox_visLayout.addItem("Top")
+        self.page.comboBox_visLayout.setCurrentIndex(0)
+
+        self.page.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
+        self.page.pushButton_visColor.clicked.connect(lambda: self.pickColor())
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.visColor).name()
-        page.pushButton_visColor.setStyleSheet(btnStyle)
-        page.lineEdit_visColor.textChanged.connect(self.update)
-        page.spinBox_scale.valueChanged.connect(self.update)
-        page.spinBox_y.valueChanged.connect(self.update)
+        self.page.pushButton_visColor.setStyleSheet(btnStyle)
 
-        self.page = page
-        return page
+        self.trackWidgets({
+            'layout': self.page.comboBox_visLayout,
+            'scale': self.page.spinBox_scale,
+            'y': self.page.spinBox_y,
+        })
 
     def update(self):
-        self.layout = self.page.comboBox_visLayout.currentIndex()
         self.visColor = rgbFromString(self.page.lineEdit_visColor.text())
-        self.scale = self.page.spinBox_scale.value()
-        self.y = self.page.spinBox_y.value()
-
         super().update()
 
-    def loadPreset(self, pr, presetName=None):
-        super().loadPreset(pr, presetName)
+    def loadPreset(self, pr, *args):
+        super().loadPreset(pr, *args)
 
         self.page.lineEdit_visColor.setText('%s,%s,%s' % pr['visColor'])
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['visColor']).name()
         self.page.pushButton_visColor.setStyleSheet(btnStyle)
-        self.page.comboBox_visLayout.setCurrentIndex(pr['layout'])
-        self.page.spinBox_scale.setValue(pr['scale'])
-        self.page.spinBox_y.setValue(pr['y'])
 
     def savePreset(self):
-        return {
-            'layout': self.layout,
-            'visColor': self.visColor,
-            'scale': self.scale,
-            'y': self.y,
-        }
+        saveValueStore = super().savePreset()
+        saveValueStore['visColor'] = self.visColor
+        return saveValueStore
 
     def previewRender(self, previewWorker):
         spectrum = numpy.fromfunction(
@@ -206,7 +193,7 @@ class Component(Component):
         return im
 
     def command(self, arg):
-        if not arg.startswith('preset=') and '=' in arg:
+        if '=' in arg:
             key, arg = arg.split('=', 1)
             try:
                 if key == 'color':
