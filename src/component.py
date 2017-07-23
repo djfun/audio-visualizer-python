@@ -5,13 +5,12 @@
 from PyQt5 import uic, QtCore, QtWidgets
 import os
 
-from presetmanager import getPresetDir
-
 
 def commandWrapper(func):
     '''Intercepts each component's command() method to check for global args'''
     def decorator(self, arg):
         if arg.startswith('preset='):
+            from presetmanager import getPresetDir
             _, preset = arg.split('=', 1)
             path = os.path.join(getPresetDir(self), preset)
             if not os.path.exists(path):
@@ -29,6 +28,26 @@ def commandWrapper(func):
     return decorator
 
 
+def propertiesWrapper(func):
+    '''Intercepts the usual properties if the properties are locked.'''
+    def decorator(self):
+        if self._lockedProperties is not None:
+            return self._lockedProperties
+        else:
+            return func(self)
+    return decorator
+
+
+def errorWrapper(func):
+    '''Intercepts the usual error message if it is locked.'''
+    def decorator(self):
+        if self._lockedError is not None:
+            return self._lockedError
+        else:
+            return func(self)
+    return decorator
+
+
 class ComponentMetaclass(type(QtCore.QObject)):
     '''
         Checks the validity of each Component class imported, and
@@ -37,25 +56,33 @@ class ComponentMetaclass(type(QtCore.QObject)):
     '''
     def __new__(cls, name, parents, attrs):
         if 'ui' not in attrs:
-            # use module name as ui filename by default
+            # Use module name as ui filename by default
             attrs['ui'] = '%s.ui' % os.path.splitext(
                     attrs['__module__'].split('.')[-1]
                 )[0]
 
-        # Turn certain class methods into properties and classmethods
-        for key in ('error', 'properties', 'audio'):
+        # if parents[0] == QtCore.QObject: else:
+        decorate = ('names', 'error', 'audio', 'command', 'properties')
+
+        # Auto-decorate methods
+        for key in decorate:
             if key not in attrs:
                 continue
-            attrs[key] = property(attrs[key])
 
-        for key in ('names'):
-            if key not in attrs:
-                continue
-            attrs[key] = classmethod(key)
+            if key in ('names'):
+                attrs[key] = classmethod(attrs[key])
 
-        # Do not apply these mutations to the base class
-        if parents[0] != QtCore.QObject:
-            attrs['command'] = commandWrapper(attrs['command'])
+            if key in ('audio'):
+                attrs[key] = property(attrs[key])
+
+            if key == 'command':
+                attrs[key] = commandWrapper(attrs[key])
+
+            if key == 'properties':
+                attrs[key] = propertiesWrapper(attrs[key])
+
+            if key == 'error':
+                attrs[key] = errorWrapper(attrs[key])
 
         # Turn version string into a number
         try:
@@ -83,13 +110,13 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     name = 'Component'
     # ui = 'nameOfNonDefaultUiFile'
+
     version = '1.0.0'
     # The major version (before the first dot) is used to determine
     # preset compatibility; the rest is ignored so it can be non-numeric.
 
     modified = QtCore.pyqtSignal(int, dict)
-    # ^ Signal used to tell core program that the component state changed,
-    # you shouldn't need to use this directly, it is used by self.update()
+    _error = QtCore.pyqtSignal(str, str)
 
     def __init__(self, moduleIndex, compPos, core):
         super().__init__()
@@ -100,6 +127,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
         self._trackedWidgets = {}
         self._presetNames = {}
+        self._commandArgs = {}
+        self._lockedProperties = None
+        self._lockedError = None
 
         # Stop lengthy processes in response to this variable
         self.canceled = False
@@ -127,6 +157,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def error(self):
         '''
             Return a string containing an error message, or None for a default.
+            Or tuple of two strings for a message with details.
         '''
         return
 
@@ -140,12 +171,6 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             to apply to the input stream. See the filter docs for ideas:
             https://ffmpeg.org/ffmpeg-filters.html
         '''
-
-    def names():
-        '''
-            Alternative names for renaming a component between project files.
-        '''
-        return []
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # Methods
@@ -181,15 +206,29 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         for widget in widgets['comboBox']:
             widget.currentIndexChanged.connect(self.update)
 
-    def trackWidgets(self, trackDict, presetNames=None):
+    def trackWidgets(self, trackDict, **kwargs):
         '''
-            Name widgets to track in update(), savePreset(), and loadPreset()
-            Accepts a dict with attribute names as keys and widgets as values.
-            Optional: a dict of attribute names to map to preset variable names
+            Name widgets to track in update(), savePreset(), loadPreset(), and
+            command(). Requires a dict of attr names as keys, widgets as values
+
+            Optional args:
+                'presetNames': preset variable names to replace attr names
+                'commandArgs': arg keywords that differ from attr names
+
+            NOTE: Any kwarg key set to None will selectively disable tracking.
         '''
         self._trackedWidgets = trackDict
-        if type(presetNames) is dict:
-            self._presetNames = presetNames
+        for kwarg in kwargs:
+            try:
+                if kwarg in ('presetNames', 'commandArgs'):
+                    setattr(self, '_%s' % kwarg, kwargs[kwarg])
+                else:
+                    raise BadComponentInit(
+                        self,
+                        'Nonsensical keywords to trackWidgets.',
+                        immediate=True)
+            except BadComponentInit:
+                continue
 
     def update(self):
         '''
@@ -277,6 +316,22 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.commandHelp()
         quit(0)
 
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # "Private" Methods
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+    def lockProperties(self, propList):
+        self._lockedProperties = propList
+
+    def lockError(self, msg):
+        self._lockedError = msg
+
+    def unlockProperties(self):
+        self._lockedProperties = None
+
+    def unlockError(self):
+        self._lockedError = None
+
     def loadUi(self, filename):
         '''Load a Qt Designer ui file to use for this component's widget'''
         return uic.loadUi(os.path.join(self.core.componentsPath, filename))
@@ -287,6 +342,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def reset(self):
         self.canceled = False
+        self.unlockProperties()
+        self.unlockError()
 
     '''
     ### Reference methods for creating a new component
@@ -309,16 +366,40 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     '''
 
 
-class BadComponentInit(Exception):
+class BadComponentInit(AttributeError):
     '''
-        General purpose exception that components can raise to indicate
-        a Python issue with e.g., dynamic creation of instances or something.
-        Decorative for now, may have future use for logging.
+        Indicates a Python error in constructing a component.
+        Raising this locks the component into an error state,
+        and gives the MainWindow a traceback to display.
     '''
-    def __init__(self, arg, name):
-        string = '''################################
-Mandatory argument "%s" not specified
-  in %s instance initialization
-###################################'''
-        print(string % (arg, name))
-        quit()
+    def __init__(self, caller, name, immediate=False):
+        from toolkit import formatTraceback
+        import sys
+        if sys.exc_info()[0] is not None:
+            string = (
+                "%s component's %s encountered %s %s." % (
+                    caller.__class__.name,
+                    name,
+                    'an' if any([
+                        sys.exc_info()[0].__name__.startswith(vowel)
+                        for vowel in ('A', 'I')
+                    ]) else 'a',
+                    sys.exc_info()[0].__name__,
+                )
+            )
+            detail = formatTraceback(sys.exc_info()[2])
+        else:
+            string = name
+            detail = "Methods:\n%s" % (
+                "\n".join(
+                    [m for m in dir(caller) if not m.startswith('_')]
+                )
+            )
+
+        if immediate:
+            caller.parent.showMessage(
+                msg=string, detail=detail, icon='Warning'
+            )
+        else:
+            caller.lockProperties(['error'])
+            caller.lockError((string, detail))

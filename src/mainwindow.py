@@ -571,6 +571,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.videoWorker.encoding.connect(self.changeEncodingStatus)
         self.createVideo.emit()
 
+    @QtCore.pyqtSlot(str, str)
+    def videoThreadError(self, msg, detail):
+        self.showMessage(
+            msg=msg,
+            detail=detail,
+            icon='Warning',
+        )
+        self.stopVideo()
+
     def changeEncodingStatus(self, status):
         self.encoding = status
         if status:
@@ -675,6 +684,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # connect to signal that adds an asterisk when modified
         self.core.selectedComponents[index].modified.connect(
             self.updateComponentTitle)
+        self.core.selectedComponents[index]._error.connect(
+            self.videoThreadError)
 
         self.pages.insert(index, self.core.selectedComponents[index].page)
         stackedWidget.insertWidget(index, self.pages[index])
@@ -751,7 +762,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if mousePos > -1:
             change = (componentList.currentRow() - mousePos) * -1
         else:
-            change = (componentList.count() - componentList.currentRow() -1)
+            change = (componentList.count() - componentList.currentRow() - 1)
         self.moveComponent(change)
 
     def changeComponentWidget(self):
@@ -936,7 +947,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if event.type() == QtCore.QEvent.WindowActivate \
                 or event.type() == QtCore.QEvent.FocusIn:
             Core.windowHasFocus = True
-        elif event.type()== QtCore.QEvent.WindowDeactivate \
+        elif event.type() == QtCore.QEvent.WindowDeactivate \
                 or event.type() == QtCore.QEvent.FocusOut:
                     Core.windowHasFocus = False
         return False

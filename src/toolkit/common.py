@@ -107,3 +107,11 @@ def rgbFromString(string):
         return tup
     except:
         return (255, 255, 255)
+
+
+def formatTraceback(tb=None):
+    import traceback
+    if tb is None:
+        import sys
+        tb = sys.exc_info()[2]
+    return 'Traceback:\n%s' % "\n".join(traceback.format_tb(tb))

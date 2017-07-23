@@ -22,13 +22,12 @@ class Core:
     '''
 
     def __init__(self):
-        self.findComponents()
+        self.importComponents()
         self.selectedComponents = []
         self.savedPresets = {}  # copies of presets to detect modification
         self.openingProject = False
 
-    def findComponents(self):
-        '''Imports all the component modules'''
+    def importComponents(self):
         def findComponents():
             for f in os.listdir(Core.componentsPath):
                 name, ext = os.path.splitext(f)
@@ -225,9 +224,8 @@ class Core:
                 return
             if hasattr(loader, 'createNewProject'):
                 loader.createNewProject(prompt=False)
-            import traceback
-            msg = '%s: %s\n\nTraceback:\n' % (typ.__name__, value)
-            msg += "\n".join(traceback.format_tb(tb))
+            msg = '%s: %s\n\n' % (typ.__name__, value)
+            msg += toolkit.formatTraceback(tb)
             loader.showMessage(
                 msg="Project file '%s' is corrupted." % filepath,
                 showCancel=False,

@@ -15,7 +15,7 @@ class Component(Component):
     name = 'Classic Visualizer'
     version = '1.0.0'
 
-    def names():
+    def names(*args):
         return ['Original Audio Visualization']
 
     def widget(self, *args):

@@ -103,7 +103,7 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
     globalFilters = 0  # increase to add global filters
     extraAudio = [
         comp.audio for comp in components
-        if 'audio' in comp.properties
+        if 'audio' in comp.properties()
     ]
     if extraAudio or globalFilters > 0:
         # Add -i options for extra input files

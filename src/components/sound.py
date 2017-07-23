@@ -18,6 +18,8 @@ class Component(Component):
             'chorus': self.page.checkBox_chorus,
             'delay': self.page.spinBox_delay,
             'volume': self.page.spinBox_volume,
+        }, commandArgs={
+            'sound': None,
         })
 
     def previewRender(self, previewWorker):

@@ -14,7 +14,7 @@ from toolkit import openPipe, checkOutput
 
 
 class Video:
-    '''Video Component Frame-Fetcher'''
+    '''Opens a pipe to ffmpeg and stores a buffer of raw video frames.'''
     def __init__(self, **kwargs):
         mandatoryArgs = [
             'ffmpeg',     # path to ffmpeg, usually self.core.FFMPEG_BIN
@@ -28,10 +28,7 @@ class Video:
             'component',  # component object
         ]
         for arg in mandatoryArgs:
-            try:
-                setattr(self, arg, kwargs[arg])
-            except KeyError:
-                raise BadComponentInit(arg, self.__doc__)
+            setattr(self, arg, kwargs[arg])
 
         self.frameNo = -1
         self.currentFrame = 'None'
@@ -196,13 +193,16 @@ class Component(Component):
         height = int(self.settings.value('outputHeight'))
         self.blankFrame_ = BlankFrame(width, height)
         self.updateChunksize(width, height)
-        self.video = Video(
-            ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
-            width=width, height=height, chunkSize=self.chunkSize,
-            frameRate=int(self.settings.value("outputFrameRate")),
-            parent=self.parent, loopVideo=self.loopVideo,
-            component=self, scale=self.scale
-        ) if os.path.exists(self.videoPath) else None
+        try:
+            self.video = Video(
+                ffmpeg=self.core.FFMPEG_BIN, #videoPath=self.videoPath,
+                width=width, height=height, chunkSize=self.chunkSize,
+                frameRate=int(self.settings.value("outputFrameRate")),
+                parent=self.parent, loopVideo=self.loopVideo,
+                component=self, scale=self.scale
+            ) if os.path.exists(self.videoPath) else None
+        except KeyError:
+            raise BadComponentInit(self, 'Frame Fetcher initialization')
 
     def frameRender(self, layerNo, frameNo):
         if self.video:

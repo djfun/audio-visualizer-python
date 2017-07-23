@@ -18,7 +18,7 @@ from threading import Thread, Event
 import time
 import signal
 
-import core
+from component import BadComponentInit
 from toolkit import openPipe
 from toolkit.ffmpeg import readAudioFile, createFfmpegCommand
 from toolkit.frame import Checkerboard
@@ -105,8 +105,7 @@ class Worker(QtCore.QObject):
 
         while not self.stopped:
             audioI, frame = self.previewQueue.get()
-            if core.Core.windowHasFocus \
-                    and time.time() - self.lastPreview >= 0.06 or audioI == 0:
+            if time.time() - self.lastPreview >= 0.06 or audioI == 0:
                 image = Image.alpha_composite(background.copy(), frame)
                 self.imageCreated.emit(QtGui.QImage(ImageQt(image)))
                 self.lastPreview = time.time()
@@ -153,39 +152,48 @@ class Worker(QtCore.QObject):
         ]))
         self.staticComponents = {}
         for compNo, comp in enumerate(reversed(self.components)):
-            comp.preFrameRender(
-                worker=self,
-                completeAudioArray=self.completeAudioArray,
-                sampleSize=self.sampleSize,
-                progressBarUpdate=self.progressBarUpdate,
-                progressBarSetText=self.progressBarSetText
-            )
+            try:
+                comp.preFrameRender(
+                    worker=self,
+                    completeAudioArray=self.completeAudioArray,
+                    sampleSize=self.sampleSize,
+                    progressBarUpdate=self.progressBarUpdate,
+                    progressBarSetText=self.progressBarSetText
+                )
+            except BadComponentInit:
+                pass
 
-            if 'error' in comp.properties:
+            if 'error' in comp.properties():
                 self.cancel()
                 self.canceled = True
                 canceledByComponent = True
-                errMsg = "Component #%s encountered an error!" % compNo \
-                    if comp.error is None else 'Component #%s (%s): %s' % (
+                compError = comp.error() \
+                    if type(comp.error()) is tuple else (comp.error(), '')
+                errMsg = (
+                    "Component #%s encountered an error!" % compNo
+                    if comp.error() is None else
+                    'Export cancelled by component #%s (%s): %s' % (
                         str(compNo),
                         str(comp),
-                        comp.error
+                        compError[0]
                     )
-                self.parent.showMessage(
-                        msg=errMsg,
-                        icon='Warning',
-                        parent=None  # MainWindow is in a different thread
-                    )
+                )
+                comp._error.emit(errMsg, compError[1])
                 break
-            if 'static' in comp.properties:
+            if 'static' in comp.properties():
                 self.staticComponents[compNo] = \
                     comp.frameRender(compNo, 0).copy()
 
         if self.canceled:
             if canceledByComponent:
                 print('Export cancelled by component #%s (%s): %s' % (
-                    compNo, str(comp), comp.error
-                ))
+                    compNo,
+                    comp.name,
+                    'No message.' if comp.error() is None else (
+                        comp.error() if type(comp.error()) is str
+                        else comp.error()[0])
+                    )
+                )
             self.cancelExport()
             return
 
