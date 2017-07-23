@@ -41,9 +41,11 @@ Download audio-visualizer-python from this repository and run it from the comman
 ```
 brew install python3
 brew install ffmpeg --with-fdk-aac --with-ffplay --with-freetype --with-libass --with-libquvi --with-libvorbis --with-libvpx --with-opus --with-x265
-brew install qt
+brew tap cartr/qt4
+brew tap-pin cartr/qt4
+brew install qt@4
 brew install sip --with-python3
-brew install pyqt --with-python3
+brew install pyqt@4 --with-python3
 pip3 install --upgrade pip
 pip3 install pillow
 pip3 install numpy
