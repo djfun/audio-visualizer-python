@@ -578,7 +578,11 @@ class MainWindow(QtWidgets.QMainWindow):
             detail=detail,
             icon='Warning',
         )
-        self.stopVideo()
+        try:
+            self.stopVideo()
+        except AttributeError as e:
+            if 'videoWorker' not in str(e):
+                raise
 
     def changeEncodingStatus(self, status):
         self.encoding = status
@@ -684,8 +688,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # connect to signal that adds an asterisk when modified
         self.core.selectedComponents[index].modified.connect(
             self.updateComponentTitle)
-        self.core.selectedComponents[index]._error.connect(
-            self.videoThreadError)
 
         self.pages.insert(index, self.core.selectedComponents[index].page)
         stackedWidget.insertWidget(index, self.pages[index])

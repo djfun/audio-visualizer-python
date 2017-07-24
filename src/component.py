@@ -6,54 +6,64 @@ from PyQt5 import uic, QtCore, QtWidgets
 import os
 
 
-def commandWrapper(func):
-    '''Intercepts each component's command() method to check for global args'''
-    def decorator(self, arg):
-        if arg.startswith('preset='):
-            from presetmanager import getPresetDir
-            _, preset = arg.split('=', 1)
-            path = os.path.join(getPresetDir(self), preset)
-            if not os.path.exists(path):
-                print('Couldn\'t locate preset "%s"' % preset)
-                quit(1)
-            else:
-                print('Opening "%s" preset on layer %s' % (
-                    preset, self.compPos)
-                )
-                self.core.openPreset(path, self.compPos, preset)
-                # Don't call the component's command() method
-                return
-        else:
-            return func(self, arg)
-    return decorator
-
-
-def propertiesWrapper(func):
-    '''Intercepts the usual properties if the properties are locked.'''
-    def decorator(self):
-        if self._lockedProperties is not None:
-            return self._lockedProperties
-        else:
-            return func(self)
-    return decorator
-
-
-def errorWrapper(func):
-    '''Intercepts the usual error message if it is locked.'''
-    def decorator(self):
-        if self._lockedError is not None:
-            return self._lockedError
-        else:
-            return func(self)
-    return decorator
-
-
 class ComponentMetaclass(type(QtCore.QObject)):
     '''
         Checks the validity of each Component class imported, and
         mutates some attributes for easier use by the core program.
         E.g., takes only major version from version string & decorates methods
     '''
+
+    def renderWrapper(func):
+        def decorator(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except:
+                from toolkit.frame import BlankFrame
+                try:
+                    raise ComponentError(self, 'renderer', immediate=True)
+                except ComponentError:
+                    return BlankFrame()
+        return decorator
+
+    def commandWrapper(func):
+        '''Intercepts each component's command() method to check for global args'''
+        def decorator(self, arg):
+            if arg.startswith('preset='):
+                from presetmanager import getPresetDir
+                _, preset = arg.split('=', 1)
+                path = os.path.join(getPresetDir(self), preset)
+                if not os.path.exists(path):
+                    print('Couldn\'t locate preset "%s"' % preset)
+                    quit(1)
+                else:
+                    print('Opening "%s" preset on layer %s' % (
+                        preset, self.compPos)
+                    )
+                    self.core.openPreset(path, self.compPos, preset)
+                    # Don't call the component's command() method
+                    return
+            else:
+                return func(self, arg)
+        return decorator
+
+    def propertiesWrapper(func):
+        '''Intercepts the usual properties if the properties are locked.'''
+        def decorator(self):
+            if self._lockedProperties is not None:
+                return self._lockedProperties
+            else:
+                return func(self)
+        return decorator
+
+    def errorWrapper(func):
+        '''Intercepts the usual error message if it is locked.'''
+        def decorator(self):
+            if self._lockedError is not None:
+                return self._lockedError
+            else:
+                return func(self)
+        return decorator
+
     def __new__(cls, name, parents, attrs):
         if 'ui' not in attrs:
             # Use module name as ui filename by default
@@ -62,7 +72,11 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 )[0]
 
         # if parents[0] == QtCore.QObject: else:
-        decorate = ('names', 'error', 'audio', 'command', 'properties')
+        decorate = (
+            'names',                            # Class methods
+            'error', 'audio', 'properties',     # Properties
+            'previewRender', 'command',
+        )
 
         # Auto-decorate methods
         for key in decorate:
@@ -76,13 +90,16 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 attrs[key] = property(attrs[key])
 
             if key == 'command':
-                attrs[key] = commandWrapper(attrs[key])
+                attrs[key] = cls.commandWrapper(attrs[key])
+
+            if key == 'previewRender':
+                attrs[key] = cls.renderWrapper(attrs[key])
 
             if key == 'properties':
-                attrs[key] = propertiesWrapper(attrs[key])
+                attrs[key] = cls.propertiesWrapper(attrs[key])
 
             if key == 'error':
-                attrs[key] = errorWrapper(attrs[key])
+                attrs[key] = cls.errorWrapper(attrs[key])
 
         # Turn version string into a number
         try:
@@ -223,11 +240,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 if kwarg in ('presetNames', 'commandArgs'):
                     setattr(self, '_%s' % kwarg, kwargs[kwarg])
                 else:
-                    raise BadComponentInit(
+                    raise ComponentError(
                         self,
                         'Nonsensical keywords to trackWidgets.',
                         immediate=True)
-            except BadComponentInit:
+            except ComponentError:
                 continue
 
     def update(self):
@@ -366,7 +383,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     '''
 
 
-class BadComponentInit(AttributeError):
+class ComponentError(RuntimeError):
     '''
         Indicates a Python error in constructing a component.
         Raising this locks the component into an error state,
@@ -397,9 +414,7 @@ class BadComponentInit(AttributeError):
             )
 
         if immediate:
-            caller.parent.showMessage(
-                msg=string, detail=detail, icon='Warning'
-            )
+            caller._error.emit(string, detail)
         else:
             caller.lockProperties(['error'])
             caller.lockError((string, detail))

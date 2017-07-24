@@ -18,7 +18,7 @@ from threading import Thread, Event
 import time
 import signal
 
-from component import BadComponentInit
+from component import ComponentError
 from toolkit import openPipe
 from toolkit.ffmpeg import readAudioFile, createFfmpegCommand
 from toolkit.frame import Checkerboard
@@ -160,7 +160,7 @@ class Worker(QtCore.QObject):
                     progressBarUpdate=self.progressBarUpdate,
                     progressBarSetText=self.progressBarSetText
                 )
-            except BadComponentInit:
+            except ComponentError:
                 pass
 
             if 'error' in comp.properties():

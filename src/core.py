@@ -76,6 +76,9 @@ class Core:
             component
         )
         self.componentListChanged()
+        self.selectedComponents[compPos]._error.connect(
+            loader.videoThreadError
+        )
 
         # init component's widget for loading/saving presets
         self.selectedComponents[compPos].widget(loader)

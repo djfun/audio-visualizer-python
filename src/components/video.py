@@ -7,7 +7,7 @@ import threading
 from queue import PriorityQueue
 
 from core import Core
-from component import Component, BadComponentInit
+from component import Component, ComponentError
 from toolkit.frame import BlankFrame
 from toolkit.ffmpeg import testAudioStream
 from toolkit import openPipe, checkOutput
@@ -195,14 +195,14 @@ class Component(Component):
         self.updateChunksize(width, height)
         try:
             self.video = Video(
-                ffmpeg=self.core.FFMPEG_BIN, #videoPath=self.videoPath,
+                ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
                 width=width, height=height, chunkSize=self.chunkSize,
                 frameRate=int(self.settings.value("outputFrameRate")),
                 parent=self.parent, loopVideo=self.loopVideo,
                 component=self, scale=self.scale
             ) if os.path.exists(self.videoPath) else None
         except KeyError:
-            raise BadComponentInit(self, 'Frame Fetcher initialization')
+            raise ComponentError(self, 'Frame Fetcher initialization')
 
     def frameRender(self, layerNo, frameNo):
         if self.video:

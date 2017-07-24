@@ -146,6 +146,12 @@ class Command(QtCore.QObject):
         if 'detail' in kwargs:
             print(kwargs['detail'])
 
+    @QtCore.pyqtSlot(str, str)
+    def videoThreadError(self, msg, detail):
+        print(msg)
+        print(detail)
+        quit(1)
+
     def drawPreview(self, *args):
         pass
 
