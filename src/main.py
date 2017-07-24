@@ -57,6 +57,7 @@ def main():
         # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
 
         main = MainWindow(window, proj)
+        window.raise_()
 
         signal.signal(signal.SIGINT, main.cleanUp)
         atexit.register(main.cleanUp)
