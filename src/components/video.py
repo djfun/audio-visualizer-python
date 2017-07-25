@@ -193,16 +193,13 @@ class Component(Component):
         height = int(self.settings.value('outputHeight'))
         self.blankFrame_ = BlankFrame(width, height)
         self.updateChunksize(width, height)
-        try:
-            self.video = Video(
-                ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
-                width=width, height=height, chunkSize=self.chunkSize,
-                frameRate=int(self.settings.value("outputFrameRate")),
-                parent=self.parent, loopVideo=self.loopVideo,
-                component=self, scale=self.scale
-            ) if os.path.exists(self.videoPath) else None
-        except KeyError:
-            raise ComponentError(self, 'Frame Fetcher initialization')
+        self.video = Video(
+            ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
+            width=width, height=height, chunkSize=self.chunkSize,
+            frameRate=int(self.settings.value("outputFrameRate")),
+            parent=self.parent, loopVideo=self.loopVideo,
+            component=self, scale=self.scale
+        ) if os.path.exists(self.videoPath) else None
 
     def frameRender(self, layerNo, frameNo):
         if self.video:

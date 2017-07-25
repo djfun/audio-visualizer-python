@@ -252,12 +252,18 @@ class PresetManager(QtWidgets.QDialog):
             compIndex = componentList.currentRow()
             if compIndex == -1:
                 return
+
             preset = self.core.selectedComponents[compIndex].currentPreset
-            if not preset:
+            if preset is None:
                 return
             else:
+                rowTuple = (
+                    self.core.selectedComponents[compIndex].name,
+                    self.core.selectedComponents[compIndex].version,
+                    preset
+                )
                 for i, tup in enumerate(self.presetRows):
-                    if preset == tup[2]:
+                    if rowTuple == tup:
                         index = i
                         break
                 else:

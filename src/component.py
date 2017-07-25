@@ -13,21 +13,32 @@ class ComponentMetaclass(type(QtCore.QObject)):
         E.g., takes only major version from version string & decorates methods
     '''
 
+    def initializationWrapper(func):
+        def initializationWrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except:
+                try:
+                    raise ComponentInitError(self, 'initialization process')
+                except ComponentError:
+                    return
+        return initializationWrapper
+
     def renderWrapper(func):
-        def decorator(self, *args, **kwargs):
+        def renderWrapper(self, *args, **kwargs):
             try:
                 return func(self, *args, **kwargs)
             except:
                 from toolkit.frame import BlankFrame
                 try:
-                    raise ComponentError(self, 'renderer', immediate=True)
+                    raise ComponentError(self, 'renderer')
                 except ComponentError:
                     return BlankFrame()
-        return decorator
+        return renderWrapper
 
     def commandWrapper(func):
-        '''Intercepts each component's command() method to check for global args'''
-        def decorator(self, arg):
+        '''Intercepts the command() method to check for global args'''
+        def commandWrapper(self, arg):
             if arg.startswith('preset='):
                 from presetmanager import getPresetDir
                 _, preset = arg.split('=', 1)
@@ -44,25 +55,25 @@ class ComponentMetaclass(type(QtCore.QObject)):
                     return
             else:
                 return func(self, arg)
-        return decorator
+        return commandWrapper
 
     def propertiesWrapper(func):
         '''Intercepts the usual properties if the properties are locked.'''
-        def decorator(self):
+        def propertiesWrapper(self):
             if self._lockedProperties is not None:
                 return self._lockedProperties
             else:
                 return func(self)
-        return decorator
+        return propertiesWrapper
 
     def errorWrapper(func):
         '''Intercepts the usual error message if it is locked.'''
-        def decorator(self):
+        def errorWrapper(self):
             if self._lockedError is not None:
                 return self._lockedError
             else:
                 return func(self)
-        return decorator
+        return errorWrapper
 
     def __new__(cls, name, parents, attrs):
         if 'ui' not in attrs:
@@ -75,7 +86,8 @@ class ComponentMetaclass(type(QtCore.QObject)):
         decorate = (
             'names',                            # Class methods
             'error', 'audio', 'properties',     # Properties
-            'previewRender', 'command',
+            'preFrameRender', 'previewRender',
+            'command',
         )
 
         # Auto-decorate methods
@@ -94,6 +106,9 @@ class ComponentMetaclass(type(QtCore.QObject)):
 
             if key == 'previewRender':
                 attrs[key] = cls.renderWrapper(attrs[key])
+
+            if key == 'preFrameRender':
+                attrs[key] = cls.initializationWrapper(attrs[key])
 
             if key == 'properties':
                 attrs[key] = cls.propertiesWrapper(attrs[key])
@@ -126,7 +141,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     '''
 
     name = 'Component'
-    # ui = 'nameOfNonDefaultUiFile'
+    # ui = 'name_Of_Non_Default_Ui_File'
 
     version = '1.0.0'
     # The major version (before the first dot) is used to determine
@@ -241,9 +256,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                     setattr(self, '_%s' % kwarg, kwargs[kwarg])
                 else:
                     raise ComponentError(
-                        self,
-                        'Nonsensical keywords to trackWidgets.',
-                        immediate=True)
+                        self, 'Nonsensical keywords to trackWidgets.')
             except ComponentError:
                 continue
 
@@ -383,13 +396,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     '''
 
 
-class ComponentError(RuntimeError):
-    '''
-        Indicates a Python error in constructing a component.
-        Raising this locks the component into an error state,
-        and gives the MainWindow a traceback to display.
-    '''
-    def __init__(self, caller, name, immediate=False):
+class ComponentException(RuntimeError):
+    '''A base class for component errors'''
+    def __init__(self, caller, name, immediate):
+        super().__init__()
         from toolkit import formatTraceback
         import sys
         if sys.exc_info()[0] is not None:
@@ -418,3 +428,23 @@ class ComponentError(RuntimeError):
         else:
             caller.lockProperties(['error'])
             caller.lockError((string, detail))
+
+
+class ComponentError(ComponentException):
+    '''
+        Use for general Python errors caused by a component at any time.
+        Raising this gives the MainWindow a traceback to display and
+        cancels any export in progress.
+    '''
+    def __init__(self, caller, name):
+        ComponentException.__init__(self, caller, name, True)
+
+
+class ComponentInitError(ComponentError):
+    '''
+        Use for Python errors in preFrameRender, while the export is starting.
+        This will end the video thread in a clean way by locking the component
+        into an error state so the export definitely won't begin.
+    '''
+    def __init__(self, caller, name):
+        ComponentException.__init__(self, caller, name, False)
