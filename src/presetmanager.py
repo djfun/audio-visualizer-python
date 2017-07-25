@@ -211,10 +211,9 @@ class PresetManager(QtWidgets.QDialog):
         self.parent.drawPreview()
 
     def openDeletePresetDialog(self):
-        selected = self.window.listWidget_presets.selectedItems()
-        if not selected:
+        row = self.getPresetRow()
+        if row == -1:
             return
-        row = self.window.listWidget_presets.row(selected[0])
         comp, vers, name = self.presetRows[row]
         ch = self.parent.showMessage(
             msg='Really delete %s?' % name,
@@ -242,32 +241,40 @@ class PresetManager(QtWidgets.QDialog):
             'numbers, and spaces.',
             parent=window if window else self.window)
 
+    def getPresetRow(self):
+        row = self.window.listWidget_presets.currentRow()
+        if row > -1:
+            return row
+
+        # check if component selected in MainWindow has preset loaded
+        componentList = self.parent.window.listWidget_componentList
+        compIndex = componentList.currentRow()
+        if compIndex == -1:
+            return compIndex
+
+        preset = self.core.selectedComponents[compIndex].currentPreset
+        if preset is None:
+            return -1
+        else:
+            rowTuple = (
+                self.core.selectedComponents[compIndex].name,
+                self.core.selectedComponents[compIndex].version,
+                preset
+            )
+            for i, tup in enumerate(self.presetRows):
+                if rowTuple == tup:
+                    index = i
+                    break
+            else:
+                    return -1
+        return index
+
     def openRenamePresetDialog(self):
         # TODO: maintain consistency by changing this to call createNewPreset()
         presetList = self.window.listWidget_presets
-        index = presetList.currentRow()
+        index = self.getPresetRow()
         if index == -1:
-            # check if component selected in MainWindow has preset loaded
-            componentList = self.parent.window.listWidget_componentList
-            compIndex = componentList.currentRow()
-            if compIndex == -1:
-                return
-
-            preset = self.core.selectedComponents[compIndex].currentPreset
-            if preset is None:
-                return
-            else:
-                rowTuple = (
-                    self.core.selectedComponents[compIndex].name,
-                    self.core.selectedComponents[compIndex].version,
-                    preset
-                )
-                for i, tup in enumerate(self.presetRows):
-                    if rowTuple == tup:
-                        index = i
-                        break
-                else:
-                    return
+            return
 
         while True:
             newName, OK = QtWidgets.QInputDialog.getText(
@@ -326,14 +333,14 @@ class PresetManager(QtWidgets.QDialog):
             self.settings.setValue("presetDir", os.path.dirname(filename))
 
     def openExportDialog(self):
-        if not self.window.listWidget_presets.selectedItems():
+        index = self.getPresetRow()
+        if index == -1:
             return
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
             self.window, "Export Preset",
             self.settings.value("presetDir"),
             "Preset Files (*.avl)")
         if filename:
-            index = self.window.listWidget_presets.currentRow()
             comp, vers, name = self.presetRows[index]
             if not self.core.exportPreset(filename, comp, vers, name):
                 self.parent.showMessage(

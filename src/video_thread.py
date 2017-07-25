@@ -225,7 +225,7 @@ class Worker(QtCore.QObject):
         self.renderThreads = []
         try:
             numCpus = len(os.sched_getaffinity(0))
-        except:
+        except Exception:
             numCpus = os.cpu_count()
 
         for i in range(2 if numCpus <= 2 else 3):
@@ -268,7 +268,7 @@ class Worker(QtCore.QObject):
                 try:
                     self.out_pipe.stdin.write(frameBuffer[audioI].tobytes())
                     self.previewQueue.put([audioI, frameBuffer.pop(audioI)])
-                except:
+                except Exception:
                     break
 
                 # increase progress bar value
@@ -293,7 +293,7 @@ class Worker(QtCore.QObject):
             print("Export Canceled")
             try:
                 os.remove(self.outputFile)
-            except:
+            except Exception:
                 pass
             self.progressBarUpdate.emit(0)
             self.progressBarSetText.emit('Export Canceled')
@@ -333,7 +333,7 @@ class Worker(QtCore.QObject):
 
         try:
             self.out_pipe.send_signal(signal.SIGINT)
-        except:
+        except Exception:
             pass
 
     def reset(self):

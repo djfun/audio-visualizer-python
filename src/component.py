@@ -17,7 +17,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
         def initializationWrapper(self, *args, **kwargs):
             try:
                 return func(self, *args, **kwargs)
-            except:
+            except Exception:
                 try:
                     raise ComponentInitError(self, 'initialization process')
                 except ComponentError:
@@ -28,7 +28,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
         def renderWrapper(self, *args, **kwargs):
             try:
                 return func(self, *args, **kwargs)
-            except:
+            except Exception:
                 from toolkit.frame import BlankFrame
                 try:
                     raise ComponentError(self, 'renderer')
@@ -398,8 +398,19 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
 class ComponentException(RuntimeError):
     '''A base class for component errors'''
+
+    _prevErrors = []
+
     def __init__(self, caller, name, immediate):
+        print('ComponentError by %s: %s' % (caller.name, name))
         super().__init__()
+        if len(ComponentException._prevErrors) > 1:
+            ComponentException._prevErrors.pop()
+        ComponentException._prevErrors.insert(0, name)
+        if name in ComponentException._prevErrors[1:]:
+            # Don't create multiple windows for repeated messages
+            return
+
         from toolkit import formatTraceback
         import sys
         if sys.exc_info()[0] is not None:

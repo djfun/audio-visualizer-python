@@ -314,7 +314,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         ['ffmpeg', '-version'], stderr=f
                     )
                 goodVersion = str(ffmpegVers).split()[2].startswith('3')
-            except:
+            except Exception:
                 goodVersion = False
         else:
             goodVersion = True
@@ -381,7 +381,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     @QtCore.pyqtSlot()
-    def cleanUp(self):
+    def cleanUp(self, *args):
         self.timer.stop()
         self.previewThread.quit()
         self.previewThread.wait()

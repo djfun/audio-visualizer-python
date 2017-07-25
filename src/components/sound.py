@@ -1,7 +1,6 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 
-from core import Core
 from component import Component
 from toolkit.frame import BlankFrame
 

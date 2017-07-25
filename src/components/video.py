@@ -6,8 +6,7 @@ import subprocess
 import threading
 from queue import PriorityQueue
 
-from core import Core
-from component import Component, ComponentError
+from component import Component
 from toolkit.frame import BlankFrame
 from toolkit.ffmpeg import testAudioStream
 from toolkit import openPipe, checkOutput
@@ -155,6 +154,7 @@ class Component(Component):
             return frame
 
     def properties(self):
+        # TODO: Disallow selecting the same video you're exporting to
         props = []
         if not self.videoPath or self.badVideo \
                 or not os.path.exists(self.videoPath):

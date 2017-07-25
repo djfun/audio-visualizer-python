@@ -215,7 +215,7 @@ class Core:
                     if hasattr(loader, 'updateComponentTitle'):
                         loader.updateComponentTitle(i, modified)
 
-            except:
+            except Exception:
                 errcode = 1
                 data = sys.exc_info()
 
@@ -237,9 +237,10 @@ class Core:
         self.openingProject = False
 
     def parseAvFile(self, filepath):
-        '''Parses an avp (project) or avl (preset package) file.
-        Returns dictionary with section names as the keys, each one
-        contains a list of tuples: (compName, version, compPresetDict)
+        '''
+            Parses an avp (project) or avl (preset package) file.
+            Returns dictionary with section names as the keys, each one
+            contains a list of tuples: (compName, version, compPresetDict)
         '''
         validSections = (
                     'Components',
@@ -287,7 +288,7 @@ class Core:
                         data[section].append((key, value.strip()))
 
             return 0, data
-        except:
+        except Exception:
             return 1, sys.exc_info()
 
     def importPreset(self, filepath):
@@ -332,7 +333,7 @@ class Core:
                 exportPath
             )
             return True
-        except:
+        except Exception:
             return False
 
     def createPresetFile(
@@ -397,7 +398,7 @@ class Core:
                         )
                     )
             return True
-        except:
+        except Exception:
             return False
 
     def newVideoWorker(self, loader, audioFile, outputPath):
