@@ -164,7 +164,7 @@ class Worker(QtCore.QObject):
                 pass
 
             compProps = comp.properties()
-            if 'error' in compProps or comp.error() is not None:
+            if 'error' in compProps or comp._lockedError is not None:
                 self.cancel()
                 self.canceled = True
                 canceledByComponent = True
