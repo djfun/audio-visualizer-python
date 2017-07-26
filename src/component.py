@@ -19,7 +19,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 return func(self, *args, **kwargs)
             except Exception:
                 try:
-                    raise ComponentInitError(self, 'initialization process')
+                    raise ComponentError(self, 'initialization process')
                 except ComponentError:
                     return
         return initializationWrapper
@@ -63,7 +63,13 @@ class ComponentMetaclass(type(QtCore.QObject)):
             if self._lockedProperties is not None:
                 return self._lockedProperties
             else:
-                return func(self)
+                try:
+                    return func(self)
+                except Exception:
+                    try:
+                        raise ComponentError(self, 'properties')
+                    except ComponentError:
+                        return []
         return propertiesWrapper
 
     def errorWrapper(func):
@@ -396,18 +402,18 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     '''
 
 
-class ComponentException(RuntimeError):
-    '''A base class for component errors'''
+class ComponentError(RuntimeError):
+    '''Gives the MainWindow a traceback to display, and cancels the export.'''
 
-    _prevErrors = []
+    prevErrors = []
 
-    def __init__(self, caller, name, immediate):
+    def __init__(self, caller, name):
         print('ComponentError by %s: %s' % (caller.name, name))
         super().__init__()
-        if len(ComponentException._prevErrors) > 1:
-            ComponentException._prevErrors.pop()
-        ComponentException._prevErrors.insert(0, name)
-        if name in ComponentException._prevErrors[1:]:
+        if len(ComponentError.prevErrors) > 1:
+            ComponentError.prevErrors.pop()
+        ComponentError.prevErrors.insert(0, name)
+        if name in ComponentError.prevErrors[1:]:
             # Don't create multiple windows for repeated messages
             return
 
@@ -434,28 +440,4 @@ class ComponentException(RuntimeError):
                 )
             )
 
-        if immediate:
-            caller._error.emit(string, detail)
-        else:
-            caller.lockProperties(['error'])
-            caller.lockError((string, detail))
-
-
-class ComponentError(ComponentException):
-    '''
-        Use for general Python errors caused by a component at any time.
-        Raising this gives the MainWindow a traceback to display and
-        cancels any export in progress.
-    '''
-    def __init__(self, caller, name):
-        ComponentException.__init__(self, caller, name, True)
-
-
-class ComponentInitError(ComponentError):
-    '''
-        Use for Python errors in preFrameRender, while the export is starting.
-        This will end the video thread in a clean way by locking the component
-        into an error state so the export definitely won't begin.
-    '''
-    def __init__(self, caller, name):
-        ComponentException.__init__(self, caller, name, False)
+        caller._error.emit(string, detail)

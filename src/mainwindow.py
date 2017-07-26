@@ -573,16 +573,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(str, str)
     def videoThreadError(self, msg, detail):
-        self.showMessage(
-            msg=msg,
-            detail=detail,
-            icon='Warning',
-        )
         try:
             self.stopVideo()
         except AttributeError as e:
             if 'videoWorker' not in str(e):
                 raise
+        self.showMessage(
+            msg=msg,
+            detail=detail,
+            icon='Warning',
+        )
 
     def changeEncodingStatus(self, status):
         self.encoding = status

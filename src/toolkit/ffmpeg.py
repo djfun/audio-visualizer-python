@@ -224,9 +224,9 @@ def testAudioStream(filename):
     try:
         checkOutput(audioTestCommand, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
-        return True
-    else:
         return False
+    else:
+        return True
 
 
 def getAudioDuration(filename):

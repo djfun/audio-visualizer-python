@@ -154,32 +154,27 @@ class Component(Component):
             return frame
 
     def properties(self):
-        # TODO: Disallow selecting the same video you're exporting to
         props = []
-        if not self.videoPath or self.badVideo \
-                or not os.path.exists(self.videoPath):
-            return ['error']
+
+        if not self.videoPath:
+            self.lockError("There is no video selected.")
+        elif self.badVideo:
+            self.lockError("Could not identify an audio stream in this video.")
+        elif not os.path.exists(self.videoPath):
+            self.lockError("The video selected does not exist!")
+        elif (os.path.realpath(self.videoPath) ==
+                os.path.realpath(
+                    self.parent.window.lineEdit_outputFile.text())):
+            self.lockError("Input and output paths match.")
 
         if self.useAudio:
             props.append('audio')
-            self.testAudioStream()
-            if self.badAudio:
-                return ['error']
+            if not testAudioStream(self.videoPath) \
+                    and self.error() is None:
+                self.lockError(
+                    "Could not identify an audio stream in this video.")
 
         return props
-
-    def error(self):
-        if self.badAudio:
-            return "Could not identify an audio stream in this video."
-        if not self.videoPath:
-            return "There is no video selected."
-        if not os.path.exists(self.videoPath):
-            return "The video selected does not exist!"
-        if self.badVideo:
-            return "The video selected is corrupt!"
-
-    def testAudioStream(self):
-        self.badAudio = testAudioStream(self.videoPath)
 
     def audio(self):
         params = {}

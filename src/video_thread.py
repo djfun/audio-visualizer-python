@@ -163,24 +163,27 @@ class Worker(QtCore.QObject):
             except ComponentError:
                 pass
 
-            if 'error' in comp.properties():
+            compProps = comp.properties()
+            if 'error' in compProps or comp.error() is not None:
                 self.cancel()
                 self.canceled = True
                 canceledByComponent = True
                 compError = comp.error() \
                     if type(comp.error()) is tuple else (comp.error(), '')
                 errMsg = (
-                    "Component #%s encountered an error!" % compNo
+                    "Component #%s (%s) encountered an error!" % (
+                        str(compNo), comp.name
+                    )
                     if comp.error() is None else
                     'Export cancelled by component #%s (%s): %s' % (
                         str(compNo),
-                        str(comp),
+                        comp.name,
                         compError[0]
                     )
                 )
                 comp._error.emit(errMsg, compError[1])
                 break
-            if 'static' in comp.properties():
+            if 'static' in compProps:
                 self.staticComponents[compNo] = \
                     comp.frameRender(compNo, 0).copy()
 
