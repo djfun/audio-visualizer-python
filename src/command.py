@@ -64,7 +64,9 @@ class Command(QtCore.QObject):
                 )
             if not projPath.endswith('.avp'):
                 projPath += '.avp'
-            self.core.openProject(self, projPath)
+            success = self.core.openProject(self, projPath)
+            if not success:
+                quit(1)
             self.core.selectedComponents = list(
                 reversed(self.core.selectedComponents))
             self.core.componentListChanged()

@@ -214,7 +214,8 @@ class Core:
                         self.clearPreset(i)
                     if hasattr(loader, 'updateComponentTitle'):
                         loader.updateComponentTitle(i, modified)
-
+                self.openingProject = False
+                return True
             except Exception:
                 errcode = 1
                 data = sys.exc_info()
@@ -234,7 +235,8 @@ class Core:
                 showCancel=False,
                 icon='Warning',
                 detail=msg)
-        self.openingProject = False
+            self.openingProject = False
+            return False
 
     def parseAvFile(self, filepath):
         '''
