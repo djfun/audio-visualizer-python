@@ -31,10 +31,8 @@ class Component(Component):
             },
         )
 
-    def previewRender(self, previewWorker):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.drawFrame(width, height)
+    def previewRender(self):
+        return self.drawFrame(self.width, self.height)
 
     def properties(self):
         props = ['static']
@@ -48,10 +46,8 @@ class Component(Component):
         if not os.path.exists(self.imagePath):
             return "The image selected does not exist!"
 
-    def frameRender(self, layerNo, frameNo):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.drawFrame(width, height)
+    def frameRender(self, frameNo):
+        return self.drawFrame(self.width, self.height)
 
     def drawFrame(self, width, height):
         frame = BlankFrame(width, height)

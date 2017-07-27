@@ -59,7 +59,7 @@ class Worker(QtCore.QObject):
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
-                    newFrame = component.previewRender(self)
+                    newFrame = component.previewRender()
                     frame = Image.alpha_composite(
                         frame, newFrame
                     )

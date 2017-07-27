@@ -60,8 +60,7 @@ class Worker(QtCore.QObject):
             audioI = self.compositeQueue.get()
             bgI = int(audioI / self.sampleSize)
             frame = None
-            for compNo, comp in reversed(list(enumerate(self.components))):
-                layerNo = len(self.components) - compNo - 1
+            for layerNo, comp in enumerate(reversed((self.components))):
                 if layerNo in self.staticComponents:
                     if self.staticComponents[layerNo] is None:
                         # this layer was merged into a following layer
@@ -76,10 +75,10 @@ class Worker(QtCore.QObject):
                 else:
                     # animated component
                     if frame is None:  # bottom-most layer
-                        frame = comp.frameRender(compNo, bgI)
+                        frame = comp.frameRender(bgI)
                     else:
                         frame = Image.alpha_composite(
-                            frame, comp.frameRender(compNo, bgI)
+                            frame, comp.frameRender(bgI)
                         )
 
             self.renderQueue.put([audioI, frame])
@@ -185,7 +184,7 @@ class Worker(QtCore.QObject):
                 break
             if 'static' in compProps:
                 self.staticComponents[compNo] = \
-                    comp.frameRender(compNo, 0).copy()
+                    comp.frameRender(0).copy()
 
         if self.canceled:
             if canceledByComponent:
@@ -290,8 +289,11 @@ class Worker(QtCore.QObject):
             print(self.out_pipe.stderr.read())
             self.out_pipe.stderr.close()
             self.error = True
-        # out_pipe.terminate() # don't terminate ffmpeg too early
         self.out_pipe.wait()
+
+        for comp in reversed(self.components):
+            comp.renderFinished()
+
         if self.canceled:
             print("Export Canceled")
             try:

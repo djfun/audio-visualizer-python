@@ -96,18 +96,14 @@ class Component(Component):
 
         super().update()
 
-    def previewRender(self, previewWorker):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.drawFrame(width, height)
+    def previewRender(self):
+        return self.drawFrame(self.width, self.height)
 
     def properties(self):
         return ['static']
 
-    def frameRender(self, layerNo, frameNo):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.drawFrame(width, height)
+    def frameRender(self, frameNo):
+        return self.drawFrame(self.width, self.height)
 
     def drawFrame(self, width, height):
         r, g, b = self.color1

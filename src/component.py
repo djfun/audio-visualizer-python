@@ -4,6 +4,9 @@
 '''
 from PyQt5 import uic, QtCore, QtWidgets
 import os
+import time
+
+from toolkit.frame import BlankFrame
 
 
 class ComponentMetaclass(type(QtCore.QObject)):
@@ -28,10 +31,12 @@ class ComponentMetaclass(type(QtCore.QObject)):
         def renderWrapper(self, *args, **kwargs):
             try:
                 return func(self, *args, **kwargs)
-            except Exception:
-                from toolkit.frame import BlankFrame
+            except Exception as e:
                 try:
-                    raise ComponentError(self, 'renderer')
+                    if e.__name__.startswith('Component'):
+                        raise
+                    else:
+                        raise ComponentError(self, 'renderer')
                 except ComponentError:
                     return BlankFrame()
         return renderWrapper
@@ -93,7 +98,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
             'names',                            # Class methods
             'error', 'audio', 'properties',     # Properties
             'preFrameRender', 'previewRender',
-            'command',
+            'frameRender', 'command',
         )
 
         # Auto-decorate methods
@@ -110,7 +115,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
             if key == 'command':
                 attrs[key] = cls.commandWrapper(attrs[key])
 
-            if key == 'previewRender':
+            if key in ('previewRender', 'frameRender'):
                 attrs[key] = cls.renderWrapper(attrs[key])
 
             if key == 'preFrameRender':
@@ -181,6 +186,37 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         )
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # Critical Methods
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+    def previewRender(self):
+        image = BlankFrame(self.width, self.height)
+        return image
+
+    def preFrameRender(self, **kwargs):
+        '''
+            Must call super() when subclassing
+            Triggered only before a video is exported (video_thread.py)
+                self.worker = the video thread worker
+                self.completeAudioArray = a list of audio samples
+                self.sampleSize = number of audio samples per video frame
+                self.progressBarUpdate = signal to set progress bar number
+                self.progressBarSetText = signal to set progress bar text
+            Use the latter two signals to update the MainWindow if needed
+            for a long initialization procedure (i.e., for a visualizer)
+        '''
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def frameRender(self, frameNo):
+        audioArrayIndex = frameNo * self.sampleSize
+        image = BlankFrame(self.width, self.height)
+        return image
+
+    def renderFinished(self):
+        pass
+
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # Properties
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
@@ -196,6 +232,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
             Return a string containing an error message, or None for a default.
             Or tuple of two strings for a message with details.
+            Alternatively use lockError(msgString) within properties()
+            to skip this method entirely.
         '''
         return
 
@@ -211,7 +249,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-    # Methods
+    # Idle Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
     def widget(self, parent):
@@ -244,33 +282,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         for widget in widgets['comboBox']:
             widget.currentIndexChanged.connect(self.update)
 
-    def trackWidgets(self, trackDict, **kwargs):
-        '''
-            Name widgets to track in update(), savePreset(), loadPreset(), and
-            command(). Requires a dict of attr names as keys, widgets as values
-
-            Optional args:
-                'presetNames': preset variable names to replace attr names
-                'commandArgs': arg keywords that differ from attr names
-
-            NOTE: Any kwarg key set to None will selectively disable tracking.
-        '''
-        self._trackedWidgets = trackDict
-        for kwarg in kwargs:
-            try:
-                if kwarg in ('presetNames', 'commandArgs'):
-                    setattr(self, '_%s' % kwarg, kwargs[kwarg])
-                else:
-                    raise ComponentError(
-                        self, 'Nonsensical keywords to trackWidgets.')
-            except ComponentError:
-                continue
-
     def update(self):
         '''
             Reads all tracked widget values into instance attributes
             and tells the MainWindow that the component was modified.
-            Call at the END of your method if you need to subclass this.
+            Call super() at the END if you need to subclass this.
         '''
         for attr, widget in self._trackedWidgets.items():
             if type(widget) == QtWidgets.QLineEdit:
@@ -320,20 +336,6 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             ] = getattr(self, attr)
         return saveValueStore
 
-    def preFrameRender(self, **kwargs):
-        '''
-            Triggered only before a video is exported (video_thread.py)
-                self.worker = the video thread worker
-                self.completeAudioArray = a list of audio samples
-                self.sampleSize = number of audio samples per video frame
-                self.progressBarUpdate = signal to set progress bar number
-                self.progressBarSetText = signal to set progress bar text
-            Use the latter two signals to update the MainWindow if needed
-            for a long initialization procedure (i.e., for a visualizer)
-        '''
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
     def commandHelp(self):
         '''Help text as string for this component's commandline arguments'''
 
@@ -356,6 +358,28 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     # "Private" Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+    def trackWidgets(self, trackDict, **kwargs):
+        '''
+            Name widgets to track in update(), savePreset(), loadPreset(), and
+            command(). Requires a dict of attr names as keys, widgets as values
+
+            Optional args:
+                'presetNames': preset variable names to replace attr names
+                'commandArgs': arg keywords that differ from attr names
+
+            NOTE: Any kwarg key set to None will selectively disable tracking.
+        '''
+        self._trackedWidgets = trackDict
+        for kwarg in kwargs:
+            try:
+                if kwarg in ('presetNames', 'commandArgs'):
+                    setattr(self, '_%s' % kwarg, kwargs[kwarg])
+                else:
+                    raise ComponentError(
+                        self, 'Nonsensical keywords to trackWidgets.')
+            except ComponentError:
+                continue
+
     def lockProperties(self, propList):
         self._lockedProperties = propList
 
@@ -372,6 +396,14 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''Load a Qt Designer ui file to use for this component's widget'''
         return uic.loadUi(os.path.join(self.core.componentsPath, filename))
 
+    @property
+    def width(self):
+        return int(self.settings.value('outputWidth'))
+
+    @property
+    def height(self):
+        return int(self.settings.value('outputHeight'))
+
     def cancel(self):
         '''Stop any lengthy process in response to this variable.'''
         self.canceled = True
@@ -381,41 +413,24 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.unlockProperties()
         self.unlockError()
 
-    '''
-    ### Reference methods for creating a new component
-    ### (Inherit from this class and define these)
-
-    def previewRender(self, previewWorker):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        from toolkit.frame import BlankFrame
-        image = BlankFrame(width, height)
-        return image
-
-    def frameRender(self, layerNo, frameNo):
-        audioArrayIndex = frameNo * self.sampleSize
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        from toolkit.frame import BlankFrame
-        image = BlankFrame(width, height)
-        return image
-    '''
-
 
 class ComponentError(RuntimeError):
     '''Gives the MainWindow a traceback to display, and cancels the export.'''
 
     prevErrors = []
+    lastTime = time.time()
 
     def __init__(self, caller, name):
-        print('ComponentError by %s: %s' % (caller.name, name))
-        super().__init__()
+        print('##### ComponentError by %s: %s' % (caller.name, name))
         if len(ComponentError.prevErrors) > 1:
             ComponentError.prevErrors.pop()
         ComponentError.prevErrors.insert(0, name)
-        if name in ComponentError.prevErrors[1:]:
-            # Don't create multiple windows for repeated messages
+        curTime = time.time()
+        if name in ComponentError.prevErrors[1:] \
+                and curTime - ComponentError.lastTime < 0.2:
+            # Don't create multiple windows for quickly repeated messages
             return
+        ComponentError.lastTime = time.time()
 
         from toolkit import formatTraceback
         import sys
@@ -440,4 +455,5 @@ class ComponentError(RuntimeError):
                 )
             )
 
+        super().__init__(string)
         caller._error.emit(string, detail)

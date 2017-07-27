@@ -59,13 +59,11 @@ class Component(Component):
         saveValueStore['visColor'] = self.visColor
         return saveValueStore
 
-    def previewRender(self, previewWorker):
+    def previewRender(self):
         spectrum = numpy.fromfunction(
             lambda x: float(self.scale)/2500*(x-128)**2, (255,), dtype="int16")
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
         return self.drawBars(
-            width, height, spectrum, self.visColor, self.layout
+            self.width, self.height, spectrum, self.visColor, self.layout
         )
 
     def preFrameRender(self, **kwargs):
@@ -74,8 +72,6 @@ class Component(Component):
         self.smoothConstantUp = 0.8
         self.lastSpectrum = None
         self.spectrumArray = {}
-        self.width = int(self.settings.value('outputWidth'))
-        self.height = int(self.settings.value('outputHeight'))
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
             if self.canceled:
@@ -93,7 +89,7 @@ class Component(Component):
             self.progressBarSetText.emit(pStr)
             self.progressBarUpdate.emit(int(progress))
 
-    def frameRender(self, layerNo, frameNo):
+    def frameRender(self, frameNo):
         arrayNo = frameNo * self.sampleSize
         return self.drawBars(
             self.width, self.height,

@@ -97,10 +97,8 @@ class Component(Component):
         saveValueStore['textColor'] = self.textColor
         return saveValueStore
 
-    def previewRender(self, previewWorker):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.addText(width, height)
+    def previewRender(self):
+        return self.addText(self.width, self.height)
 
     def properties(self):
         props = ['static']
@@ -111,13 +109,10 @@ class Component(Component):
     def error(self):
         return "No text provided."
 
-    def frameRender(self, layerNo, frameNo):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.addText(width, height)
+    def frameRender(self, frameNo):
+        return self.addText(self.width, self.height)
 
     def addText(self, width, height):
-
         image = FramePainter(width, height)
         self.titleFont.setPixelSize(self.fontSize)
         image.setFont(self.titleFont)

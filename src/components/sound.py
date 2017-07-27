@@ -21,11 +21,6 @@ class Component(Component):
             'sound': None,
         })
 
-    def previewRender(self, previewWorker):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return BlankFrame(width, height)
-
     def preFrameRender(self, **kwargs):
         pass
 
@@ -62,11 +57,6 @@ class Component(Component):
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_sound.setText(filename)
             self.update()
-
-    def frameRender(self, layerNo, frameNo):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return BlankFrame(width, height)
 
     def commandHelp(self):
         print('Path to audio file:\n    path=/filepath/to/sound.ogg')

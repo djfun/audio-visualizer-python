@@ -252,7 +252,7 @@ def getAudioDuration(filename):
     return duration
 
 
-def readAudioFile(filename, parent):
+def readAudioFile(filename, videoWorker):
     '''
         Creates the completeAudioArray given to components
         and used to draw the classic visualizer.
@@ -296,8 +296,8 @@ def readAudioFile(filename, parent):
 
         if lastPercent != percent:
             string = 'Loading audio file: '+str(percent)+'%'
-            parent.progressBarSetText.emit(string)
-            parent.progressBarUpdate.emit(percent)
+            videoWorker.progressBarSetText.emit(string)
+            videoWorker.progressBarUpdate.emit(percent)
 
         lastPercent = percent
 

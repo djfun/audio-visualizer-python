@@ -3,10 +3,11 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 import math
 import subprocess
+import signal
 import threading
 from queue import PriorityQueue
 
-from component import Component
+from component import Component, ComponentError
 from toolkit.frame import BlankFrame
 from toolkit.ffmpeg import testAudioStream
 from toolkit import openPipe, checkOutput
@@ -14,6 +15,10 @@ from toolkit import openPipe, checkOutput
 
 class Video:
     '''Opens a pipe to ffmpeg and stores a buffer of raw video frames.'''
+
+    # error from the thread used to fill the buffer
+    threadError = None
+
     def __init__(self, **kwargs):
         mandatoryArgs = [
             'ffmpeg',     # path to ffmpeg, usually self.core.FFMPEG_BIN
@@ -71,8 +76,8 @@ class Video:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
-        pipe = openPipe(
-            self.command, stdout=subprocess.PIPE,
+        self.pipe = openPipe(
+            self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=10**8
         )
         while True:
@@ -85,19 +90,11 @@ class Video:
                 if len(self.currentFrame) == 0:
                     self.frameBuffer.put((self.frameNo-1, self.lastFrame))
                     continue
-            except AttributeError as e:
-                self.parent.showMessage(
-                    msg='%s couldn\'t be loaded. '
-                        'This is a fatal error.' % os.path.basename(
-                            self.videoPath
-                        ),
-                    detail=str(e),
-                    icon='Warning'
-                )
-                self.parent.stopVideo()
+            except AttributeError:
+                Video.threadError = ComponentError(self.component, 'video')
                 break
 
-            self.currentFrame = pipe.stdout.read(self.chunkSize)
+            self.currentFrame = self.pipe.stdout.read(self.chunkSize)
             if len(self.currentFrame) != 0:
                 self.frameBuffer.put((self.frameNo, self.currentFrame))
                 self.lastFrame = self.currentFrame
@@ -143,13 +140,11 @@ class Component(Component):
             self.page.spinBox_volume.setEnabled(False)
         super().update()
 
-    def previewRender(self, previewWorker):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        self.updateChunksize(width, height)
-        frame = self.getPreviewFrame(width, height)
+    def previewRender(self):
+        self.updateChunksize()
+        frame = self.getPreviewFrame(self.width, self.height)
         if not frame:
-            return BlankFrame(width, height)
+            return BlankFrame(self.width, self.height)
         else:
             return frame
 
@@ -184,23 +179,23 @@ class Component(Component):
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        self.blankFrame_ = BlankFrame(width, height)
-        self.updateChunksize(width, height)
+        self.updateChunksize()
         self.video = Video(
             ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
-            width=width, height=height, chunkSize=self.chunkSize,
+            width=self.width, height=self.height, chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, loopVideo=self.loopVideo,
             component=self, scale=self.scale
         ) if os.path.exists(self.videoPath) else None
 
-    def frameRender(self, layerNo, frameNo):
-        if self.video:
-            return self.video.frame(frameNo)
-        else:
-            return self.blankFrame_
+    def frameRender(self, frameNo):
+        if Video.threadError is not None:
+            raise Video.threadError
+        return self.video.frame(frameNo)
+
+    def renderFinished(self):
+        self.video.pipe.stdout.close()
+        self.video.pipe.send_signal(signal.SIGINT)
 
     def pickVideo(self):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
@@ -230,20 +225,20 @@ class Component(Component):
             '-vframes', '1',
         ]
         pipe = openPipe(
-            command, stdout=subprocess.PIPE,
+            command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=10**8
         )
         byteFrame = pipe.stdout.read(self.chunkSize)
-        frame = finalizeFrame(self, byteFrame, width, height)
         pipe.stdout.close()
-        pipe.kill()
+        pipe.send_signal(signal.SIGINT)
 
+        frame = finalizeFrame(self, byteFrame, width, height)
         return frame
 
-    def updateChunksize(self, width, height):
+    def updateChunksize(self):
         if self.scale != 100 and not self.distort:
-            width, height = scale(self.scale, width, height, int)
-        self.chunkSize = 4*width*height
+            width, height = scale(self.scale, self.width, self.height, int)
+        self.chunkSize = 4 * width * height
 
     def command(self, arg):
         if '=' in arg:
