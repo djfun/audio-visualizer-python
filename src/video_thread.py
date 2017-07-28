@@ -292,7 +292,7 @@ class Worker(QtCore.QObject):
         self.out_pipe.wait()
 
         for comp in reversed(self.components):
-            comp.renderFinished()
+            comp.postFrameRender()
 
         if self.canceled:
             print("Export Canceled")

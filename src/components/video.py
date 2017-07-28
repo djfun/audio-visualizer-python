@@ -59,7 +59,7 @@ class Video:
 
         self.thread = threading.Thread(
             target=self.fillBuffer,
-            name=self.__doc__
+            name='Video Frame-Fetcher'
         )
         self.thread.daemon = True
         self.thread.start()
@@ -150,6 +150,10 @@ class Component(Component):
 
     def properties(self):
         props = []
+        if hasattr(self.parent, 'window'):
+            outputFile = self.parent.window.lineEdit_outputFile.text()
+        else:
+            outputFile = str(self.parent.args.output)
 
         if not self.videoPath:
             self.lockError("There is no video selected.")
@@ -157,9 +161,7 @@ class Component(Component):
             self.lockError("Could not identify an audio stream in this video.")
         elif not os.path.exists(self.videoPath):
             self.lockError("The video selected does not exist!")
-        elif (os.path.realpath(self.videoPath) ==
-                os.path.realpath(
-                    self.parent.window.lineEdit_outputFile.text())):
+        elif os.path.realpath(self.videoPath) == os.path.realpath(outputFile):
             self.lockError("Input and output paths match.")
 
         if self.useAudio:
@@ -193,7 +195,7 @@ class Component(Component):
             raise Video.threadError
         return self.video.frame(frameNo)
 
-    def renderFinished(self):
+    def postFrameRender(self):
         self.video.pipe.stdout.close()
         self.video.pipe.send_signal(signal.SIGINT)
 
@@ -238,6 +240,8 @@ class Component(Component):
     def updateChunksize(self):
         if self.scale != 100 and not self.distort:
             width, height = scale(self.scale, self.width, self.height, int)
+        else:
+            width, height = self.width, self.height
         self.chunkSize = 4 * width * height
 
     def command(self, arg):

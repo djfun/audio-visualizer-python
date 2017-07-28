@@ -21,9 +21,6 @@ class Component(Component):
             'sound': None,
         })
 
-    def preFrameRender(self, **kwargs):
-        pass
-
     def properties(self):
         props = ['static', 'audio']
         if not os.path.exists(self.sound):

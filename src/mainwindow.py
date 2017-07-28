@@ -54,7 +54,7 @@ class PreviewWindow(QtWidgets.QLabel):
     def threadError(self, msg):
         self.parent.showMessage(
             msg=msg,
-            icon='Warning',
+            icon='Critical',
             parent=self
         )
 

@@ -33,7 +33,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 return func(self, *args, **kwargs)
             except Exception as e:
                 try:
-                    if e.__name__.startswith('Component'):
+                    if e.__class__.__name__.startswith('Component'):
                         raise
                     else:
                         raise ComponentError(self, 'renderer')
@@ -213,7 +213,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         image = BlankFrame(self.width, self.height)
         return image
 
-    def renderFinished(self):
+    def postFrameRender(self):
         pass
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -456,4 +456,5 @@ class ComponentError(RuntimeError):
             )
 
         super().__init__(string)
+        caller.lockError(string)
         caller._error.emit(string, detail)
