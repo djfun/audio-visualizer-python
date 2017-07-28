@@ -2,6 +2,9 @@ from setuptools import setup
 import os
 
 
+__version__ = '2.0.0.rc2'
+
+
 def package_files(directory):
     paths = []
     for (path, directories, filenames) in os.walk(directory):
@@ -12,7 +15,7 @@ def package_files(directory):
 
 setup(
     name='audio_visualizer_python',
-    version='2.0.0rc1',
+    version=__version__,
     url='https://github.com/djfun/audio-visualizer-python/tree/feature-newgui',
     license='MIT',
     description='Create audio visualization videos from a GUI or commandline',
@@ -20,8 +23,7 @@ setup(
         "them as Projects to continue editing later. Different components can "
         "be added and layered to add visualizers, images, videos, gradients, "
         "text, etc. Use Projects created in the GUI with commandline mode to "
-        "automate your video production workflow without learning any complex "
-        "syntax.",
+        "automate your video production workflow without any complex syntax.",
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
@@ -29,10 +31,13 @@ setup(
         'Intended Audience :: End Users/Desktop',
         'Topic :: Multimedia :: Video :: Non-Linear Editor',
     ],
-    keywords=['visualizer', 'visualization', 'commandline video',
-        'video editor', 'ffmpeg', 'podcast'],
+    keywords=[
+        'visualizer', 'visualization', 'commandline video',
+        'video editor', 'ffmpeg', 'podcast'
+    ],
     packages=[
         'avpython',
+        'avpython.toolkit',
         'avpython.components'
     ],
     package_dir={'avpython': 'src'},

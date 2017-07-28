@@ -5,26 +5,23 @@ from PIL.ImageQt import ImageQt
 import os
 
 from component import Component
-from frame import BlankFrame, FloodFrame, FramePainter, PaintColor
+from toolkit.frame import BlankFrame, FloodFrame, FramePainter, PaintColor
+from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
-    '''Color'''
+    name = 'Color'
+    version = '1.0.0'
 
-    modified = QtCore.pyqtSignal(int, dict)
-
-    def widget(self, parent):
-        self.parent = parent
-        self.settings = self.parent.core.settings
-        page = self.loadUi('color.ui')
-
+    def widget(self, *args):
         self.color1 = (0, 0, 0)
         self.color2 = (133, 133, 133)
         self.x = 0
         self.y = 0
+        super().widget(*args)
 
-        page.lineEdit_color1.setText('%s,%s,%s' % self.color1)
-        page.lineEdit_color2.setText('%s,%s,%s' % self.color2)
+        self.page.lineEdit_color1.setText('%s,%s,%s' % self.color1)
+        self.page.lineEdit_color2.setText('%s,%s,%s' % self.color2)
 
         btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.color1).name()
@@ -32,28 +29,18 @@ class Component(Component):
         btnStyle2 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.color2).name()
 
-        page.pushButton_color1.setStyleSheet(btnStyle1)
-        page.pushButton_color2.setStyleSheet(btnStyle2)
-        page.pushButton_color1.clicked.connect(lambda: self.pickColor(1))
-        page.pushButton_color2.clicked.connect(lambda: self.pickColor(2))
+        self.page.pushButton_color1.setStyleSheet(btnStyle1)
+        self.page.pushButton_color2.setStyleSheet(btnStyle2)
+        self.page.pushButton_color1.clicked.connect(lambda: self.pickColor(1))
+        self.page.pushButton_color2.clicked.connect(lambda: self.pickColor(2))
 
         # disable color #2 until non-default 'fill' option gets changed
-        page.lineEdit_color2.setDisabled(True)
-        page.pushButton_color2.setDisabled(True)
-        page.spinBox_x.valueChanged.connect(self.update)
-        page.spinBox_y.valueChanged.connect(self.update)
-        page.spinBox_width.setValue(
+        self.page.lineEdit_color2.setDisabled(True)
+        self.page.pushButton_color2.setDisabled(True)
+        self.page.spinBox_width.setValue(
             int(self.settings.value("outputWidth")))
-        page.spinBox_height.setValue(
+        self.page.spinBox_height.setValue(
             int(self.settings.value("outputHeight")))
-
-        page.lineEdit_color1.textChanged.connect(self.update)
-        page.lineEdit_color2.textChanged.connect(self.update)
-        page.spinBox_x.valueChanged.connect(self.update)
-        page.spinBox_y.valueChanged.connect(self.update)
-        page.spinBox_width.valueChanged.connect(self.update)
-        page.spinBox_height.valueChanged.connect(self.update)
-        page.checkBox_trans.stateChanged.connect(self.update)
 
         self.fillLabels = [
             'Solid',
@@ -61,39 +48,36 @@ class Component(Component):
             'Radial Gradient',
         ]
         for label in self.fillLabels:
-            page.comboBox_fill.addItem(label)
-        page.comboBox_fill.setCurrentIndex(0)
-        page.comboBox_fill.currentIndexChanged.connect(self.update)
-        page.comboBox_spread.currentIndexChanged.connect(self.update)
-        page.spinBox_radialGradient_end.valueChanged.connect(self.update)
-        page.spinBox_radialGradient_start.valueChanged.connect(self.update)
-        page.spinBox_radialGradient_spread.valueChanged.connect(self.update)
-        page.spinBox_linearGradient_end.valueChanged.connect(self.update)
-        page.spinBox_linearGradient_start.valueChanged.connect(self.update)
-        page.checkBox_stretch.stateChanged.connect(self.update)
+            self.page.comboBox_fill.addItem(label)
+        self.page.comboBox_fill.setCurrentIndex(0)
 
-        self.page = page
-        return page
+        self.trackWidgets(
+            {
+                'x': self.page.spinBox_x,
+                'y': self.page.spinBox_y,
+                'sizeWidth': self.page.spinBox_width,
+                'sizeHeight': self.page.spinBox_height,
+                'trans': self.page.checkBox_trans,
+                'spread': self.page.comboBox_spread,
+                'stretch': self.page.checkBox_stretch,
+                'RG_start': self.page.spinBox_radialGradient_start,
+                'LG_start': self.page.spinBox_linearGradient_start,
+                'RG_end': self.page.spinBox_radialGradient_end,
+                'LG_end': self.page.spinBox_linearGradient_end,
+                'RG_centre': self.page.spinBox_radialGradient_spread,
+                'fillType': self.page.comboBox_fill,
+            }, presetNames={
+                'sizeWidth': 'width',
+                'sizeHeight': 'height',
+            }
+        )
 
     def update(self):
-        self.color1 = self.RGBFromString(self.page.lineEdit_color1.text())
-        self.color2 = self.RGBFromString(self.page.lineEdit_color2.text())
-        self.x = self.page.spinBox_x.value()
-        self.y = self.page.spinBox_y.value()
-        self.sizeWidth = self.page.spinBox_width.value()
-        self.sizeHeight = self.page.spinBox_height.value()
-        self.trans = self.page.checkBox_trans.isChecked()
-        self.spread = self.page.comboBox_spread.currentIndex()
+        self.color1 = rgbFromString(self.page.lineEdit_color1.text())
+        self.color2 = rgbFromString(self.page.lineEdit_color2.text())
 
-        self.RG_start = self.page.spinBox_radialGradient_start.value()
-        self.RG_end = self.page.spinBox_radialGradient_end.value()
-        self.RG_centre = self.page.spinBox_radialGradient_spread.value()
-        self.stretch = self.page.checkBox_stretch.isChecked()
-        self.LG_start = self.page.spinBox_linearGradient_start.value()
-        self.LG_end = self.page.spinBox_linearGradient_end.value()
-
-        self.fillType = self.page.comboBox_fill.currentIndex()
-        if self.fillType == 0:
+        fillType = self.page.comboBox_fill.currentIndex()
+        if fillType == 0:
             self.page.lineEdit_color2.setEnabled(False)
             self.page.pushButton_color2.setEnabled(False)
             self.page.checkBox_trans.setEnabled(False)
@@ -105,25 +89,21 @@ class Component(Component):
             self.page.checkBox_trans.setEnabled(True)
             self.page.checkBox_stretch.setEnabled(True)
             self.page.comboBox_spread.setEnabled(True)
-        if self.trans:
+        if self.page.checkBox_trans.isChecked():
             self.page.lineEdit_color2.setEnabled(False)
             self.page.pushButton_color2.setEnabled(False)
-        self.page.fillWidget.setCurrentIndex(self.fillType)
+        self.page.fillWidget.setCurrentIndex(fillType)
 
         super().update()
 
-    def previewRender(self, previewWorker):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.drawFrame(width, height)
+    def previewRender(self):
+        return self.drawFrame(self.width, self.height)
 
     def properties(self):
         return ['static']
 
-    def frameRender(self, layerNo, frameNo):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.drawFrame(width, height)
+    def frameRender(self, frameNo):
+        return self.drawFrame(self.width, self.height)
 
     def drawFrame(self, width, height):
         r, g, b = self.color1
@@ -181,25 +161,11 @@ class Component(Component):
 
         return image.finalize()
 
-    def loadPreset(self, pr, presetName=None):
-        super().loadPreset(pr, presetName)
+    def loadPreset(self, pr, *args):
+        super().loadPreset(pr, *args)
 
-        self.page.comboBox_fill.setCurrentIndex(pr['fillType'])
         self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
         self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
-        self.page.spinBox_x.setValue(pr['x'])
-        self.page.spinBox_y.setValue(pr['y'])
-        self.page.spinBox_width.setValue(pr['width'])
-        self.page.spinBox_height.setValue(pr['height'])
-        self.page.checkBox_trans.setChecked(pr['trans'])
-
-        self.page.spinBox_radialGradient_start.setValue(pr['RG_start'])
-        self.page.spinBox_radialGradient_end.setValue(pr['RG_end'])
-        self.page.spinBox_radialGradient_spread.setValue(pr['RG_centre'])
-        self.page.spinBox_linearGradient_start.setValue(pr['LG_start'])
-        self.page.spinBox_linearGradient_end.setValue(pr['LG_end'])
-        self.page.checkBox_stretch.setChecked(pr['stretch'])
-        self.page.comboBox_spread.setCurrentIndex(pr['spread'])
 
         btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['color1']).name()
@@ -209,27 +175,13 @@ class Component(Component):
         self.page.pushButton_color2.setStyleSheet(btnStyle2)
 
     def savePreset(self):
-        return {
-            'preset': self.currentPreset,
-            'color1': self.color1,
-            'color2': self.color2,
-            'x': self.x,
-            'y': self.y,
-            'fillType': self.fillType,
-            'width': self.sizeWidth,
-            'height': self.sizeHeight,
-            'trans': self.trans,
-            'stretch': self.stretch,
-            'spread': self.spread,
-            'RG_start': self.RG_start,
-            'RG_end': self.RG_end,
-            'RG_centre': self.RG_centre,
-            'LG_start': self.LG_start,
-            'LG_end': self.LG_end,
-        }
+        saveValueStore = super().savePreset()
+        saveValueStore['color1'] = self.color1
+        saveValueStore['color2'] = self.color2
+        return saveValueStore
 
     def pickColor(self, num):
-        RGBstring, btnStyle = super().pickColor()
+        RGBstring, btnStyle = pickColor()
         if not RGBstring:
             return
         if num == 1:
@@ -243,7 +195,7 @@ class Component(Component):
         print('Specify a color:\n    color=255,255,255')
 
     def command(self, arg):
-        if not arg.startswith('preset=') and '=' in arg:
+        if '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'color':
                 self.page.lineEdit_color1.setText(arg)

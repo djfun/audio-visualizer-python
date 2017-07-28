@@ -1,82 +1,35 @@
 '''
    Home to the Core class which tracks program state. Used by GUI & commandline
+   to create a list of components and create a video thread to export.
 '''
+from PyQt5 import QtCore, QtGui, uic
 import sys
 import os
-from PyQt5 import QtCore, QtGui, uic
-import subprocess as sp
-import numpy
 import json
 from importlib import import_module
-from PyQt5.QtCore import QStandardPaths
 
 import toolkit
-from frame import Frame
 import video_thread
 
 
 class Core:
     '''
         MainWindow and Command module both use an instance of this class
-        to store the program state. This object tracks the components,
-        opens projects and presets, and stores settings/paths to data.
+        to store the core program state. This object tracks the components,
+        talks to the components, handles opening/creating project files
+        and presets, and creates the video thread to export.
+        This class also stores constants as class variables.
     '''
+
     def __init__(self):
-        Frame.core = self
-        self.dataDir = QStandardPaths.writableLocation(
-            QStandardPaths.AppConfigLocation
-        )
-        self.presetDir = os.path.join(self.dataDir, 'presets')
-        if getattr(sys, 'frozen', False):
-            # frozen
-            self.wd = os.path.dirname(sys.executable)
-        else:
-            # unfrozen
-            self.wd = os.path.dirname(os.path.realpath(__file__))
-        self.componentsPath = os.path.join(self.wd, 'components')
-        self.settings = QtCore.QSettings(
-            os.path.join(self.dataDir, 'settings.ini'),
-            QtCore.QSettings.IniFormat
-        )
-
-        self.loadEncoderOptions()
-        self.videoFormats = toolkit.appendUppercase([
-            '*.mp4',
-            '*.mov',
-            '*.mkv',
-            '*.avi',
-            '*.webm',
-            '*.flv',
-        ])
-        self.audioFormats = toolkit.appendUppercase([
-            '*.mp3',
-            '*.wav',
-            '*.ogg',
-            '*.fla',
-            '*.flac',
-            '*.aac',
-        ])
-        self.imageFormats = toolkit.appendUppercase([
-            '*.png',
-            '*.jpg',
-            '*.tif',
-            '*.tiff',
-            '*.gif',
-            '*.bmp',
-            '*.ico',
-            '*.xbm',
-            '*.xpm',
-        ])
-
-        self.FFMPEG_BIN = self.findFfmpeg()
-        self.findComponents()
+        self.importComponents()
         self.selectedComponents = []
-        # copies of named presets to detect modification
-        self.savedPresets = {}
+        self.savedPresets = {}  # copies of presets to detect modification
+        self.openingProject = False
 
-    def findComponents(self):
+    def importComponents(self):
         def findComponents():
-            for f in sorted(os.listdir(self.componentsPath)):
+            for f in os.listdir(Core.componentsPath):
                 name, ext = os.path.splitext(f)
                 if name.startswith("__"):
                     continue
@@ -88,9 +41,14 @@ class Core:
         ]
         # store canonical module names and indexes
         self.moduleIndexes = [i for i in range(len(self.modules))]
-        self.compNames = [mod.Component.__doc__ for mod in self.modules]
-        self.altCompNames = []
+        self.compNames = [mod.Component.name for mod in self.modules]
+        # alphabetize modules by Component name
+        sortedModules = sorted(zip(self.compNames, self.modules))
+        self.compNames = [y[0] for y in sortedModules]
+        self.modules = [y[1] for y in sortedModules]
+
         # store alternative names for modules
+        self.altCompNames = []
         for i, mod in enumerate(self.modules):
             if hasattr(mod.Component, 'names'):
                 for name in mod.Component.names():
@@ -101,7 +59,10 @@ class Core:
             component.compPos = i
 
     def insertComponent(self, compPos, moduleIndex, loader):
-        '''Creates a new component'''
+        '''
+            Creates a new component using these args:
+            (compPos, moduleIndex in self.modules, MWindow/Command/Core obj)
+        '''
         if compPos < 0 or compPos > len(self.selectedComponents):
             compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
@@ -115,6 +76,9 @@ class Core:
             component
         )
         self.componentListChanged()
+        self.selectedComponents[compPos]._error.connect(
+            loader.videoThreadError
+        )
 
         # init component's widget for loading/saving presets
         self.selectedComponents[compPos].widget(loader)
@@ -171,10 +135,6 @@ class Core:
         self.savedPresets[presetName] = dict(saveValueStore)
         return True
 
-    def getPresetDir(self, comp):
-        return os.path.join(
-            self.presetDir, str(comp), str(comp.version()))
-
     def getPreset(self, filepath):
         '''Returns the preset dict stored at this filepath'''
         if not os.path.exists(filepath):
@@ -195,6 +155,7 @@ class Core:
 
         errcode, data = self.parseAvFile(filepath)
         if errcode == 0:
+            self.openingProject = True
             try:
                 if hasattr(loader, 'window'):
                     for widget, value in data['WindowFields']:
@@ -204,7 +165,7 @@ class Core:
                         widget.blockSignals(False)
 
                 for key, value in data['Settings']:
-                    self.settings.setValue(key, value)
+                    Core.settings.setValue(key, value)
 
                 for tup in data['Components']:
                     name, vers, preset = tup
@@ -215,7 +176,7 @@ class Core:
                     if 'preset' in preset and preset['preset'] is not None:
                         nam = preset['preset']
                         filepath2 = os.path.join(
-                            self.presetDir, name, str(vers), nam)
+                            Core.presetDir, name, str(vers), nam)
                         origSaveValueStore = self.getPreset(filepath2)
                         if origSaveValueStore:
                             self.savedPresets[nam] = dict(origSaveValueStore)
@@ -228,7 +189,8 @@ class Core:
                     i = self.insertComponent(
                         -1,
                         self.moduleIndexFor(name),
-                        loader)
+                        loader
+                    )
                     if i is None:
                         loader.showMessage(msg="Too many components!")
                         break
@@ -252,8 +214,9 @@ class Core:
                         self.clearPreset(i)
                     if hasattr(loader, 'updateComponentTitle'):
                         loader.updateComponentTitle(i, modified)
-
-            except:
+                self.openingProject = False
+                return True
+            except Exception:
                 errcode = 1
                 data = sys.exc_info()
 
@@ -265,19 +228,21 @@ class Core:
                 return
             if hasattr(loader, 'createNewProject'):
                 loader.createNewProject(prompt=False)
-            import traceback
-            msg = '%s: %s\n\nTraceback:\n' % (typ.__name__, value)
-            msg += "\n".join(traceback.format_tb(tb))
+            msg = '%s: %s\n\n' % (typ.__name__, value)
+            msg += toolkit.formatTraceback(tb)
             loader.showMessage(
                 msg="Project file '%s' is corrupted." % filepath,
                 showCancel=False,
                 icon='Warning',
                 detail=msg)
+            self.openingProject = False
+            return False
 
     def parseAvFile(self, filepath):
-        '''Parses an avp (project) or avl (preset package) file.
-        Returns dictionary with section names as the keys, each one
-        contains a list of tuples: (compName, version, compPresetDict)
+        '''
+            Parses an avp (project) or avl (preset package) file.
+            Returns dictionary with section names as the keys, each one
+            contains a list of tuples: (compName, version, compPresetDict)
         '''
         validSections = (
                     'Components',
@@ -325,7 +290,7 @@ class Core:
                         data[section].append((key, value.strip()))
 
             return 0, data
-        except:
+        except Exception:
             return 1, sys.exc_info()
 
     def importPreset(self, filepath):
@@ -336,7 +301,7 @@ class Core:
             presetName = preset['preset'] \
                 if preset['preset'] else os.path.basename(filepath)[:-4]
             newPath = os.path.join(
-                self.presetDir,
+                Core.presetDir,
                 name,
                 vers,
                 presetName
@@ -354,7 +319,7 @@ class Core:
 
     def exportPreset(self, exportPath, compName, vers, origName):
         internalPath = os.path.join(
-            self.presetDir, compName, str(vers), origName
+            Core.presetDir, compName, str(vers), origName
         )
         if not os.path.exists(internalPath):
             return
@@ -370,7 +335,7 @@ class Core:
                 exportPath
             )
             return True
-        except:
+        except Exception:
             return False
 
     def createPresetFile(
@@ -378,7 +343,7 @@ class Core:
         '''Create a preset file (.avl) at filepath using args.
         Or if filepath is empty, create an internal preset using args'''
         if not filepath:
-            dirname = os.path.join(self.presetDir, compName, str(vers))
+            dirname = os.path.join(Core.presetDir, compName, str(vers))
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
             filepath = os.path.join(dirname, presetName)
@@ -417,13 +382,13 @@ class Core:
                     saveValueStore = comp.savePreset()
                     saveValueStore['preset'] = comp.currentPreset
                     f.write('%s\n' % str(comp))
-                    f.write('%s\n' % str(comp.version()))
+                    f.write('%s\n' % str(comp.version))
                     f.write('%s\n' % toolkit.presetToString(saveValueStore))
 
                 f.write('\n[Settings]\n')
-                for key in self.settings.allKeys():
+                for key in Core.settings.allKeys():
                     if key in settingsKeys:
-                        f.write('%s=%s\n' % (key, self.settings.value(key)))
+                        f.write('%s=%s\n' % (key, Core.settings.value(key)))
 
                 if window:
                     f.write('\n[WindowFields]\n')
@@ -435,283 +400,11 @@ class Core:
                         )
                     )
             return True
-        except:
+        except Exception:
             return False
 
-    def loadEncoderOptions(self):
-        file_path = os.path.join(self.wd, 'encoder-options.json')
-        with open(file_path) as json_file:
-            self.encoder_options = json.load(json_file)
-
-    def findFfmpeg(self):
-        if getattr(sys, 'frozen', False):
-            # The application is frozen
-            if sys.platform == "win32":
-                return os.path.join(self.wd, 'ffmpeg.exe')
-            else:
-                return os.path.join(self.wd, 'ffmpeg')
-
-        else:
-            if sys.platform == "win32":
-                return "ffmpeg"
-            else:
-                try:
-                    with open(os.devnull, "w") as f:
-                        toolkit.checkOutput(
-                            ['ffmpeg', '-version'], stderr=f
-                        )
-                    return "ffmpeg"
-                except sp.CalledProcessError:
-                    return "avconv"
-
-    def createFfmpegCommand(self, inputFile, outputFile, duration):
-        '''
-            Constructs the major ffmpeg command used to export the video
-        '''
-        safeDuration = "{0:.3f}".format(duration - 0.05)  # used by filters
-        duration = "{0:.3f}".format(duration + 0.1)  # used by input sources
-
-        # Test if user has libfdk_aac
-        encoders = toolkit.checkOutput(
-            "%s -encoders -hide_banner" % self.FFMPEG_BIN, shell=True
-        )
-        encoders = encoders.decode("utf-8")
-
-        acodec = self.settings.value('outputAudioCodec')
-
-        options = self.encoder_options
-        containerName = self.settings.value('outputContainer')
-        vcodec = self.settings.value('outputVideoCodec')
-        vbitrate = str(self.settings.value('outputVideoBitrate'))+'k'
-        acodec = self.settings.value('outputAudioCodec')
-        abitrate = str(self.settings.value('outputAudioBitrate'))+'k'
-
-        for cont in options['containers']:
-            if cont['name'] == containerName:
-                container = cont['container']
-                break
-
-        vencoders = options['video-codecs'][vcodec]
-        aencoders = options['audio-codecs'][acodec]
-
-        for encoder in vencoders:
-            if encoder in encoders:
-                vencoder = encoder
-                break
-
-        for encoder in aencoders:
-            if encoder in encoders:
-                aencoder = encoder
-                break
-
-        ffmpegCommand = [
-            self.FFMPEG_BIN,
-            '-thread_queue_size', '512',
-            '-y',  # overwrite the output file if it already exists.
-
-            # INPUT VIDEO
-            '-f', 'rawvideo',
-            '-vcodec', 'rawvideo',
-            '-s', '%sx%s' % (
-                self.settings.value('outputWidth'),
-                self.settings.value('outputHeight'),
-            ),
-            '-pix_fmt', 'rgba',
-            '-r', self.settings.value('outputFrameRate'),
-            '-t', duration,
-            '-i', '-',  # the video input comes from a pipe
-            '-an',  # the video input has no sound
-
-            # INPUT SOUND
-            '-t', duration,
-            '-i', inputFile
-        ]
-
-        # Add extra audio inputs and any needed avfilters
-        # NOTE: Global filters are currently hard-coded here for debugging use
-        globalFilters = 0  # increase to add global filters
-        extraAudio = [
-            comp.audio() for comp in self.selectedComponents
-            if 'audio' in comp.properties()
-        ]
-        if extraAudio or globalFilters > 0:
-            # Add -i options for extra input files
-            extraFilters = {}
-            for streamNo, params in enumerate(reversed(extraAudio)):
-                extraInputFile, params = params
-                ffmpegCommand.extend([
-                    '-t', safeDuration,
-                    # Tell ffmpeg about shorter clips (seemingly not needed)
-                    #   streamDuration = self.getAudioDuration(extraInputFile)
-                    #   if  streamDuration > float(safeDuration)
-                    #   else "{0:.3f}".format(streamDuration),
-                    '-i', extraInputFile
-                ])
-                # Construct dataset of extra filters we'll need to add later
-                for ffmpegFilter in params:
-                    if streamNo + 2 not in extraFilters:
-                        extraFilters[streamNo + 2] = []
-                    extraFilters[streamNo + 2].append((
-                        ffmpegFilter, params[ffmpegFilter]
-                    ))
-
-            # Start creating avfilters! Popen-style, so don't use semicolons;
-            extraFilterCommand = []
-
-            if globalFilters <= 0:
-                # Dictionary of last-used tmp labels for a given stream number
-                tmpInputs = {streamNo: -1 for streamNo in extraFilters}
-            else:
-                # Insert blank entries for global filters into extraFilters
-                # so the per-stream filters know what input to source later
-                for streamNo in range(len(extraAudio), 0, -1):
-                    if streamNo + 1 not in extraFilters:
-                        extraFilters[streamNo + 1] = []
-                # Also filter the primary audio track
-                extraFilters[1] = []
-                tmpInputs = {
-                    streamNo: globalFilters - 1
-                    for streamNo in extraFilters
-                }
-
-                # Add the global filters!
-                # NOTE: list length must = globalFilters, currently hardcoded
-                if tmpInputs:
-                    extraFilterCommand.extend([
-                        '[%s:a] ashowinfo [%stmp0]' % (
-                            str(streamNo),
-                            str(streamNo)
-                        )
-                        for streamNo in tmpInputs
-                    ])
-
-            # Now add the per-stream filters!
-            for streamNo, paramList in extraFilters.items():
-                for param in paramList:
-                    source = '[%s:a]' % str(streamNo) \
-                        if tmpInputs[streamNo] == -1 else \
-                        '[%stmp%s]' % (
-                            str(streamNo), str(tmpInputs[streamNo])
-                        )
-                    tmpInputs[streamNo] = tmpInputs[streamNo] + 1
-                    extraFilterCommand.append(
-                        '%s %s%s [%stmp%s]' % (
-                            source, param[0], param[1], str(streamNo),
-                            str(tmpInputs[streamNo])
-                        )
-                    )
-
-            # Join all the filters together and combine into 1 stream
-            extraFilterCommand = "; ".join(extraFilterCommand) + '; ' \
-                if tmpInputs else ''
-            ffmpegCommand.extend([
-                '-filter_complex',
-                extraFilterCommand +
-                '%s amix=inputs=%s:duration=first [a]'
-                % (
-                    "".join([
-                        '[%stmp%s]' % (str(i), tmpInputs[i])
-                        if i in extraFilters else '[%s:a]' % str(i)
-                        for i in range(1, len(extraAudio) + 2)
-                    ]),
-                    str(len(extraAudio) + 1)
-                ),
-            ])
-
-            # Only map audio from the filters, and video from the pipe
-            ffmpegCommand.extend([
-                '-map', '0:v',
-                '-map', '[a]',
-            ])
-
-        ffmpegCommand.extend([
-            # OUTPUT
-            '-vcodec', vencoder,
-            '-acodec', aencoder,
-            '-b:v', vbitrate,
-            '-b:a', abitrate,
-            '-pix_fmt', self.settings.value('outputVideoFormat'),
-            '-preset', self.settings.value('outputPreset'),
-            '-f', container
-        ])
-
-        if acodec == 'aac':
-            ffmpegCommand.append('-strict')
-            ffmpegCommand.append('-2')
-
-        ffmpegCommand.append(outputFile)
-        return ffmpegCommand
-
-    def getAudioDuration(self, filename):
-        command = [self.FFMPEG_BIN, '-i', filename]
-
-        try:
-            fileInfo = toolkit.checkOutput(command, stderr=sp.STDOUT)
-        except sp.CalledProcessError as ex:
-            fileInfo = ex.output
-
-        info = fileInfo.decode("utf-8").split('\n')
-        for line in info:
-            if 'Duration' in line:
-                d = line.split(',')[0]
-                d = d.split(' ')[3]
-                d = d.split(':')
-                duration = float(d[0])*3600 + float(d[1])*60 + float(d[2])
-        return duration
-
-    def readAudioFile(self, filename, parent):
-        duration = self.getAudioDuration(filename)
-
-        command = [
-            self.FFMPEG_BIN,
-            '-i', filename,
-            '-f', 's16le',
-            '-acodec', 'pcm_s16le',
-            '-ar', '44100',  # ouput will have 44100 Hz
-            '-ac', '1',  # mono (set to '2' for stereo)
-            '-']
-        in_pipe = toolkit.openPipe(
-            command, stdout=sp.PIPE, stderr=sp.DEVNULL, bufsize=10**8
-        )
-
-        completeAudioArray = numpy.empty(0, dtype="int16")
-
-        progress = 0
-        lastPercent = None
-        while True:
-            if self.canceled:
-                break
-            # read 2 seconds of audio
-            progress += 4
-            raw_audio = in_pipe.stdout.read(88200*4)
-            if len(raw_audio) == 0:
-                break
-            audio_array = numpy.fromstring(raw_audio, dtype="int16")
-            completeAudioArray = numpy.append(completeAudioArray, audio_array)
-
-            percent = int(100*(progress/duration))
-            if percent >= 100:
-                percent = 100
-
-            if lastPercent != percent:
-                string = 'Loading audio file: '+str(percent)+'%'
-                parent.progressBarSetText.emit(string)
-                parent.progressBarUpdate.emit(percent)
-
-            lastPercent = percent
-
-        in_pipe.kill()
-        in_pipe.wait()
-
-        # add 0s the end
-        completeAudioArrayCopy = numpy.zeros(
-            len(completeAudioArray) + 44100, dtype="int16")
-        completeAudioArrayCopy[:len(completeAudioArray)] = completeAudioArray
-        completeAudioArray = completeAudioArrayCopy
-
-        return (completeAudioArray, duration)
-
     def newVideoWorker(self, loader, audioFile, outputPath):
+        '''loader is MainWindow or Command object which must own the thread'''
         self.videoThread = QtCore.QThread(loader)
         videoWorker = video_thread.Worker(
             loader, audioFile, outputPath, self.selectedComponents
@@ -727,7 +420,107 @@ class Core:
         self.videoThread.wait()
 
     def cancel(self):
-        self.canceled = True
+        Core.canceled = True
 
     def reset(self):
-        self.canceled = False
+        Core.canceled = False
+
+    @classmethod
+    def storeSettings(cls):
+        '''Store settings/paths to directories as class variables'''
+        from __init__ import wd
+        from toolkit.ffmpeg import findFfmpeg
+
+        cls.wd = wd
+        dataDir = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.AppConfigLocation
+        )
+        with open(os.path.join(wd, 'encoder-options.json')) as json_file:
+            encoderOptions = json.load(json_file)
+
+        settings = {
+            'dataDir': dataDir,
+            'settings': QtCore.QSettings(
+                            os.path.join(dataDir, 'settings.ini'),
+                            QtCore.QSettings.IniFormat),
+            'presetDir': os.path.join(dataDir, 'presets'),
+            'componentsPath': os.path.join(wd, 'components'),
+            'encoderOptions': encoderOptions,
+            'resolutions': [
+                '1920x1080',
+                '1280x720',
+                '854x480',
+            ],
+            'windowHasFocus': False,
+            'FFMPEG_BIN': findFfmpeg(),
+            'canceled': False,
+        }
+
+        settings['videoFormats'] = toolkit.appendUppercase([
+            '*.mp4',
+            '*.mov',
+            '*.mkv',
+            '*.avi',
+            '*.webm',
+            '*.flv',
+        ])
+        settings['audioFormats'] = toolkit.appendUppercase([
+            '*.mp3',
+            '*.wav',
+            '*.ogg',
+            '*.fla',
+            '*.flac',
+            '*.aac',
+        ])
+        settings['imageFormats'] = toolkit.appendUppercase([
+            '*.png',
+            '*.jpg',
+            '*.tif',
+            '*.tiff',
+            '*.gif',
+            '*.bmp',
+            '*.ico',
+            '*.xbm',
+            '*.xpm',
+        ])
+
+        # Register all settings as class variables
+        for classvar, val in settings.items():
+            setattr(cls, classvar, val)
+
+        cls.loadDefaultSettings()
+
+    @classmethod
+    def loadDefaultSettings(cls):
+        defaultSettings = {
+            "outputWidth": 1280,
+            "outputHeight": 720,
+            "outputFrameRate": 30,
+            "outputAudioCodec": "AAC",
+            "outputAudioBitrate": "192",
+            "outputVideoCodec": "H264",
+            "outputVideoBitrate": "2500",
+            "outputVideoFormat": "yuv420p",
+            "outputPreset": "medium",
+            "outputFormat": "mp4",
+            "outputContainer": "MP4",
+            "projectDir": os.path.join(cls.dataDir, 'projects'),
+            "pref_insertCompAtTop": True,
+        }
+
+        for parm, value in defaultSettings.items():
+            if cls.settings.value(parm) is None:
+                cls.settings.setValue(parm, value)
+
+        # Allow manual editing of prefs. (Surprisingly necessary as Qt seems to
+        # store True as 'true' but interprets a manually-added 'true' as str.)
+        for key in cls.settings.allKeys():
+            if not key.startswith('pref_'):
+                continue
+            val = cls.settings.value(key)
+            if val in ('true', 'false'):
+                cls.settings.setValue(key, True if val == 'true' else False)
+
+
+# always store settings in class variables even if a Core object is not created
+Core.storeSettings()

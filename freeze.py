@@ -2,8 +2,8 @@ from cx_Freeze import setup, Executable
 import sys
 import os
 
-# Dependencies are automatically detected, but it might need
-# fine tuning.
+from setup import __version__
+
 
 deps = [os.path.join('src', p) for p in os.listdir('src') if p]
 deps.append('ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg')
@@ -39,7 +39,6 @@ buildOptions = dict(
     include_files=deps,
 )
 
-
 base = 'Win32GUI' if sys.platform == 'win32' else None
 
 executables = [
@@ -53,7 +52,7 @@ executables = [
 
 setup(
     name='audio-visualizer-python',
-    version='2.0',
+    version=__version__,
     description='GUI tool to render visualization videos of audio files',
     options=dict(build_exe=buildOptions),
     executables=executables

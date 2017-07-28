@@ -3,19 +3,25 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 import math
 import subprocess
+import signal
 import threading
 from queue import PriorityQueue
 
-from component import Component, BadComponentInit
-from frame import BlankFrame
+from component import Component, ComponentError
+from toolkit.frame import BlankFrame
+from toolkit.ffmpeg import testAudioStream
 from toolkit import openPipe, checkOutput
 
 
 class Video:
-    '''Video Component Frame-Fetcher'''
+    '''Opens a pipe to ffmpeg and stores a buffer of raw video frames.'''
+
+    # error from the thread used to fill the buffer
+    threadError = None
+
     def __init__(self, **kwargs):
         mandatoryArgs = [
-            'ffmpeg',     # path to ffmpeg, usually core.FFMPEG_BIN
+            'ffmpeg',     # path to ffmpeg, usually self.core.FFMPEG_BIN
             'videoPath',
             'width',
             'height',
@@ -26,10 +32,7 @@ class Video:
             'component',  # component object
         ]
         for arg in mandatoryArgs:
-            try:
-                exec('self.%s = kwargs[arg]' % arg)
-            except KeyError:
-                raise BadComponentInit(arg, self.__doc__)
+            setattr(self, arg, kwargs[arg])
 
         self.frameNo = -1
         self.currentFrame = 'None'
@@ -56,7 +59,7 @@ class Video:
 
         self.thread = threading.Thread(
             target=self.fillBuffer,
-            name=self.__doc__
+            name='Video Frame-Fetcher'
         )
         self.thread.daemon = True
         self.thread.start()
@@ -73,8 +76,8 @@ class Video:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
-        pipe = openPipe(
-            self.command, stdout=subprocess.PIPE,
+        self.pipe = openPipe(
+            self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=10**8
         )
         while True:
@@ -87,119 +90,88 @@ class Video:
                 if len(self.currentFrame) == 0:
                     self.frameBuffer.put((self.frameNo-1, self.lastFrame))
                     continue
-            except AttributeError as e:
-                self.parent.showMessage(
-                    msg='%s couldn\'t be loaded. '
-                        'This is a fatal error.' % os.path.basename(
-                            self.videoPath
-                        ),
-                    detail=str(e),
-                    icon='Warning'
-                )
-                self.parent.stopVideo()
+            except AttributeError:
+                Video.threadError = ComponentError(self.component, 'video')
                 break
 
-            self.currentFrame = pipe.stdout.read(self.chunkSize)
+            self.currentFrame = self.pipe.stdout.read(self.chunkSize)
             if len(self.currentFrame) != 0:
                 self.frameBuffer.put((self.frameNo, self.currentFrame))
                 self.lastFrame = self.currentFrame
 
 
 class Component(Component):
-    '''Video'''
+    name = 'Video'
+    version = '1.0.0'
 
-    modified = QtCore.pyqtSignal(int, dict)
-
-    def widget(self, parent):
-        self.parent = parent
-        self.settings = parent.settings
-        page = self.loadUi('video.ui')
+    def widget(self, *args):
         self.videoPath = ''
         self.badVideo = False
         self.badAudio = False
         self.x = 0
         self.y = 0
         self.loopVideo = False
-
-        page.lineEdit_video.textChanged.connect(self.update)
-        page.pushButton_video.clicked.connect(self.pickVideo)
-        page.checkBox_loop.stateChanged.connect(self.update)
-        page.checkBox_distort.stateChanged.connect(self.update)
-        page.checkBox_useAudio.stateChanged.connect(self.update)
-        page.spinBox_scale.valueChanged.connect(self.update)
-        page.spinBox_volume.valueChanged.connect(self.update)
-        page.spinBox_x.valueChanged.connect(self.update)
-        page.spinBox_y.valueChanged.connect(self.update)
-
-        self.page = page
-        return page
+        super().widget(*args)
+        self.page.pushButton_video.clicked.connect(self.pickVideo)
+        self.trackWidgets(
+            {
+                'videoPath': self.page.lineEdit_video,
+                'loopVideo': self.page.checkBox_loop,
+                'useAudio': self.page.checkBox_useAudio,
+                'distort': self.page.checkBox_distort,
+                'scale': self.page.spinBox_scale,
+                'volume': self.page.spinBox_volume,
+                'xPosition': self.page.spinBox_x,
+                'yPosition': self.page.spinBox_y,
+            }, presetNames={
+                'videoPath': 'video',
+                'loopVideo': 'loop',
+                'xPosition': 'x',
+                'yPosition': 'y',
+            }
+        )
 
     def update(self):
-        self.videoPath = self.page.lineEdit_video.text()
-        self.loopVideo = self.page.checkBox_loop.isChecked()
-        self.useAudio = self.page.checkBox_useAudio.isChecked()
-        self.distort = self.page.checkBox_distort.isChecked()
-        self.scale = self.page.spinBox_scale.value()
-        self.volume = self.page.spinBox_volume.value()
-        self.xPosition = self.page.spinBox_x.value()
-        self.yPosition = self.page.spinBox_y.value()
-
-        if self.useAudio:
+        if self.page.checkBox_useAudio.isChecked():
             self.page.label_volume.setEnabled(True)
             self.page.spinBox_volume.setEnabled(True)
         else:
             self.page.label_volume.setEnabled(False)
             self.page.spinBox_volume.setEnabled(False)
-
         super().update()
 
-    def previewRender(self, previewWorker):
-        width = int(previewWorker.core.settings.value('outputWidth'))
-        height = int(previewWorker.core.settings.value('outputHeight'))
-        self.updateChunksize(width, height)
-        frame = self.getPreviewFrame(width, height)
+    def previewRender(self):
+        self.updateChunksize()
+        frame = self.getPreviewFrame(self.width, self.height)
         if not frame:
-            return BlankFrame(width, height)
+            return BlankFrame(self.width, self.height)
         else:
             return frame
 
     def properties(self):
         props = []
-        if not self.videoPath or self.badVideo \
-                or not os.path.exists(self.videoPath):
-            return ['error']
+        if hasattr(self.parent, 'window'):
+            outputFile = self.parent.window.lineEdit_outputFile.text()
+        else:
+            outputFile = str(self.parent.args.output)
+
+        if not self.videoPath:
+            self.lockError("There is no video selected.")
+        elif self.badVideo:
+            self.lockError("Could not identify an audio stream in this video.")
+        elif not os.path.exists(self.videoPath):
+            self.lockError("The video selected does not exist!")
+        elif os.path.realpath(self.videoPath) == os.path.realpath(outputFile):
+            self.lockError("Input and output paths match.")
 
         if self.useAudio:
             props.append('audio')
-            self.testAudioStream()
-            if self.badAudio:
-                return ['error']
+            if not testAudioStream(self.videoPath) \
+                    and self.error() is None:
+                self.lockError(
+                    "Could not identify an audio stream in this video.")
 
         return props
-
-    def error(self):
-        if self.badAudio:
-            return "Could not identify an audio stream in this video."
-        if not self.videoPath:
-            return "There is no video selected."
-        if not os.path.exists(self.videoPath):
-            return "The video selected does not exist!"
-        if self.badVideo:
-            return "The video selected is corrupt!"
-
-    def testAudioStream(self):
-        # test if an audio stream really exists
-        audioTestCommand = [
-            self.core.FFMPEG_BIN,
-            '-i', self.videoPath,
-            '-vn', '-f', 'null', '-'
-        ]
-        try:
-            checkOutput(audioTestCommand, stderr=subprocess.DEVNULL)
-        except subprocess.CalledProcessError:
-            self.badAudio = True
-        else:
-            self.badAudio = False
 
     def audio(self):
         params = {}
@@ -209,47 +181,23 @@ class Component(Component):
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
-        width = int(self.worker.core.settings.value('outputWidth'))
-        height = int(self.worker.core.settings.value('outputHeight'))
-        self.blankFrame_ = BlankFrame(width, height)
-        self.updateChunksize(width, height)
+        self.updateChunksize()
         self.video = Video(
             ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
-            width=width, height=height, chunkSize=self.chunkSize,
+            width=self.width, height=self.height, chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, loopVideo=self.loopVideo,
             component=self, scale=self.scale
         ) if os.path.exists(self.videoPath) else None
 
-    def frameRender(self, layerNo, frameNo):
-        if self.video:
-            return self.video.frame(frameNo)
-        else:
-            return self.blankFrame_
+    def frameRender(self, frameNo):
+        if Video.threadError is not None:
+            raise Video.threadError
+        return self.video.frame(frameNo)
 
-    def loadPreset(self, pr, presetName=None):
-        super().loadPreset(pr, presetName)
-        self.page.lineEdit_video.setText(pr['video'])
-        self.page.checkBox_loop.setChecked(pr['loop'])
-        self.page.checkBox_useAudio.setChecked(pr['useAudio'])
-        self.page.checkBox_distort.setChecked(pr['distort'])
-        self.page.spinBox_scale.setValue(pr['scale'])
-        self.page.spinBox_volume.setValue(pr['volume'])
-        self.page.spinBox_x.setValue(pr['x'])
-        self.page.spinBox_y.setValue(pr['y'])
-
-    def savePreset(self):
-        return {
-            'preset': self.currentPreset,
-            'video': self.videoPath,
-            'loop': self.loopVideo,
-            'useAudio': self.useAudio,
-            'distort': self.distort,
-            'scale': self.scale,
-            'volume': self.volume,
-            'x': self.xPosition,
-            'y': self.yPosition,
-        }
+    def postFrameRender(self):
+        self.video.pipe.stdout.close()
+        self.video.pipe.send_signal(signal.SIGINT)
 
     def pickVideo(self):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
@@ -267,7 +215,7 @@ class Component(Component):
             return
 
         command = [
-            self.parent.core.FFMPEG_BIN,
+            self.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
             '-i', self.videoPath,
             '-f', 'image2pipe',
@@ -279,23 +227,25 @@ class Component(Component):
             '-vframes', '1',
         ]
         pipe = openPipe(
-            command, stdout=subprocess.PIPE,
+            command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=10**8
         )
         byteFrame = pipe.stdout.read(self.chunkSize)
-        frame = finalizeFrame(self, byteFrame, width, height)
         pipe.stdout.close()
-        pipe.kill()
+        pipe.send_signal(signal.SIGINT)
 
+        frame = finalizeFrame(self, byteFrame, width, height)
         return frame
 
-    def updateChunksize(self, width, height):
+    def updateChunksize(self):
         if self.scale != 100 and not self.distort:
-            width, height = scale(self.scale, width, height, int)
-        self.chunkSize = 4*width*height
+            width, height = scale(self.scale, self.width, self.height, int)
+        else:
+            width, height = self.width, self.height
+        self.chunkSize = 4 * width * height
 
     def command(self, arg):
-        if not arg.startswith('preset=') and '=' in arg:
+        if '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'path' and os.path.exists(arg):
                 if '*%s' % os.path.splitext(arg)[1] in self.core.videoFormats:

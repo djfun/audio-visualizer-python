@@ -9,8 +9,7 @@ import os
 import sys
 import time
 
-import core
-from toolkit import LoadDefaultSettings
+from core import Core
 
 
 class Command(QtCore.QObject):
@@ -19,7 +18,7 @@ class Command(QtCore.QObject):
 
     def __init__(self):
         QtCore.QObject.__init__(self)
-        self.core = core.Core()
+        self.core = Core()
         self.dataDir = self.core.dataDir
         self.canceled = False
 
@@ -54,8 +53,7 @@ class Command(QtCore.QObject):
             nargs='*', action='append')
 
         self.args = self.parser.parse_args()
-        self.settings = self.core.settings
-        LoadDefaultSettings(self)
+        self.settings = Core.settings
 
         if self.args.projpath:
             projPath = self.args.projpath
@@ -66,7 +64,9 @@ class Command(QtCore.QObject):
                 )
             if not projPath.endswith('.avp'):
                 projPath += '.avp'
-            self.core.openProject(self, projPath)
+            success = self.core.openProject(self, projPath)
+            if not success:
+                quit(1)
             self.core.selectedComponents = list(
                 reversed(self.core.selectedComponents))
             self.core.componentListChanged()
@@ -147,6 +147,12 @@ class Command(QtCore.QObject):
         print(kwargs['msg'])
         if 'detail' in kwargs:
             print(kwargs['detail'])
+
+    @QtCore.pyqtSlot(str, str)
+    def videoThreadError(self, msg, detail):
+        print(msg)
+        print(detail)
+        quit(1)
 
     def drawPreview(self, *args):
         pass

@@ -15,7 +15,7 @@ Dependencies
 ------------
 Python 3.4, FFmpeg 3.3, PyQt5, Pillow-SIMD, NumPy
 
-**Note:** Pillow may be used as a drop-in replacement for Pillow-SIMD if problems are encountered installing. However this will result in much slower video export times. For help troubleshooting installation problems, the * For any problems with installing Pillow-SIMD, see the [Pillow installation guide](http://pillow.readthedocs.io/en/3.1.x/installation.html).
+**Note:** Pillow may be used as a drop-in replacement for Pillow-SIMD if problems are encountered installing. However this will result in much slower video export times. For help installing Pillow-SIMD, see the [Pillow installation guide](http://pillow.readthedocs.io/en/3.1.x/installation.html).
 
 Installation
 ------------

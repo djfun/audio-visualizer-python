@@ -9,27 +9,29 @@ from PIL.ImageQt import ImageQt
 from queue import Queue, Empty
 import os
 
-from frame import Checkerboard
+from toolkit.frame import Checkerboard
+from toolkit import disableWhenOpeningProject
 
 
 class Worker(QtCore.QObject):
 
     imageCreated = pyqtSignal(QtGui.QImage)
-    error = pyqtSignal()
+    error = pyqtSignal(str)
 
     def __init__(self, parent=None, queue=None):
         QtCore.QObject.__init__(self)
         parent.newTask.connect(self.createPreviewImage)
         parent.processTask.connect(self.process)
         self.parent = parent
-        self.core = self.parent.core
-        self.settings = self.parent.core.settings
+        self.core = parent.core
+        self.settings = parent.settings
         self.queue = queue
 
         width = int(self.settings.value('outputWidth'))
         height = int(self.settings.value('outputHeight'))
         self.background = Checkerboard(width, height)
 
+    @disableWhenOpeningProject
     @pyqtSlot(list)
     def createPreviewImage(self, components):
         dic = {
@@ -48,7 +50,6 @@ class Worker(QtCore.QObject):
                     self.queue.get(block=False)
                 except Empty:
                     continue
-
             if self.background.width != width \
                     or self.background.height != height:
                 self.background = Checkerboard(width, height)
@@ -58,27 +59,19 @@ class Worker(QtCore.QObject):
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
-                    newFrame = component.previewRender(self)
+                    newFrame = component.previewRender()
                     frame = Image.alpha_composite(
                         frame, newFrame
                     )
 
                 except ValueError as e:
                     errMsg = "Bad frame returned by %s's preview renderer. " \
-                        "%s. New frame size was %s*%s; should be %s*%s. " \
-                        "This is a fatal error." % (
+                        "%s. New frame size was %s*%s; should be %s*%s." % (
                             str(component), str(e).capitalize(),
                             newFrame.width, newFrame.height,
                             width, height
                         )
-                    print(errMsg)
-                    self.parent.showMessage(
-                        msg=errMsg,
-                        detail=str(e),
-                        icon='Warning',
-                        parent=None  # MainWindow is in a different thread
-                    )
-                    self.error.emit()
+                    self.error.emit(errMsg)
                     break
                 except RuntimeError as e:
                     print(e)

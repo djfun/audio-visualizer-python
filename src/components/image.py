@@ -3,48 +3,36 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 
 from component import Component
-from frame import BlankFrame
+from toolkit.frame import BlankFrame
 
 
 class Component(Component):
-    '''Image'''
+    name = 'Image'
+    version = '1.0.0'
 
-    modified = QtCore.pyqtSignal(int, dict)
+    def widget(self, *args):
+        super().widget(*args)
+        self.page.pushButton_image.clicked.connect(self.pickImage)
+        self.trackWidgets(
+            {
+                'imagePath': self.page.lineEdit_image,
+                'scale': self.page.spinBox_scale,
+                'rotate': self.page.spinBox_rotate,
+                'color': self.page.spinBox_color,
+                'xPosition': self.page.spinBox_x,
+                'yPosition': self.page.spinBox_y,
+                'stretched': self.page.checkBox_stretch,
+                'mirror': self.page.checkBox_mirror,
+            },
+            presetNames={
+                'imagePath': 'image',
+                'xPosition': 'x',
+                'yPosition': 'y',
+            },
+        )
 
-    def widget(self, parent):
-        self.parent = parent
-        self.settings = self.parent.core.settings
-        page = self.loadUi('image.ui')
-
-        page.lineEdit_image.textChanged.connect(self.update)
-        page.pushButton_image.clicked.connect(self.pickImage)
-        page.spinBox_scale.valueChanged.connect(self.update)
-        page.spinBox_rotate.valueChanged.connect(self.update)
-        page.spinBox_color.valueChanged.connect(self.update)
-        page.checkBox_stretch.stateChanged.connect(self.update)
-        page.checkBox_mirror.stateChanged.connect(self.update)
-        page.spinBox_x.valueChanged.connect(self.update)
-        page.spinBox_y.valueChanged.connect(self.update)
-
-        self.page = page
-        return page
-
-    def update(self):
-        self.imagePath = self.page.lineEdit_image.text()
-        self.scale = self.page.spinBox_scale.value()
-        self.rotate = self.page.spinBox_rotate.value()
-        self.color = self.page.spinBox_color.value()
-        self.xPosition = self.page.spinBox_x.value()
-        self.yPosition = self.page.spinBox_y.value()
-        self.stretched = self.page.checkBox_stretch.isChecked()
-        self.mirror = self.page.checkBox_mirror.isChecked()
-
-        super().update()
-
-    def previewRender(self, previewWorker):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.drawFrame(width, height)
+    def previewRender(self):
+        return self.drawFrame(self.width, self.height)
 
     def properties(self):
         props = ['static']
@@ -58,10 +46,8 @@ class Component(Component):
         if not os.path.exists(self.imagePath):
             return "The image selected does not exist!"
 
-    def frameRender(self, layerNo, frameNo):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
-        return self.drawFrame(width, height)
+    def frameRender(self, frameNo):
+        return self.drawFrame(self.width, self.height)
 
     def drawFrame(self, width, height):
         frame = BlankFrame(width, height)
@@ -89,30 +75,6 @@ class Component(Component):
 
         return frame
 
-    def loadPreset(self, pr, presetName=None):
-        super().loadPreset(pr, presetName)
-        self.page.lineEdit_image.setText(pr['image'])
-        self.page.spinBox_scale.setValue(pr['scale'])
-        self.page.spinBox_color.setValue(pr['color'])
-        self.page.spinBox_rotate.setValue(pr['rotate'])
-        self.page.spinBox_x.setValue(pr['x'])
-        self.page.spinBox_y.setValue(pr['y'])
-        self.page.checkBox_stretch.setChecked(pr['stretched'])
-        self.page.checkBox_mirror.setChecked(pr['mirror'])
-
-    def savePreset(self):
-        return {
-            'preset': self.currentPreset,
-            'image': self.imagePath,
-            'scale': self.scale,
-            'color': self.color,
-            'rotate': self.rotate,
-            'stretched': self.stretched,
-            'mirror': self.mirror,
-            'x': self.xPosition,
-            'y': self.yPosition,
-        }
-
     def pickImage(self):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -124,7 +86,7 @@ class Component(Component):
             self.update()
 
     def command(self, arg):
-        if not arg.startswith('preset=') and '=' in arg:
+        if '=' in arg:
             key, arg = arg.split('=', 1)
             if key == 'path' and os.path.exists(arg):
                 try:

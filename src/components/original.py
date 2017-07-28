@@ -7,80 +7,63 @@ import time
 from copy import copy
 
 from component import Component
-from frame import BlankFrame
+from toolkit.frame import BlankFrame
+from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
-    '''Classic Visualizer'''
+    name = 'Classic Visualizer'
+    version = '1.0.0'
 
-    modified = QtCore.pyqtSignal(int, dict)
-
-    @classmethod
-    def names(cls):
+    def names(*args):
         return ['Original Audio Visualization']
 
-    def widget(self, parent):
-        self.parent = parent
-        self.settings = self.parent.core.settings
+    def widget(self, *args):
         self.visColor = (255, 255, 255)
         self.scale = 20
         self.y = 0
-        self.canceled = False
+        super().widget(*args)
 
-        page = self.loadUi('original.ui')
-        page.comboBox_visLayout.addItem("Classic")
-        page.comboBox_visLayout.addItem("Split")
-        page.comboBox_visLayout.addItem("Bottom")
-        page.comboBox_visLayout.addItem("Top")
-        page.comboBox_visLayout.setCurrentIndex(0)
-        page.comboBox_visLayout.currentIndexChanged.connect(self.update)
-        page.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
-        page.pushButton_visColor.clicked.connect(lambda: self.pickColor())
+        self.page.comboBox_visLayout.addItem("Classic")
+        self.page.comboBox_visLayout.addItem("Split")
+        self.page.comboBox_visLayout.addItem("Bottom")
+        self.page.comboBox_visLayout.addItem("Top")
+        self.page.comboBox_visLayout.setCurrentIndex(0)
+
+        self.page.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
+        self.page.pushButton_visColor.clicked.connect(lambda: self.pickColor())
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*self.visColor).name()
-        page.pushButton_visColor.setStyleSheet(btnStyle)
-        page.lineEdit_visColor.textChanged.connect(self.update)
-        page.spinBox_scale.valueChanged.connect(self.update)
-        page.spinBox_y.valueChanged.connect(self.update)
+        self.page.pushButton_visColor.setStyleSheet(btnStyle)
 
-        self.page = page
-        return page
+        self.trackWidgets({
+            'layout': self.page.comboBox_visLayout,
+            'scale': self.page.spinBox_scale,
+            'y': self.page.spinBox_y,
+        })
 
     def update(self):
-        self.layout = self.page.comboBox_visLayout.currentIndex()
-        self.visColor = self.RGBFromString(self.page.lineEdit_visColor.text())
-        self.scale = self.page.spinBox_scale.value()
-        self.y = self.page.spinBox_y.value()
-
+        self.visColor = rgbFromString(self.page.lineEdit_visColor.text())
         super().update()
 
-    def loadPreset(self, pr, presetName=None):
-        super().loadPreset(pr, presetName)
+    def loadPreset(self, pr, *args):
+        super().loadPreset(pr, *args)
 
         self.page.lineEdit_visColor.setText('%s,%s,%s' % pr['visColor'])
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
             % QColor(*pr['visColor']).name()
         self.page.pushButton_visColor.setStyleSheet(btnStyle)
-        self.page.comboBox_visLayout.setCurrentIndex(pr['layout'])
-        self.page.spinBox_scale.setValue(pr['scale'])
-        self.page.spinBox_y.setValue(pr['y'])
 
     def savePreset(self):
-        return {
-            'preset': self.currentPreset,
-            'layout': self.layout,
-            'visColor': self.visColor,
-            'scale': self.scale,
-            'y': self.y,
-        }
+        saveValueStore = super().savePreset()
+        saveValueStore['visColor'] = self.visColor
+        return saveValueStore
 
-    def previewRender(self, previewWorker):
+    def previewRender(self):
         spectrum = numpy.fromfunction(
             lambda x: float(self.scale)/2500*(x-128)**2, (255,), dtype="int16")
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
         return self.drawBars(
-            width, height, spectrum, self.visColor, self.layout
+            self.width, self.height, spectrum, self.visColor, self.layout
         )
 
     def preFrameRender(self, **kwargs):
@@ -89,8 +72,6 @@ class Component(Component):
         self.smoothConstantUp = 0.8
         self.lastSpectrum = None
         self.spectrumArray = {}
-        self.width = int(self.settings.value('outputWidth'))
-        self.height = int(self.settings.value('outputHeight'))
 
         for i in range(0, len(self.completeAudioArray), self.sampleSize):
             if self.canceled:
@@ -108,7 +89,7 @@ class Component(Component):
             self.progressBarSetText.emit(pStr)
             self.progressBarUpdate.emit(int(progress))
 
-    def frameRender(self, layerNo, frameNo):
+    def frameRender(self, frameNo):
         arrayNo = frameNo * self.sampleSize
         return self.drawBars(
             self.width, self.height,
@@ -116,7 +97,7 @@ class Component(Component):
             self.visColor, self.layout)
 
     def pickColor(self):
-        RGBstring, btnStyle = super().pickColor()
+        RGBstring, btnStyle = pickColor()
         if not RGBstring:
             return
         self.page.lineEdit_visColor.setText(RGBstring)
@@ -208,7 +189,7 @@ class Component(Component):
         return im
 
     def command(self, arg):
-        if not arg.startswith('preset=') and '=' in arg:
+        if '=' in arg:
             key, arg = arg.split('=', 1)
             try:
                 if key == 'color':
