@@ -98,97 +98,13 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
         '-i', inputFile
     ]
 
-    # Add extra audio inputs and any needed avfilters
-    # NOTE: Global filters are currently hard-coded here for debugging use
-    globalFilters = 0  # increase to add global filters
     extraAudio = [
         comp.audio for comp in components
         if 'audio' in comp.properties()
     ]
-    if extraAudio or globalFilters > 0:
-        # Add -i options for extra input files
-        extraFilters = {}
-        for streamNo, params in enumerate(reversed(extraAudio)):
-            extraInputFile, params = params
-            ffmpegCommand.extend([
-                '-t', safeDuration,
-                # Tell ffmpeg about shorter clips (seemingly not needed)
-                #   streamDuration = getAudioDuration(extraInputFile)
-                #   if streamDuration and streamDuration > float(safeDuration)
-                #   else "{0:.3f}".format(streamDuration),
-                '-i', extraInputFile
-            ])
-            # Construct dataset of extra filters we'll need to add later
-            for ffmpegFilter in params:
-                if streamNo + 2 not in extraFilters:
-                    extraFilters[streamNo + 2] = []
-                extraFilters[streamNo + 2].append((
-                    ffmpegFilter, params[ffmpegFilter]
-                ))
-
-        # Start creating avfilters! Popen-style, so don't use semicolons;
-        extraFilterCommand = []
-
-        if globalFilters <= 0:
-            # Dictionary of last-used tmp labels for a given stream number
-            tmpInputs = {streamNo: -1 for streamNo in extraFilters}
-        else:
-            # Insert blank entries for global filters into extraFilters
-            # so the per-stream filters know what input to source later
-            for streamNo in range(len(extraAudio), 0, -1):
-                if streamNo + 1 not in extraFilters:
-                    extraFilters[streamNo + 1] = []
-            # Also filter the primary audio track
-            extraFilters[1] = []
-            tmpInputs = {
-                streamNo: globalFilters - 1
-                for streamNo in extraFilters
-            }
-
-            # Add the global filters!
-            # NOTE: list length must = globalFilters, currently hardcoded
-            if tmpInputs:
-                extraFilterCommand.extend([
-                    '[%s:a] ashowinfo [%stmp0]' % (
-                        str(streamNo),
-                        str(streamNo)
-                    )
-                    for streamNo in tmpInputs
-                ])
-
-        # Now add the per-stream filters!
-        for streamNo, paramList in extraFilters.items():
-            for param in paramList:
-                source = '[%s:a]' % str(streamNo) \
-                    if tmpInputs[streamNo] == -1 else \
-                    '[%stmp%s]' % (
-                        str(streamNo), str(tmpInputs[streamNo])
-                    )
-                tmpInputs[streamNo] = tmpInputs[streamNo] + 1
-                extraFilterCommand.append(
-                    '%s %s%s [%stmp%s]' % (
-                        source, param[0], param[1], str(streamNo),
-                        str(tmpInputs[streamNo])
-                    )
-                )
-
-        # Join all the filters together and combine into 1 stream
-        extraFilterCommand = "; ".join(extraFilterCommand) + '; ' \
-            if tmpInputs else ''
-        ffmpegCommand.extend([
-            '-filter_complex',
-            extraFilterCommand +
-            '%s amix=inputs=%s:duration=first [a]'
-            % (
-                "".join([
-                    '[%stmp%s]' % (str(i), tmpInputs[i])
-                    if i in extraFilters else '[%s:a]' % str(i)
-                    for i in range(1, len(extraAudio) + 2)
-                ]),
-                str(len(extraAudio) + 1)
-            ),
-        ])
-
+    segment = createAudioFilterCommand(extraAudio, safeDuration)
+    ffmpegCommand.extend(segment)
+    if segment:
         # Only map audio from the filters, and video from the pipe
         ffmpegCommand.extend([
             '-map', '0:v',
@@ -211,6 +127,100 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
         ffmpegCommand.append('-2')
 
     ffmpegCommand.append(outputFile)
+    return ffmpegCommand
+
+
+def createAudioFilterCommand(extraAudio, duration):
+    '''Add extra inputs and any needed filters to the main ffmpeg command.'''
+    # NOTE: Global filters are currently hard-coded here for debugging use
+    globalFilters = 0  # increase to add global filters
+
+    if not extraAudio and not globalFilters:
+        return []
+
+    ffmpegCommand = []
+    # Add -i options for extra input files
+    extraFilters = {}
+    for streamNo, params in enumerate(reversed(extraAudio)):
+        extraInputFile, params = params
+        ffmpegCommand.extend([
+            '-t', duration,
+            # Tell ffmpeg about shorter clips (seemingly not needed)
+            #   streamDuration = getAudioDuration(extraInputFile)
+            #   if streamDuration and streamDuration > float(safeDuration)
+            #   else "{0:.3f}".format(streamDuration),
+            '-i', extraInputFile
+        ])
+        # Construct dataset of extra filters we'll need to add later
+        for ffmpegFilter in params:
+            if streamNo + 2 not in extraFilters:
+                extraFilters[streamNo + 2] = []
+            extraFilters[streamNo + 2].append((
+                ffmpegFilter, params[ffmpegFilter]
+            ))
+
+    # Start creating avfilters! Popen-style, so don't use semicolons;
+    extraFilterCommand = []
+
+    if globalFilters <= 0:
+        # Dictionary of last-used tmp labels for a given stream number
+        tmpInputs = {streamNo: -1 for streamNo in extraFilters}
+    else:
+        # Insert blank entries for global filters into extraFilters
+        # so the per-stream filters know what input to source later
+        for streamNo in range(len(extraAudio), 0, -1):
+            if streamNo + 1 not in extraFilters:
+                extraFilters[streamNo + 1] = []
+        # Also filter the primary audio track
+        extraFilters[1] = []
+        tmpInputs = {
+            streamNo: globalFilters - 1
+            for streamNo in extraFilters
+        }
+
+        # Add the global filters!
+        # NOTE: list length must = globalFilters, currently hardcoded
+        if tmpInputs:
+            extraFilterCommand.extend([
+                '[%s:a] ashowinfo [%stmp0]' % (
+                    str(streamNo),
+                    str(streamNo)
+                )
+                for streamNo in tmpInputs
+            ])
+
+    # Now add the per-stream filters!
+    for streamNo, paramList in extraFilters.items():
+        for param in paramList:
+            source = '[%s:a]' % str(streamNo) \
+                if tmpInputs[streamNo] == -1 else \
+                '[%stmp%s]' % (
+                    str(streamNo), str(tmpInputs[streamNo])
+                )
+            tmpInputs[streamNo] = tmpInputs[streamNo] + 1
+            extraFilterCommand.append(
+                '%s %s%s [%stmp%s]' % (
+                    source, param[0], param[1], str(streamNo),
+                    str(tmpInputs[streamNo])
+                )
+            )
+
+    # Join all the filters together and combine into 1 stream
+    extraFilterCommand = "; ".join(extraFilterCommand) + '; ' \
+        if tmpInputs else ''
+    ffmpegCommand.extend([
+        '-filter_complex',
+        extraFilterCommand +
+        '%s amix=inputs=%s:duration=first [a]'
+        % (
+            "".join([
+                '[%stmp%s]' % (str(i), tmpInputs[i])
+                if i in extraFilters else '[%s:a]' % str(i)
+                for i in range(1, len(extraAudio) + 2)
+            ]),
+            str(len(extraAudio) + 1)
+        ),
+    ])
     return ffmpegCommand
 
 
