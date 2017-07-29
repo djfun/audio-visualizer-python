@@ -6,7 +6,20 @@ import string
 import os
 import sys
 import subprocess
+import signal
+import math
 from collections import OrderedDict
+
+
+def scale(scale, width, height, returntype=None):
+    width = (float(width) / 100.0) * float(scale)
+    height = (float(height) / 100.0) * float(scale)
+    if returntype == str:
+        return (str(math.ceil(width)), str(math.ceil(height)))
+    elif returntype == int:
+        return (math.ceil(width), math.ceil(height))
+    else:
+        return (width, height)
 
 
 def badName(name):
@@ -34,29 +47,35 @@ def appendUppercase(lst):
         lst.append(form.upper())
     return lst
 
-
-def hideCmdWin(func):
-    ''' Stops CMD window from appearing on Windows.
-        Adapted from here: http://code.activestate.com/recipes/409002/
-    '''
-    def decorator(commandList, **kwargs):
+def pipeWrapper(func):
+    '''A decorator to insert proper kwargs into Popen objects.'''
+    def pipeWrapper(commandList, **kwargs):
         if sys.platform == 'win32':
+            # Stop CMD window from appearing on Windows
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             kwargs['startupinfo'] = startupinfo
+
+        if 'bufsize' not in kwargs:
+            kwargs['bufsize'] = 10**8
+        if 'stdin' not in kwargs:
+            kwargs['stdin'] = subprocess.DEVNULL
         return func(commandList, **kwargs)
-    return decorator
+    return pipeWrapper
 
 
-@hideCmdWin
+@pipeWrapper
 def checkOutput(commandList, **kwargs):
     return subprocess.check_output(commandList, **kwargs)
 
 
-@hideCmdWin
+@pipeWrapper
 def openPipe(commandList, **kwargs):
     return subprocess.Popen(commandList, **kwargs)
 
+def closePipe(pipe):
+    pipe.stdout.close()
+    pipe.send_signal(signal.SIGINT)
 
 def disableWhenEncoding(func):
     def decorator(self, *args, **kwargs):

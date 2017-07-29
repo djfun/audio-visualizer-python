@@ -1,103 +1,13 @@
-from PIL import Image, ImageDraw
+from PIL import Image
 from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 import math
 import subprocess
-import signal
-import threading
-from queue import PriorityQueue
 
 from component import Component, ComponentError
 from toolkit.frame import BlankFrame
-from toolkit.ffmpeg import testAudioStream
-from toolkit import openPipe, checkOutput
-
-
-class Video:
-    '''Opens a pipe to ffmpeg and stores a buffer of raw video frames.'''
-
-    # error from the thread used to fill the buffer
-    threadError = None
-
-    def __init__(self, **kwargs):
-        mandatoryArgs = [
-            'ffmpeg',     # path to ffmpeg, usually self.core.FFMPEG_BIN
-            'videoPath',
-            'width',
-            'height',
-            'scale',      # percentage scale
-            'frameRate',  # frames per second
-            'chunkSize',  # number of bytes in one frame
-            'parent',     # mainwindow object
-            'component',  # component object
-        ]
-        for arg in mandatoryArgs:
-            setattr(self, arg, kwargs[arg])
-
-        self.frameNo = -1
-        self.currentFrame = 'None'
-        if 'loopVideo' in kwargs and kwargs['loopVideo']:
-            self.loopValue = '-1'
-        else:
-            self.loopValue = '0'
-        self.command = [
-            self.ffmpeg,
-            '-thread_queue_size', '512',
-            '-r', str(self.frameRate),
-            '-stream_loop', self.loopValue,
-            '-i', self.videoPath,
-            '-f', 'image2pipe',
-            '-pix_fmt', 'rgba',
-            '-filter_complex', '[0:v] scale=%s:%s' % scale(
-                self.scale, self.width, self.height, str),
-            '-vcodec', 'rawvideo', '-',
-        ]
-
-        self.frameBuffer = PriorityQueue()
-        self.frameBuffer.maxsize = self.frameRate
-        self.finishedFrames = {}
-
-        self.thread = threading.Thread(
-            target=self.fillBuffer,
-            name='Video Frame-Fetcher'
-        )
-        self.thread.daemon = True
-        self.thread.start()
-
-    def frame(self, num):
-        while True:
-            if num in self.finishedFrames:
-                image = self.finishedFrames.pop(num)
-                return finalizeFrame(
-                    self.component, image, self.width, self.height)
-
-            i, image = self.frameBuffer.get()
-            self.finishedFrames[i] = image
-            self.frameBuffer.task_done()
-
-    def fillBuffer(self):
-        self.pipe = openPipe(
-            self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, bufsize=10**8
-        )
-        while True:
-            if self.parent.canceled:
-                break
-            self.frameNo += 1
-
-            # If we run out of frames, use the last good frame and loop.
-            try:
-                if len(self.currentFrame) == 0:
-                    self.frameBuffer.put((self.frameNo-1, self.lastFrame))
-                    continue
-            except AttributeError:
-                Video.threadError = ComponentError(self.component, 'video')
-                break
-
-            self.currentFrame = self.pipe.stdout.read(self.chunkSize)
-            if len(self.currentFrame) != 0:
-                self.frameBuffer.put((self.frameNo, self.currentFrame))
-                self.lastFrame = self.currentFrame
+from toolkit.ffmpeg import testAudioStream, FfmpegVideo
+from toolkit import openPipe, closePipe, checkOutput, scale
 
 
 class Component(Component):
@@ -182,22 +92,21 @@ class Component(Component):
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
         self.updateChunksize()
-        self.video = Video(
-            ffmpeg=self.core.FFMPEG_BIN, videoPath=self.videoPath,
+        self.video = FfmpegVideo(
+            inputPath=self.videoPath, filter_=self.makeFfmpegFilter(),
             width=self.width, height=self.height, chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, loopVideo=self.loopVideo,
-            component=self, scale=self.scale
+            component=self
         ) if os.path.exists(self.videoPath) else None
 
     def frameRender(self, frameNo):
-        if Video.threadError is not None:
-            raise Video.threadError
-        return self.video.frame(frameNo)
+        if FfmpegVideo.threadError is not None:
+            raise FfmpegVideo.threadError
+        return self.finalizeFrame(self.video.frame(frameNo))
 
     def postFrameRender(self):
-        self.video.pipe.stdout.close()
-        self.video.pipe.send_signal(signal.SIGINT)
+        closePipe(self.video.pipe)
 
     def pickVideo(self):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
@@ -220,22 +129,29 @@ class Component(Component):
             '-i', self.videoPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
-            '-filter_complex', '[0:v] scale=%s:%s' % scale(
-                self.scale, width, height, str),
+        ]
+        command.extend(self.makeFfmpegFilter())
+        command.extend([
             '-vcodec', 'rawvideo', '-',
             '-ss', '90',
-            '-vframes', '1',
-        ]
+            '-frames:v', '1',
+        ])
         pipe = openPipe(
             command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, bufsize=10**8
         )
         byteFrame = pipe.stdout.read(self.chunkSize)
-        pipe.stdout.close()
-        pipe.send_signal(signal.SIGINT)
+        closePipe(pipe)
 
-        frame = finalizeFrame(self, byteFrame, width, height)
+        frame = self.finalizeFrame(byteFrame)
         return frame
+
+    def makeFfmpegFilter(self):
+        return [
+            '-filter_complex',
+            '[0:v] scale=%s:%s' % scale(
+                self.scale, self.width, self.height, str),
+        ]
 
     def updateChunksize(self):
         if self.scale != 100 and not self.distort:
@@ -268,44 +184,32 @@ class Component(Component):
         print('Load a video:\n    path=/filepath/to/video.mp4')
         print('Using audio:\n    path=/filepath/to/video.mp4 audio')
 
+    def finalizeFrame(self, imageData):
+        try:
+            if self.distort:
+                image = Image.frombytes(
+                    'RGBA',
+                    (self.width, self.height),
+                    imageData)
+            else:
+                image = Image.frombytes(
+                    'RGBA',
+                    scale(self.scale, self.width, self.height, int),
+                    imageData)
 
-def scale(scale, width, height, returntype=None):
-    width = (float(width) / 100.0) * float(scale)
-    height = (float(height) / 100.0) * float(scale)
-    if returntype == str:
-        return (str(math.ceil(width)), str(math.ceil(height)))
-    elif returntype == int:
-        return (math.ceil(width), math.ceil(height))
-    else:
-        return (width, height)
+        except ValueError:
+            print(
+                '### BAD VIDEO SELECTED ###\n'
+                'Video will not export with these settings'
+            )
+            self.badVideo = True
+            return BlankFrame(self.width, self.height)
 
-
-def finalizeFrame(self, imageData, width, height):
-    try:
-        if self.distort:
-            image = Image.frombytes(
-                'RGBA',
-                (width, height),
-                imageData)
+        if self.scale != 100 \
+                or self.xPosition != 0 or self.yPosition != 0:
+            frame = BlankFrame(self.width, self.height)
+            frame.paste(image, box=(self.xPosition, self.yPosition))
         else:
-            image = Image.frombytes(
-                'RGBA',
-                scale(self.scale, width, height, int),
-                imageData)
-
-    except ValueError:
-        print(
-            '### BAD VIDEO SELECTED ###\n'
-            'Video will not export with these settings'
-        )
-        self.badVideo = True
-        return BlankFrame(width, height)
-
-    if self.scale != 100 \
-            or self.xPosition != 0 or self.yPosition != 0:
-        frame = BlankFrame(width, height)
-        frame.paste(image, box=(self.xPosition, self.yPosition))
-    else:
-        frame = image
-    self.badVideo = False
-    return frame
+            frame = image
+        self.badVideo = False
+        return frame

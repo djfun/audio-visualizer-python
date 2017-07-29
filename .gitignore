@@ -11,3 +11,5 @@ env/*
 *.tar.*
 *.exe
 ffmpeg
+*.bak
+*~

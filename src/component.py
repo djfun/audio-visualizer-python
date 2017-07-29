@@ -197,7 +197,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
             Must call super() when subclassing
             Triggered only before a video is exported (video_thread.py)
-                self.worker = the video thread worker
+                self.audioFile = filepath to the main input audio file
                 self.completeAudioArray = a list of audio samples
                 self.sampleSize = number of audio samples per video frame
                 self.progressBarUpdate = signal to set progress bar number
@@ -436,7 +436,7 @@ class ComponentError(RuntimeError):
         import sys
         if sys.exc_info()[0] is not None:
             string = (
-                "%s component's %s encountered %s %s." % (
+                "%s component's %s encountered %s %s: %s" % (
                     caller.__class__.name,
                     name,
                     'an' if any([
@@ -444,12 +444,13 @@ class ComponentError(RuntimeError):
                         for vowel in ('A', 'I')
                     ]) else 'a',
                     sys.exc_info()[0].__name__,
+                    str(sys.exc_info()[1])
                 )
             )
             detail = formatTraceback(sys.exc_info()[2])
         else:
             string = name
-            detail = "Methods:\n%s" % (
+            detail = "Attributes:\n%s" % (
                 "\n".join(
                     [m for m in dir(caller) if not m.startswith('_')]
                 )

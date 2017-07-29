@@ -153,7 +153,7 @@ class Worker(QtCore.QObject):
         for compNo, comp in enumerate(reversed(self.components)):
             try:
                 comp.preFrameRender(
-                    worker=self,
+                    audioFile=self.inputFile,
                     completeAudioArray=self.completeAudioArray,
                     sampleSize=self.sampleSize,
                     progressBarUpdate=self.progressBarUpdate,

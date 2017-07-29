@@ -5,9 +5,108 @@ import numpy
 import sys
 import os
 import subprocess
+import threading
+from queue import PriorityQueue
 
 import core
 from toolkit.common import checkOutput, openPipe
+
+
+class FfmpegVideo:
+    '''Opens a pipe to ffmpeg and stores a buffer of raw video frames.'''
+
+    # error from the thread used to fill the buffer
+    threadError = None
+
+    def __init__(self, **kwargs):
+        mandatoryArgs = [
+            'inputPath',
+            'filter_',
+            'width',
+            'height',
+            'frameRate',  # frames per second
+            'chunkSize',  # number of bytes in one frame
+            'parent',     # mainwindow object
+            'component',  # component object
+        ]
+        for arg in mandatoryArgs:
+            setattr(self, arg, kwargs[arg])
+
+        self.frameNo = -1
+        self.currentFrame = 'None'
+        self.map_ = None
+
+        if 'loopVideo' in kwargs and kwargs['loopVideo']:
+            self.loopValue = '-1'
+        else:
+            self.loopValue = '0'
+        if 'filter_' in kwargs:
+            if kwargs['filter_'][0] != '-filter_complex':
+                kwargs['filter_'].insert(0, '-filter_complex')
+        else:
+            kwargs['filter_'] = None
+
+        self.command = [
+            core.Core.FFMPEG_BIN,
+            '-thread_queue_size', '512',
+            '-r', str(self.frameRate),
+            '-stream_loop', self.loopValue,
+            '-i', self.inputPath,
+            '-f', 'image2pipe',
+            '-pix_fmt', 'rgba',
+        ]
+        if type(kwargs['filter_']) is list:
+            self.command.extend(
+                kwargs['filter_']
+            )
+        self.command.extend([
+            '-vcodec', 'rawvideo', '-',
+        ])
+
+        self.frameBuffer = PriorityQueue()
+        self.frameBuffer.maxsize = self.frameRate
+        self.finishedFrames = {}
+
+        self.thread = threading.Thread(
+            target=self.fillBuffer,
+            name='FFmpeg Frame-Fetcher'
+        )
+        self.thread.daemon = True
+        self.thread.start()
+
+    def frame(self, num):
+        while True:
+            if num in self.finishedFrames:
+                image = self.finishedFrames.pop(num)
+                return image
+
+            i, image = self.frameBuffer.get()
+            self.finishedFrames[i] = image
+            self.frameBuffer.task_done()
+
+    def fillBuffer(self):
+        self.pipe = openPipe(
+            self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, bufsize=10**8
+        )
+        while True:
+            if self.parent.canceled:
+                break
+            self.frameNo += 1
+
+            # If we run out of frames, use the last good frame and loop.
+            try:
+                if len(self.currentFrame) == 0:
+                    self.frameBuffer.put((self.frameNo-1, self.lastFrame))
+                    continue
+            except AttributeError:
+                Video.threadError = ComponentError(self.component, 'video')
+                break
+
+            self.currentFrame = self.pipe.stdout.read(self.chunkSize)
+            if len(self.currentFrame) != 0:
+                self.frameBuffer.put((self.frameNo, self.currentFrame))
+                self.lastFrame = self.currentFrame
 
 
 def findFfmpeg():
