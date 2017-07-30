@@ -19,9 +19,11 @@ import time
 import signal
 
 from component import ComponentError
-from toolkit import openPipe
-from toolkit.ffmpeg import readAudioFile, createFfmpegCommand
 from toolkit.frame import Checkerboard
+from toolkit.ffmpeg import (
+    openPipe, readAudioFile,
+    getAudioDuration, createFfmpegCommand
+)
 
 
 class Worker(QtCore.QObject):
@@ -132,15 +134,24 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # READ AUDIO, INITIALIZE COMPONENTS, OPEN A PIPE TO FFMPEG
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-        self.progressBarSetText.emit("Loading audio file...")
-        audioFileTraits = readAudioFile(
-            self.inputFile, self
-        )
-        if audioFileTraits is None:
-            self.cancelExport()
-            return
-        self.completeAudioArray, duration = audioFileTraits
+        if any([
+                True if 'pcm' in comp.properties() else False
+                for comp in self.components
+                ]):
+            self.progressBarSetText.emit("Loading audio file...")
+            audioFileTraits = readAudioFile(
+                self.inputFile, self
+            )
+            if audioFileTraits is None:
+                self.cancelExport()
+                return
+            self.completeAudioArray, duration = audioFileTraits
+        else:
+            duration = getAudioDuration(self.inputFile)
+            class FakeList:
+                def __len__(self):
+                    return int((duration * 44100) + 44100) - 1470
+            self.completeAudioArray = FakeList()
 
         self.progressBarUpdate.emit(0)
         self.progressBarSetText.emit("Starting components...")
@@ -284,7 +295,10 @@ class Worker(QtCore.QObject):
 
         numpy.seterr(all='print')
 
-        self.out_pipe.stdin.close()
+        try:
+            self.out_pipe.stdin.close()
+        except BrokenPipeError:
+            print('Broken pipe to ffmpeg!')
         if self.out_pipe.stderr is not None:
             print(self.out_pipe.stderr.read())
             self.out_pipe.stderr.close()

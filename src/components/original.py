@@ -18,6 +18,9 @@ class Component(Component):
     def names(*args):
         return ['Original Audio Visualization']
 
+    def properties(self):
+        return ['pcm']
+
     def widget(self, *args):
         self.visColor = (255, 255, 255)
         self.scale = 20

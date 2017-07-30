@@ -4,10 +4,10 @@ import os
 import math
 import subprocess
 
-from component import Component, ComponentError
-from toolkit.frame import BlankFrame
-from toolkit.ffmpeg import testAudioStream, FfmpegVideo
-from toolkit import openPipe, closePipe, checkOutput, scale
+from component import Component
+from toolkit.frame import BlankFrame, scale
+from toolkit.ffmpeg import openPipe, closePipe, testAudioStream, FfmpegVideo
+from toolkit import checkOutput
 
 
 class Component(Component):
@@ -132,7 +132,7 @@ class Component(Component):
         ]
         command.extend(self.makeFfmpegFilter())
         command.extend([
-            '-vcodec', 'rawvideo', '-',
+            '-codec:v', 'rawvideo', '-',
             '-ss', '90',
             '-frames:v', '1',
         ])

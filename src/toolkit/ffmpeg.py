@@ -6,10 +6,12 @@ import sys
 import os
 import subprocess
 import threading
+import signal
 from queue import PriorityQueue
 
 import core
-from toolkit.common import checkOutput, openPipe
+from toolkit.common import checkOutput, pipeWrapper
+from component import ComponentError
 
 
 class FfmpegVideo:
@@ -60,7 +62,8 @@ class FfmpegVideo:
                 kwargs['filter_']
             )
         self.command.extend([
-            '-vcodec', 'rawvideo', '-',
+            '-s:v', '%sx%s' % (self.width, self.height),
+            '-codec:v', 'rawvideo', '-',
         ])
 
         self.frameBuffer = PriorityQueue()
@@ -85,9 +88,11 @@ class FfmpegVideo:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
+        import sys
+        print(self.command)
         self.pipe = openPipe(
             self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, bufsize=10**8
+            stderr=sys.__stdout__, bufsize=10**8
         )
         while True:
             if self.parent.canceled:
@@ -100,13 +105,23 @@ class FfmpegVideo:
                     self.frameBuffer.put((self.frameNo-1, self.lastFrame))
                     continue
             except AttributeError:
-                Video.threadError = ComponentError(self.component, 'video')
+                FfmpegVideo.threadError = ComponentError(self.component, 'video')
                 break
 
             self.currentFrame = self.pipe.stdout.read(self.chunkSize)
             if len(self.currentFrame) != 0:
                 self.frameBuffer.put((self.frameNo, self.currentFrame))
                 self.lastFrame = self.currentFrame
+
+
+@pipeWrapper
+def openPipe(commandList, **kwargs):
+    return subprocess.Popen(commandList, **kwargs)
+
+
+def closePipe(pipe):
+    pipe.stdout.close()
+    pipe.send_signal(signal.SIGINT)
 
 
 def findFfmpeg():
@@ -347,7 +362,12 @@ def getAudioDuration(filename):
     except subprocess.CalledProcessError as ex:
         fileInfo = ex.output
 
-    info = fileInfo.decode("utf-8").split('\n')
+    try:
+        info = fileInfo.decode("utf-8").split('\n')
+    except UnicodeDecodeError as e:
+        print('Unicode error:', str(e))
+        return False
+
     for line in info:
         if 'Duration' in line:
             d = line.split(',')[0]

@@ -5,10 +5,10 @@ import os
 import math
 import subprocess
 
-from component import Component, ComponentError
-from toolkit.frame import BlankFrame
-from toolkit import openPipe, checkOutput, rgbFromString
-from toolkit.ffmpeg import FfmpegVideo
+from component import Component
+from toolkit.frame import BlankFrame, scale
+from toolkit import checkOutput, rgbFromString, pickColor
+from toolkit.ffmpeg import openPipe, closePipe, getAudioDuration, FfmpegVideo
 
 
 class Component(Component):
@@ -21,17 +21,27 @@ class Component(Component):
 
         self.page.lineEdit_color.setText('%s,%s,%s' % self.color)
         btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.color1).name()
-        self.page.lineEdit_color.setStylesheet(btnStyle)
+            % QColor(*self.color).name()
+        self.page.pushButton_color.setStyleSheet(btnStyle)
         self.page.pushButton_color.clicked.connect(lambda: self.pickColor())
+        self.page.spinBox_scale.valueChanged.connect(self.updateChunksize)
+
+        if hasattr(self.parent, 'window'):
+            self.parent.window.lineEdit_audioFile.textChanged.connect(
+                self.update
+            )
 
         self.trackWidgets(
             {
                 'mode': self.page.comboBox_mode,
+                'amplitude': self.page.comboBox_amplitude,
                 'x': self.page.spinBox_x,
                 'y': self.page.spinBox_y,
                 'mirror': self.page.checkBox_mirror,
                 'scale': self.page.spinBox_scale,
+                'opacity': self.page.spinBox_opacity,
+                'compress': self.page.checkBox_compress,
+                'mono': self.page.checkBox_mono,
             }
         )
 
@@ -41,6 +51,26 @@ class Component(Component):
             % QColor(*self.color).name()
         self.page.pushButton_color.setStyleSheet(btnStyle)
         super().update()
+
+    def loadPreset(self, pr, *args):
+        super().loadPreset(pr, *args)
+
+        self.page.lineEdit_color.setText('%s,%s,%s' % pr['color'])
+        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
+            % QColor(*pr['color']).name()
+        self.page.pushButton_color.setStyleSheet(btnStyle)
+
+    def savePreset(self):
+        saveValueStore = super().savePreset()
+        saveValueStore['color'] = self.color
+        return saveValueStore
+
+    def pickColor(self):
+        RGBstring, btnStyle = pickColor()
+        if not RGBstring:
+            return
+        self.page.lineEdit_color.setText(RGBstring)
+        self.page.pushButton_color.setStyleSheet(btnStyle)
 
     def previewRender(self):
         self.updateChunksize()
@@ -53,10 +83,11 @@ class Component(Component):
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
         self.updateChunksize()
+        w, h = scale(self.scale, self.width, self.height, str)
         self.video = FfmpegVideo(
             inputPath=self.audioFile,
-            filter_=makeFfmpegFilter(),
-            width=self.width, height=self.height,
+            filter_=self.makeFfmpegFilter(),
+            width=w, height=h,
             chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
             parent=self.parent, component=self,
@@ -65,7 +96,7 @@ class Component(Component):
     def frameRender(self, frameNo):
         if FfmpegVideo.threadError is not None:
             raise FfmpegVideo.threadError
-        return finalizeFrame(self.video.frame(frameNo))
+        return self.finalizeFrame(self.video.frame(frameNo))
 
     def postFrameRender(self):
         closePipe(self.video.pipe)
@@ -74,18 +105,25 @@ class Component(Component):
         inputFile = self.parent.window.lineEdit_audioFile.text()
         if not inputFile or not os.path.exists(inputFile):
             return
+        duration = getAudioDuration(inputFile)
+        if not duration:
+            return
+        startPt = duration / 3
 
         command = [
             self.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
+            '-r', self.settings.value("outputFrameRate"),
+            '-ss', "{0:.3f}".format(startPt),
             '-i', inputFile,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
         ]
-        command.extend(self.makeFfmpegFilter())
+        command.extend(self.makeFfmpegFilter(preview=True, startPt=startPt))
         command.extend([
-            '-vcodec', 'rawvideo', '-',
-            '-ss', '90',
+            '-an',
+            '-s:v', '%sx%s' % scale(self.scale, self.width, self.height, str),
+            '-codec:v', 'rawvideo', '-',
             '-frames:v', '1',
         ])
         pipe = openPipe(
@@ -95,45 +133,57 @@ class Component(Component):
         byteFrame = pipe.stdout.read(self.chunkSize)
         closePipe(pipe)
 
-        frame = finalizeFrame(self, byteFrame, width, height)
+        frame = self.finalizeFrame(byteFrame)
         return frame
 
-    def makeFfmpegFilter(self):
+    def makeFfmpegFilter(self, preview=False, startPt=0):
         w, h = scale(self.scale, self.width, self.height, str)
+        if self.amplitude == 0:
+            amplitude = 'lin'
+        elif self.amplitude == 1:
+            amplitude = 'log'
+        elif self.amplitude == 2:
+            amplitude = 'sqrt'
+        elif self.amplitude == 3:
+            amplitude = 'cbrt'
+        hexcolor = QColor(*self.color).name()
+        opacity = "{0:.1f}".format(self.opacity / 100)
+
         return [
             '-filter_complex',
-            '[0:a] showwaves=s=%sx%s:mode=%s,format=rgba [v]' % (
-                w, h, self.mode,
+            '[0:a] %s%s'
+            'showwaves=r=30:s=%sx%s:mode=%s:colors=%s@%s:scale=%s%s%s [v1]; '
+            '[v1] scale=%s:%s%s [v]' % (
+                'compand=gain=2,' if self.compress else '',
+                'aformat=channel_layouts=mono,' if self.mono else '',
+                self.settings.value("outputWidth"),
+                self.settings.value("outputHeight"),
+                str(self.page.comboBox_mode.currentText()).lower(),
+                hexcolor, opacity, amplitude,
+                ', drawbox=x=(iw-w)/2:y=(ih-h)/2:w=iw:h=4:color=%s@%s' % (
+                    hexcolor, opacity
+                ) if self.mode < 2 else '',
+                ', hflip' if self.mirror else'',
+                w, h,
+                ', trim=duration=%s' % "{0:.3f}".format(startPt + 1) if preview else '',
             ),
             '-map', '[v]',
-            '-map', '0:a',
         ]
 
     def updateChunksize(self):
-        if self.scale != 100:
-            width, height = scale(self.scale, self.width, self.height, int)
-        else:
-            width, height = self.width, self.height
+        width, height = scale(self.scale, self.width, self.height, int)
         self.chunkSize = 4 * width * height
 
-
-def scale(scale, width, height, returntype=None):
-    width = (float(width) / 100.0) * float(scale)
-    height = (float(height) / 100.0) * float(scale)
-    if returntype == str:
-        return (str(math.ceil(width)), str(math.ceil(height)))
-    elif returntype == int:
-        return (math.ceil(width), math.ceil(height))
-    else:
-        return (width, height)
-
-
-def finalizeFrame(self, imageData, width, height):
-    # frombytes goes here
-    if self.scale != 100 \
-            or self.x != 0 or self.y != 0:
-        frame = BlankFrame(width, height)
-        frame.paste(image, box=(self.x, self.y))
-    else:
-        frame = image
-    return frame
+    def finalizeFrame(self, imageData):
+        image = Image.frombytes(
+            'RGBA',
+            scale(self.scale, self.width, self.height, int),
+            imageData
+        )
+        if self.scale != 100 \
+                or self.x != 0 or self.y != 0:
+            frame = BlankFrame(self.width, self.height)
+            frame.paste(image, box=(self.x, self.y))
+        else:
+            frame = image
+        return frame
