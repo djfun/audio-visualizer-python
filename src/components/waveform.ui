@@ -66,12 +66,17 @@
          </item>
          <item>
           <property name="text">
-           <string>P2p</string>
+           <string>Point</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>Point</string>
+           <string>Frequency Bar</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Frequency Line</string>
           </property>
          </item>
         </widget>
@@ -180,12 +185,16 @@
      <item>
       <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>Wave Color</string>
+        <string>Color</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="lineEdit_color"/>
+      <widget class="QLineEdit" name="lineEdit_color">
+       <property name="inputMethodHints">
+        <set>Qt::ImhNone</set>
+       </property>
+      </widget>
      </item>
      <item>
       <widget class="QPushButton" name="pushButton_color">
@@ -244,10 +253,10 @@
         <string>%</string>
        </property>
        <property name="minimum">
-        <number>10</number>
+        <number>0</number>
        </property>
        <property name="maximum">
-        <number>400</number>
+        <number>100</number>
        </property>
        <property name="value">
         <number>100</number>

@@ -113,3 +113,46 @@ def formatTraceback(tb=None):
         import sys
         tb = sys.exc_info()[2]
     return 'Traceback:\n%s' % "\n".join(traceback.format_tb(tb))
+
+
+def connectWidget(widget, func):
+    if type(widget) == QtWidgets.QLineEdit:
+        widget.textChanged.connect(func)
+    elif type(widget) == QtWidgets.QSpinBox \
+            or type(widget) == QtWidgets.QDoubleSpinBox:
+        widget.valueChanged.connect(func)
+    elif type(widget) == QtWidgets.QCheckBox:
+        widget.stateChanged.connect(func)
+    elif type(widget) == QtWidgets.QComboBox:
+        widget.currentIndexChanged.connect(func)
+    else:
+        return False
+    return True
+
+
+def setWidgetValue(widget, val):
+    '''Generic setValue method for use with any typical QtWidget'''
+    if type(widget) == QtWidgets.QLineEdit:
+        widget.setText(val)
+    elif type(widget) == QtWidgets.QSpinBox \
+            or type(widget) == QtWidgets.QDoubleSpinBox:
+        widget.setValue(val)
+    elif type(widget) == QtWidgets.QCheckBox:
+        widget.setChecked(val)
+    elif type(widget) == QtWidgets.QComboBox:
+        widget.setCurrentIndex(val)
+    else:
+        return False
+    return True
+
+
+def getWidgetValue(widget):
+    if type(widget) == QtWidgets.QLineEdit:
+        return widget.text()
+    elif type(widget) == QtWidgets.QSpinBox \
+            or type(widget) == QtWidgets.QDoubleSpinBox:
+        return widget.value()
+    elif type(widget) == QtWidgets.QCheckBox:
+        return widget.isChecked()
+    elif type(widget) == QtWidgets.QComboBox:
+        return widget.currentIndex()

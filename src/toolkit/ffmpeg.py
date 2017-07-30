@@ -37,7 +37,6 @@ class FfmpegVideo:
         self.frameNo = -1
         self.currentFrame = 'None'
         self.map_ = None
-        self.debug = False
 
         if 'loopVideo' in kwargs and kwargs['loopVideo']:
             self.loopValue = '-1'
@@ -48,8 +47,6 @@ class FfmpegVideo:
                 kwargs['filter_'].insert(0, '-filter_complex')
         else:
             kwargs['filter_'] = None
-        if 'debug' in kwargs:
-            self.debug = True
 
         self.command = [
             core.Core.FFMPEG_BIN,
@@ -90,16 +87,15 @@ class FfmpegVideo:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
-        if self.debug:
-            print(" ".join([word for word in self.command]))
-            err = sys.__stdout__
-        else:
-            err = subprocess.DEVNULL
-
-        self.pipe = openPipe(
-            self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=err, bufsize=10**8
-        )
+        logFilename = os.path.join(
+            core.Core.dataDir, 'extra_%s.log' % str(self.component.compPos))
+        with open(logFilename, 'w') as log:
+            log.write(" ".join(self.command) + '\n\n')
+        with open(logFilename, 'a') as log:
+            self.pipe = openPipe(
+                self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=log, bufsize=10**8
+            )
         while True:
             if self.parent.canceled:
                 break
@@ -111,10 +107,18 @@ class FfmpegVideo:
                     self.frameBuffer.put((self.frameNo-1, self.lastFrame))
                     continue
             except AttributeError:
-                FfmpegVideo.threadError = ComponentError(self.component, 'video')
+                FfmpegVideo.threadError = ComponentError(
+                    self.component, 'video',
+                    "Video seemed playable but wasn't."
+                )
                 break
 
-            self.currentFrame = self.pipe.stdout.read(self.chunkSize)
+            try:
+                self.currentFrame = self.pipe.stdout.read(self.chunkSize)
+            except ValueError:
+                FfmpegVideo.threadError = ComponentError(
+                    self.component, 'video')
+
             if len(self.currentFrame) != 0:
                 self.frameBuffer.put((self.frameNo, self.currentFrame))
                 self.lastFrame = self.currentFrame
@@ -446,3 +450,10 @@ def readAudioFile(filename, videoWorker):
     completeAudioArray = completeAudioArrayCopy
 
     return (completeAudioArray, duration)
+
+
+def exampleSound():
+    return (
+        'aevalsrc=tan(random(1)*PI*t)*sin(random(0)*2*PI*t),'
+        'apulsator=offset_l=0.5:offset_r=0.5,'
+    )

@@ -581,7 +581,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.showMessage(
             msg=msg,
             detail=detail,
-            icon='Warning',
+            icon='Critical',
         )
 
     def changeEncodingStatus(self, status):

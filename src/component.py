@@ -4,9 +4,11 @@
 '''
 from PyQt5 import uic, QtCore, QtWidgets
 import os
+import sys
 import time
 
 from toolkit.frame import BlankFrame
+from toolkit import getWidgetValue, setWidgetValue, connectWidget
 
 
 class ComponentMetaclass(type(QtCore.QObject)):
@@ -273,14 +275,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         widgets['spinBox'].extend(
             self.page.findChildren(QtWidgets.QDoubleSpinBox)
         )
-        for widget in widgets['lineEdit']:
-            widget.textChanged.connect(self.update)
-        for widget in widgets['checkBox']:
-            widget.stateChanged.connect(self.update)
-        for widget in widgets['spinBox']:
-            widget.valueChanged.connect(self.update)
-        for widget in widgets['comboBox']:
-            widget.currentIndexChanged.connect(self.update)
+        for widgetList in widgets.values():
+            for widget in widgetList:
+                connectWidget(widget, self.update)
 
     def update(self):
         '''
@@ -289,15 +286,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             Call super() at the END if you need to subclass this.
         '''
         for attr, widget in self._trackedWidgets.items():
-            if type(widget) == QtWidgets.QLineEdit:
-                setattr(self, attr, widget.text())
-            elif type(widget) == QtWidgets.QSpinBox \
-                    or type(widget) == QtWidgets.QDoubleSpinBox:
-                setattr(self, attr, widget.value())
-            elif type(widget) == QtWidgets.QCheckBox:
-                setattr(self, attr, widget.isChecked())
-            elif type(widget) == QtWidgets.QComboBox:
-                setattr(self, attr, widget.currentIndex())
+            setattr(self, attr, getWidgetValue(widget))
         if not self.core.openingProject:
             self.parent.drawPreview()
             saveValueStore = self.savePreset()
@@ -313,19 +302,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.currentPreset = presetName \
             if presetName is not None else presetDict['preset']
         for attr, widget in self._trackedWidgets.items():
-            val = presetDict[
-                attr if attr not in self._presetNames
+            key = attr if attr not in self._presetNames \
                 else self._presetNames[attr]
-            ]
-            if type(widget) == QtWidgets.QLineEdit:
-                widget.setText(val)
-            elif type(widget) == QtWidgets.QSpinBox \
-                    or type(widget) == QtWidgets.QDoubleSpinBox:
-                widget.setValue(val)
-            elif type(widget) == QtWidgets.QCheckBox:
-                widget.setChecked(val)
-            elif type(widget) == QtWidgets.QComboBox:
-                widget.setCurrentIndex(val)
+            val = presetDict[key]
+            setWidgetValue(widget, val)
 
     def savePreset(self):
         saveValueStore = {}
@@ -420,24 +400,30 @@ class ComponentError(RuntimeError):
     prevErrors = []
     lastTime = time.time()
 
-    def __init__(self, caller, name):
-        print('##### ComponentError by %s: %s' % (caller.name, name))
+    def __init__(self, caller, name, msg=None):
+        if msg is None and sys.exc_info()[0] is not None:
+            msg = str(sys.exc_info()[1])
+        else:
+            msg = 'Unknown error.'
+        print("##### ComponentError by %s's %s: %s" % (
+            caller.name, name, msg))
+
+        # Don't create multiple windows for quickly repeated messages
         if len(ComponentError.prevErrors) > 1:
             ComponentError.prevErrors.pop()
         ComponentError.prevErrors.insert(0, name)
         curTime = time.time()
         if name in ComponentError.prevErrors[1:] \
                 and curTime - ComponentError.lastTime < 1.0:
-            # Don't create multiple windows for quickly repeated messages
             return
         ComponentError.lastTime = time.time()
 
         from toolkit import formatTraceback
-        import sys
         if sys.exc_info()[0] is not None:
             string = (
-                "%s component's %s encountered %s %s: %s" % (
+                "%s component (#%s): %s encountered %s %s: %s" % (
                     caller.__class__.name,
+                    str(caller.compPos),
                     name,
                     'an' if any([
                         sys.exc_info()[0].__name__.startswith(vowel)

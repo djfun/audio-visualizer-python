@@ -4,82 +4,73 @@ from PyQt5.QtGui import QColor
 import os
 import math
 import subprocess
+import time
 
 from component import Component
 from toolkit.frame import BlankFrame, scale
-from toolkit import checkOutput, rgbFromString, pickColor
+from toolkit import checkOutput, rgbFromString, pickColor, connectWidget
 from toolkit.ffmpeg import (
     openPipe, closePipe, getAudioDuration, FfmpegVideo, exampleSound
 )
 
 
 class Component(Component):
-    name = 'Waveform'
+    name = 'Spectrum'
     version = '1.0.0'
 
     def widget(self, *args):
         self.color = (255, 255, 255)
+        self.previewFrame = None
         super().widget(*args)
-
-        self.page.lineEdit_color.setText('%s,%s,%s' % self.color)
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.color).name()
-        self.page.pushButton_color.setStyleSheet(btnStyle)
-        self.page.pushButton_color.clicked.connect(lambda: self.pickColor())
-        self.page.spinBox_scale.valueChanged.connect(self.updateChunksize)
+        self.chunkSize = 4 * self.width * self.height
+        self.changedOptions = True
 
         if hasattr(self.parent, 'window'):
+            # update preview when audio file changes (if genericPreview is off)
             self.parent.window.lineEdit_audioFile.textChanged.connect(
                 self.update
             )
 
         self.trackWidgets(
             {
-                'mode': self.page.comboBox_mode,
+                'filterType': self.page.comboBox_filterType,
+                'window': self.page.comboBox_window,
                 'amplitude': self.page.comboBox_amplitude,
                 'x': self.page.spinBox_x,
                 'y': self.page.spinBox_y,
                 'mirror': self.page.checkBox_mirror,
                 'scale': self.page.spinBox_scale,
-                'opacity': self.page.spinBox_opacity,
+                'color': self.page.comboBox_color,
                 'compress': self.page.checkBox_compress,
                 'mono': self.page.checkBox_mono,
             }
         )
+        for widget in self._trackedWidgets.values():
+            connectWidget(widget, lambda: self.changed())
+
+    def changed(self):
+        self.changedOptions = True
 
     def update(self):
-        self.color = rgbFromString(self.page.lineEdit_color.text())
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.color).name()
-        self.page.pushButton_color.setStyleSheet(btnStyle)
+        count = self.page.stackedWidget.count()
+        i = self.page.comboBox_filterType.currentIndex()
+        self.page.stackedWidget.setCurrentIndex(i if i < count else count - 1)
         super().update()
 
-    def loadPreset(self, pr, *args):
-        super().loadPreset(pr, *args)
-
-        self.page.lineEdit_color.setText('%s,%s,%s' % pr['color'])
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*pr['color']).name()
-        self.page.pushButton_color.setStyleSheet(btnStyle)
-
-    def savePreset(self):
-        saveValueStore = super().savePreset()
-        saveValueStore['color'] = self.color
-        return saveValueStore
-
-    def pickColor(self):
-        RGBstring, btnStyle = pickColor()
-        if not RGBstring:
-            return
-        self.page.lineEdit_color.setText(RGBstring)
-        self.page.pushButton_color.setStyleSheet(btnStyle)
-
     def previewRender(self):
-        self.updateChunksize()
-        frame = self.getPreviewFrame(self.width, self.height)
+        changedSize = self.updateChunksize()
+        if not changedSize \
+                and not self.changedOptions \
+                and self.previewFrame is not None:
+            return self.previewFrame
+
+        frame = self.getPreviewFrame()
+        self.changedOptions = False
         if not frame:
+            self.previewFrame = None
             return BlankFrame(self.width, self.height)
         else:
+            self.previewFrame = frame
             return frame
 
     def preFrameRender(self, **kwargs):
@@ -92,7 +83,7 @@ class Component(Component):
             width=w, height=h,
             chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
-            parent=self.parent, component=self, debug=True,
+            parent=self.parent, component=self,
         )
 
     def frameRender(self, frameNo):
@@ -103,7 +94,7 @@ class Component(Component):
     def postFrameRender(self):
         closePipe(self.video.pipe)
 
-    def getPreviewFrame(self, width, height):
+    def getPreviewFrame(self):
         genericPreview = self.settings.value("pref_genericPreview")
         startPt = 0
         if not genericPreview:
@@ -114,8 +105,6 @@ class Component(Component):
             if not duration:
                 return
             startPt = duration / 3
-            if startPt + 3 > duration:
-                startPt += startPt - 3
 
         command = [
             self.core.FFMPEG_BIN,
@@ -135,10 +124,15 @@ class Component(Component):
             '-codec:v', 'rawvideo', '-',
             '-frames:v', '1',
         ])
-        pipe = openPipe(
-            command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, bufsize=10**8
-        )
+        logFilename = os.path.join(
+            self.core.dataDir, 'preview_%s.log' % str(self.compPos))
+        with open(logFilename, 'w') as log:
+            log.write(" ".join(command) + '\n\n')
+        with open(logFilename, 'a') as log:
+            pipe = openPipe(
+                command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=log, bufsize=10**8
+            )
         byteFrame = pipe.stdout.read(self.chunkSize)
         closePipe(pipe)
 
@@ -148,61 +142,87 @@ class Component(Component):
     def makeFfmpegFilter(self, preview=False, startPt=0):
         w, h = scale(self.scale, self.width, self.height, str)
         if self.amplitude == 0:
-            amplitude = 'lin'
-        elif self.amplitude == 1:
-            amplitude = 'log'
-        elif self.amplitude == 2:
             amplitude = 'sqrt'
-        elif self.amplitude == 3:
+        elif self.amplitude == 1:
             amplitude = 'cbrt'
-        hexcolor = QColor(*self.color).name()
-        opacity = "{0:.1f}".format(self.opacity / 100)
+        elif self.amplitude == 2:
+            amplitude = '4thrt'
+        elif self.amplitude == 3:
+            amplitude = '5thrt'
+        elif self.amplitude == 4:
+            amplitude = 'lin'
+        elif self.amplitude == 5:
+            amplitude = 'log'
+        color = self.page.comboBox_color.currentText().lower()
         genericPreview = self.settings.value("pref_genericPreview")
-        if self.mode < 3:
-            filter_ = 'showwaves=r=%s:s=%sx%s:mode=%s:colors=%s@%s:scale=%s' % (
-                self.settings.value("outputFrameRate"),
-                self.settings.value("outputWidth"),
-                self.settings.value("outputHeight"),
-                self.page.comboBox_mode.currentText().lower()
-                if self.mode != 3 else 'p2p',
-                hexcolor, opacity, amplitude,
-            )
-        elif self.mode > 2:
+
+        if self.filterType == 0:  # Spectrum
             filter_ = (
-                'showfreqs=s=%sx%s:mode=%s:colors=%s@%s'
-                ':ascale=%s:fscale=%s' % (
+                'showspectrum=s=%sx%s:slide=scroll:win_func=%s:'
+                'color=%s:scale=%s' % (
                     self.settings.value("outputWidth"),
                     self.settings.value("outputHeight"),
-                    'line' if self.mode == 4 else 'bar',
-                    hexcolor, opacity, amplitude,
-                    'log' if self.mono else 'lin'
+                    self.page.comboBox_window.currentText(),
+                    color, amplitude,
+                )
+            )
+        elif self.filterType == 1:  # Histogram
+            filter_ = (
+                'ahistogram=r=%s:s=%sx%s:dmode=separate' % (
+                    self.settings.value("outputFrameRate"),
+                    self.settings.value("outputWidth"),
+                    self.settings.value("outputHeight"),
+                )
+            )
+        elif self.filterType == 2:  # Vector Scope
+            filter_ = (
+                'avectorscope=s=%sx%s:draw=line:m=polar:scale=log' % (
+                    self.settings.value("outputWidth"),
+                    self.settings.value("outputHeight"),
+                )
+            )
+        elif self.filterType == 3:  # Musical Scale
+            filter_ = (
+                'showcqt=r=%s:s=%sx%s:count=30:text=0' % (
+                    self.settings.value("outputFrameRate"),
+                    self.settings.value("outputWidth"),
+                    self.settings.value("outputHeight"),
+                )
+            )
+        elif self.filterType == 4:  # Phase
+            filter_ = (
+                'aphasemeter=r=%s:s=%sx%s:mpc=white:video=1[atrash][vtmp]; '
+                '[atrash] anullsink; [vtmp] null' % (
+                    self.settings.value("outputFrameRate"),
+                    self.settings.value("outputWidth"),
+                    self.settings.value("outputHeight"),
                 )
             )
 
         return [
             '-filter_complex',
-            '%s%s%s'
-            '%s%s%s [v1]; '
+            '%s%s%s%s%s [v1]; '
             '[v1] scale=%s:%s%s [v]' % (
                 exampleSound() if preview and genericPreview else '[0:a] ',
                 'compand=gain=4,' if self.compress else '',
-                'aformat=channel_layouts=mono,'
-                if self.mono and self.mode < 3 else '',
+                'aformat=channel_layouts=mono,' if self.mono else '',
                 filter_,
-                ', drawbox=x=(iw-w)/2:y=(ih-h)/2:w=iw:h=4:color=%s@%s' % (
-                    hexcolor, opacity
-                ) if self.mode < 2 else '',
                 ', hflip' if self.mirror else'',
                 w, h,
-                ', trim=duration=%s' % "{0:.3f}".format(startPt + 3)
-                if preview else '',
+                ', trim=start=%s:end=%s' % (
+                    "{0:.3f}".format(startPt + 15),
+                    "{0:.3f}".format(startPt + 15.5)
+                ) if preview else '',
             ),
             '-map', '[v]',
         ]
 
     def updateChunksize(self):
         width, height = scale(self.scale, self.width, self.height, int)
+        oldChunkSize = int(self.chunkSize)
         self.chunkSize = 4 * width * height
+        changed = self.chunkSize != oldChunkSize
+        return changed
 
     def finalizeFrame(self, imageData):
         image = Image.frombytes(
