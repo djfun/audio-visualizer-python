@@ -506,6 +506,7 @@ class Core:
             "outputContainer": "MP4",
             "projectDir": os.path.join(cls.dataDir, 'projects'),
             "pref_insertCompAtTop": True,
+            "pref_genericPreview": True,
         }
 
         for parm, value in defaultSettings.items():

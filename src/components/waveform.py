@@ -90,7 +90,7 @@ class Component(Component):
             width=w, height=h,
             chunkSize=self.chunkSize,
             frameRate=int(self.settings.value("outputFrameRate")),
-            parent=self.parent, component=self,
+            parent=self.parent, component=self, debug=True,
         )
 
     def frameRender(self, frameNo):
@@ -102,20 +102,25 @@ class Component(Component):
         closePipe(self.video.pipe)
 
     def getPreviewFrame(self, width, height):
-        inputFile = self.parent.window.lineEdit_audioFile.text()
-        if not inputFile or not os.path.exists(inputFile):
-            return
-        duration = getAudioDuration(inputFile)
-        if not duration:
-            return
-        startPt = duration / 3
+        genericPreview = self.settings.value("pref_genericPreview")
+        startPt = 0
+        if not genericPreview:
+            inputFile = self.parent.window.lineEdit_audioFile.text()
+            if not inputFile or not os.path.exists(inputFile):
+                return
+            duration = getAudioDuration(inputFile)
+            if not duration:
+                return
+            startPt = duration / 3
 
         command = [
             self.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
             '-r', self.settings.value("outputFrameRate"),
             '-ss', "{0:.3f}".format(startPt),
-            '-i', inputFile,
+            '-i',
+            os.path.join(self.core.wd, 'background.png')
+            if genericPreview else inputFile,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
         ]
@@ -148,13 +153,19 @@ class Component(Component):
             amplitude = 'cbrt'
         hexcolor = QColor(*self.color).name()
         opacity = "{0:.1f}".format(self.opacity / 100)
+        genericPreview = self.settings.value("pref_genericPreview")
 
         return [
             '-filter_complex',
-            '[0:a] %s%s'
+            '%s%s%s'
             'showwaves=r=30:s=%sx%s:mode=%s:colors=%s@%s:scale=%s%s%s [v1]; '
-            '[v1] scale=%s:%s%s [v]' % (
-                'compand=gain=2,' if self.compress else '',
+            '[v1] scale=%s:%s%s,setpts=2.0*PTS [v]' % (
+                'aevalsrc=sin(1*2*PI*t)*sin(880*2*PI*t),'
+                if preview and genericPreview else '[0:a] ',
+                'compand=.3|.3:1|1:-90/-60|-60/-40|-40/-30|-20/-20:6:0:-90:0.2'
+                ',' if self.compress and not preview else (
+                    'compand=gain=5,' if self.compress else ''
+                ),
                 'aformat=channel_layouts=mono,' if self.mono else '',
                 self.settings.value("outputWidth"),
                 self.settings.value("outputHeight"),
@@ -165,7 +176,8 @@ class Component(Component):
                 ) if self.mode < 2 else '',
                 ', hflip' if self.mirror else'',
                 w, h,
-                ', trim=duration=%s' % "{0:.3f}".format(startPt + 1) if preview else '',
+                ', trim=duration=%s' % "{0:.3f}".format(startPt + 1)
+                if preview else '',
             ),
             '-map', '[v]',
         ]

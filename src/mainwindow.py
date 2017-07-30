@@ -791,6 +791,8 @@ class MainWindow(QtWidgets.QMainWindow):
             field.blockSignals(True)
             field.setText('')
             field.blockSignals(False)
+        self.progressBarUpdated(0)
+        self.progressBarSetText('')
 
     @disableWhenEncoding
     def createNewProject(self, prompt=True):

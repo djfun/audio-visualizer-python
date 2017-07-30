@@ -37,6 +37,7 @@ class FfmpegVideo:
         self.frameNo = -1
         self.currentFrame = 'None'
         self.map_ = None
+        self.debug = False
 
         if 'loopVideo' in kwargs and kwargs['loopVideo']:
             self.loopValue = '-1'
@@ -47,6 +48,8 @@ class FfmpegVideo:
                 kwargs['filter_'].insert(0, '-filter_complex')
         else:
             kwargs['filter_'] = None
+        if 'debug' in kwargs:
+            self.debug = True
 
         self.command = [
             core.Core.FFMPEG_BIN,
@@ -62,7 +65,6 @@ class FfmpegVideo:
                 kwargs['filter_']
             )
         self.command.extend([
-            '-s:v', '%sx%s' % (self.width, self.height),
             '-codec:v', 'rawvideo', '-',
         ])
 
@@ -88,11 +90,15 @@ class FfmpegVideo:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
-        import sys
-        print(self.command)
+        if self.debug:
+            print(" ".join([word for word in self.command]))
+            err = sys.__stdout__
+        else:
+            err = subprocess.DEVNULL
+
         self.pipe = openPipe(
             self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=sys.__stdout__, bufsize=10**8
+            stderr=err, bufsize=10**8
         )
         while True:
             if self.parent.canceled:

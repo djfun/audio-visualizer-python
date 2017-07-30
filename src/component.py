@@ -427,7 +427,7 @@ class ComponentError(RuntimeError):
         ComponentError.prevErrors.insert(0, name)
         curTime = time.time()
         if name in ComponentError.prevErrors[1:] \
-                and curTime - ComponentError.lastTime < 0.2:
+                and curTime - ComponentError.lastTime < 1.0:
             # Don't create multiple windows for quickly repeated messages
             return
         ComponentError.lastTime = time.time()
