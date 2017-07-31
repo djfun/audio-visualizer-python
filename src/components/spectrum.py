@@ -227,7 +227,8 @@ class Component(Component):
             filter_ = (
                 'aphasemeter=r=%s:s=%sx%s:video=1 [atrash][vtmp1]; '
                 '[atrash] anullsink; '
-                '[vtmp1] colorkey=color=black:similarity=0.1:blend=0.5 ' % (
+                '[vtmp1] colorkey=color=black:similarity=0.1:blend=0.5, '
+                'crop=in_w/8:in_h:(in_w/8)*7:0  '% (
                     self.settings.value("outputFrameRate"),
                     self.settings.value("outputWidth"),
                     self.settings.value("outputHeight"),
