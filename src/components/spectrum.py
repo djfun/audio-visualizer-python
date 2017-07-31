@@ -1,6 +1,5 @@
 from PIL import Image
 from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.QtGui import QColor
 import os
 import math
 import subprocess
@@ -8,7 +7,7 @@ import time
 
 from component import Component
 from toolkit.frame import BlankFrame, scale
-from toolkit import checkOutput, rgbFromString, pickColor, connectWidget
+from toolkit import checkOutput, connectWidget
 from toolkit.ffmpeg import (
     openPipe, closePipe, getAudioDuration, FfmpegVideo, exampleSound
 )
@@ -19,7 +18,6 @@ class Component(Component):
     version = '1.0.0'
 
     def widget(self, *args):
-        self.color = (255, 255, 255)
         self.previewFrame = None
         super().widget(*args)
         self.chunkSize = 4 * self.width * self.height
@@ -35,14 +33,22 @@ class Component(Component):
             {
                 'filterType': self.page.comboBox_filterType,
                 'window': self.page.comboBox_window,
-                'amplitude': self.page.comboBox_amplitude,
+                'mode': self.page.comboBox_mode,
+                'amplitude': self.page.comboBox_amplitude0,
+                'amplitude1': self.page.comboBox_amplitude1,
+                'amplitude2': self.page.comboBox_amplitude2,
+                'display': self.page.comboBox_display,
+                'zoom': self.page.spinBox_zoom,
+                'tc': self.page.spinBox_tc,
                 'x': self.page.spinBox_x,
                 'y': self.page.spinBox_y,
                 'mirror': self.page.checkBox_mirror,
+                'draw': self.page.checkBox_draw,
                 'scale': self.page.spinBox_scale,
                 'color': self.page.comboBox_color,
                 'compress': self.page.checkBox_compress,
                 'mono': self.page.checkBox_mono,
+                'hue': self.page.spinBox_hue,
             }
         )
         for widget in self._trackedWidgets.values():
@@ -52,9 +58,8 @@ class Component(Component):
         self.changedOptions = True
 
     def update(self):
-        count = self.page.stackedWidget.count()
-        i = self.page.comboBox_filterType.currentIndex()
-        self.page.stackedWidget.setCurrentIndex(i if i < count else count - 1)
+        self.page.stackedWidget.setCurrentIndex(
+            self.page.comboBox_filterType.currentIndex())
         super().update()
 
     def previewRender(self):
@@ -141,25 +146,26 @@ class Component(Component):
 
     def makeFfmpegFilter(self, preview=False, startPt=0):
         w, h = scale(self.scale, self.width, self.height, str)
-        if self.amplitude == 0:
-            amplitude = 'sqrt'
-        elif self.amplitude == 1:
-            amplitude = 'cbrt'
-        elif self.amplitude == 2:
-            amplitude = '4thrt'
-        elif self.amplitude == 3:
-            amplitude = '5thrt'
-        elif self.amplitude == 4:
-            amplitude = 'lin'
-        elif self.amplitude == 5:
-            amplitude = 'log'
         color = self.page.comboBox_color.currentText().lower()
         genericPreview = self.settings.value("pref_genericPreview")
 
         if self.filterType == 0:  # Spectrum
+            if self.amplitude == 0:
+                amplitude = 'sqrt'
+            elif self.amplitude == 1:
+                amplitude = 'cbrt'
+            elif self.amplitude == 2:
+                amplitude = '4thrt'
+            elif self.amplitude == 3:
+                amplitude = '5thrt'
+            elif self.amplitude == 4:
+                amplitude = 'lin'
+            elif self.amplitude == 5:
+                amplitude = 'log'
             filter_ = (
                 'showspectrum=s=%sx%s:slide=scroll:win_func=%s:'
-                'color=%s:scale=%s' % (
+                'color=%s:scale=%s,'
+                'colorkey=color=black:similarity=0.1:blend=0.5' % (
                     self.settings.value("outputWidth"),
                     self.settings.value("outputHeight"),
                     self.page.comboBox_window.currentText(),
@@ -167,32 +173,61 @@ class Component(Component):
                 )
             )
         elif self.filterType == 1:  # Histogram
+            if self.amplitude1 == 0:
+                amplitude = 'log'
+            elif self.amplitude1 == 1:
+                amplitude = 'lin'
+            if self.display == 0:
+                display = 'log'
+            elif self.display == 1:
+                display = 'sqrt'
+            elif self.display == 2:
+                display = 'cbrt'
+            elif self.display == 3:
+                display = 'lin'
+            elif self.display == 4:
+                display = 'rlog'
             filter_ = (
-                'ahistogram=r=%s:s=%sx%s:dmode=separate' % (
+                'ahistogram=r=%s:s=%sx%s:dmode=separate:ascale=%s:scale=%s' % (
                     self.settings.value("outputFrameRate"),
                     self.settings.value("outputWidth"),
                     self.settings.value("outputHeight"),
+                    amplitude, display
                 )
             )
         elif self.filterType == 2:  # Vector Scope
+            if self.amplitude2 == 0:
+                amplitude = 'log'
+            elif self.amplitude2 == 1:
+                amplitude = 'sqrt'
+            elif self.amplitude2 == 2:
+                amplitude = 'cbrt'
+            elif self.amplitude2 == 3:
+                amplitude = 'lin'
+            m = self.page.comboBox_mode.currentText()
             filter_ = (
-                'avectorscope=s=%sx%s:draw=line:m=polar:scale=log' % (
+                'avectorscope=s=%sx%s:draw=%s:m=%s:scale=%s:zoom=%s' % (
                     self.settings.value("outputWidth"),
                     self.settings.value("outputHeight"),
+                    'line'if self.draw else 'dot',
+                    m, amplitude, str(self.zoom),
                 )
             )
         elif self.filterType == 3:  # Musical Scale
             filter_ = (
-                'showcqt=r=%s:s=%sx%s:count=30:text=0' % (
+                'showcqt=r=%s:s=%sx%s:count=30:text=0:tc=%s,'
+                'colorkey=color=black:similarity=0.1:blend=0.5 ' % (
                     self.settings.value("outputFrameRate"),
                     self.settings.value("outputWidth"),
                     self.settings.value("outputHeight"),
+                    str(self.tc),
                 )
             )
         elif self.filterType == 4:  # Phase
             filter_ = (
-                'aphasemeter=r=%s:s=%sx%s:mpc=white:video=1[atrash][vtmp]; '
-                '[atrash] anullsink; [vtmp] null' % (
+                'aphasemeter=r=%s:s=%sx%s:video=1 [atrash][vtmp1]; '
+                '[atrash] anullsink; '
+                '[vtmp1] colorkey=color=black:similarity=0.1:blend=0.5 ' % (
                     self.settings.value("outputFrameRate"),
                     self.settings.value("outputWidth"),
                     self.settings.value("outputHeight"),
@@ -201,18 +236,22 @@ class Component(Component):
 
         return [
             '-filter_complex',
-            '%s%s%s%s%s [v1]; '
-            '[v1] scale=%s:%s%s [v]' % (
+            '%s%s%s%s [v1]; '
+            '[v1] %sscale=%s:%s%s%s%s [v]' % (
                 exampleSound() if preview and genericPreview else '[0:a] ',
                 'compand=gain=4,' if self.compress else '',
                 'aformat=channel_layouts=mono,' if self.mono else '',
                 filter_,
-                ', hflip' if self.mirror else'',
+                'hflip, ' if self.mirror else '',
                 w, h,
+                ', hue=h=%s:s=10' % str(self.hue) if self.hue > 0 else '',
                 ', trim=start=%s:end=%s' % (
-                    "{0:.3f}".format(startPt + 15),
-                    "{0:.3f}".format(startPt + 15.5)
+                    "{0:.3f}".format(startPt + 12),
+                    "{0:.3f}".format(startPt + 12.5)
                 ) if preview else '',
+                ', convolution=-2 -1 0 -1 1 1 0 1 2:-2 -1 0 -1 1 1 0 1 2:-2 '
+                '-1 0 -1 1 1 0 1 2:-2 -1 0 -1 1 1 0 1 2'
+                if self.filterType == 3 else ''
             ),
             '-map', '[v]',
         ]

@@ -427,7 +427,7 @@ class ComponentError(RuntimeError):
                     name,
                     'an' if any([
                         sys.exc_info()[0].__name__.startswith(vowel)
-                        for vowel in ('A', 'I')
+                        for vowel in ('A', 'I', 'U', 'O', 'E')
                     ]) else 'a',
                     sys.exc_info()[0].__name__,
                     str(sys.exc_info()[1])
