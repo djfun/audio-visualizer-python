@@ -74,25 +74,6 @@ def disableWhenOpeningProject(func):
     return decorator
 
 
-def pickColor():
-    '''
-        Use color picker to get color input from the user,
-        and return this as an RGB string and QPushButton stylesheet.
-        In a subclass apply stylesheet to any color selection widgets
-    '''
-    dialog = QtWidgets.QColorDialog()
-    dialog.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
-    color = dialog.getColor()
-    if color.isValid():
-        RGBstring = '%s,%s,%s' % (
-            str(color.red()), str(color.green()), str(color.blue()))
-        btnStyle = "QPushButton{background-color: %s; outline: none;}" \
-            % color.name()
-        return RGBstring, btnStyle
-    else:
-        return None, None
-
-
 def rgbFromString(string):
     '''Turns an RGB string like "255, 255, 255" into a tuple'''
     try:

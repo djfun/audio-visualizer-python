@@ -7,7 +7,7 @@ import subprocess
 
 from component import Component
 from toolkit.frame import BlankFrame, scale
-from toolkit import checkOutput, rgbFromString, pickColor
+from toolkit import checkOutput
 from toolkit.ffmpeg import (
     openPipe, closePipe, getAudioDuration, FfmpegVideo, exampleSound
 )
@@ -18,15 +18,9 @@ class Component(Component):
     version = '1.0.0'
 
     def widget(self, *args):
-        self.color = (255, 255, 255)
         super().widget(*args)
 
-        self.page.lineEdit_color.setText('%s,%s,%s' % self.color)
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.color).name()
-        self.page.pushButton_color.setStyleSheet(btnStyle)
-        self.page.pushButton_color.clicked.connect(lambda: self.pickColor())
-        self.page.spinBox_scale.valueChanged.connect(self.updateChunksize)
+        self.page.lineEdit_color.setText('255,255,255')
 
         if hasattr(self.parent, 'window'):
             self.parent.window.lineEdit_audioFile.textChanged.connect(
@@ -35,6 +29,7 @@ class Component(Component):
 
         self.trackWidgets(
             {
+                'color': self.page.lineEdit_color,
                 'mode': self.page.comboBox_mode,
                 'amplitude': self.page.comboBox_amplitude,
                 'x': self.page.spinBox_x,
@@ -44,35 +39,10 @@ class Component(Component):
                 'opacity': self.page.spinBox_opacity,
                 'compress': self.page.checkBox_compress,
                 'mono': self.page.checkBox_mono,
+            }, colorWidgets={
+                'color': self.page.pushButton_color,
             }
         )
-
-    def update(self):
-        self.color = rgbFromString(self.page.lineEdit_color.text())
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.color).name()
-        self.page.pushButton_color.setStyleSheet(btnStyle)
-        super().update()
-
-    def loadPreset(self, pr, *args):
-        super().loadPreset(pr, *args)
-
-        self.page.lineEdit_color.setText('%s,%s,%s' % pr['color'])
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*pr['color']).name()
-        self.page.pushButton_color.setStyleSheet(btnStyle)
-
-    def savePreset(self):
-        saveValueStore = super().savePreset()
-        saveValueStore['color'] = self.color
-        return saveValueStore
-
-    def pickColor(self):
-        RGBstring, btnStyle = pickColor()
-        if not RGBstring:
-            return
-        self.page.lineEdit_color.setText(RGBstring)
-        self.page.pushButton_color.setStyleSheet(btnStyle)
 
     def previewRender(self):
         self.updateChunksize()

@@ -8,7 +8,6 @@ from copy import copy
 
 from component import Component
 from toolkit.frame import BlankFrame
-from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
@@ -22,7 +21,6 @@ class Component(Component):
         return ['pcm']
 
     def widget(self, *args):
-        self.visColor = (255, 255, 255)
         self.scale = 20
         self.y = 0
         super().widget(*args)
@@ -33,34 +31,16 @@ class Component(Component):
         self.page.comboBox_visLayout.addItem("Top")
         self.page.comboBox_visLayout.setCurrentIndex(0)
 
-        self.page.lineEdit_visColor.setText('%s,%s,%s' % self.visColor)
-        self.page.pushButton_visColor.clicked.connect(lambda: self.pickColor())
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.visColor).name()
-        self.page.pushButton_visColor.setStyleSheet(btnStyle)
+        self.page.lineEdit_visColor.setText('255,255,255')
 
         self.trackWidgets({
+            'visColor': self.page.lineEdit_visColor,
             'layout': self.page.comboBox_visLayout,
             'scale': self.page.spinBox_scale,
             'y': self.page.spinBox_y,
+        }, colorWidgets={
+            'visColor': self.page.pushButton_visColor,
         })
-
-    def update(self):
-        self.visColor = rgbFromString(self.page.lineEdit_visColor.text())
-        super().update()
-
-    def loadPreset(self, pr, *args):
-        super().loadPreset(pr, *args)
-
-        self.page.lineEdit_visColor.setText('%s,%s,%s' % pr['visColor'])
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*pr['visColor']).name()
-        self.page.pushButton_visColor.setStyleSheet(btnStyle)
-
-    def savePreset(self):
-        saveValueStore = super().savePreset()
-        saveValueStore['visColor'] = self.visColor
-        return saveValueStore
 
     def previewRender(self):
         spectrum = numpy.fromfunction(
@@ -98,13 +78,6 @@ class Component(Component):
             self.width, self.height,
             self.spectrumArray[arrayNo],
             self.visColor, self.layout)
-
-    def pickColor(self):
-        RGBstring, btnStyle = pickColor()
-        if not RGBstring:
-            return
-        self.page.lineEdit_visColor.setText(RGBstring)
-        self.page.pushButton_visColor.setStyleSheet(btnStyle)
 
     def transformData(
       self, i, completeAudioArray, sampleSize,

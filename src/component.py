@@ -3,18 +3,20 @@
     on making a valid component.
 '''
 from PyQt5 import uic, QtCore, QtWidgets
+from PyQt5.QtGui import QColor
 import os
 import sys
 import time
 
 from toolkit.frame import BlankFrame
-from toolkit import getWidgetValue, setWidgetValue, connectWidget
+from toolkit import (
+    getWidgetValue, setWidgetValue, connectWidget, rgbFromString
+)
 
 
 class ComponentMetaclass(type(QtCore.QObject)):
     '''
-        Checks the validity of each Component class imported, and
-        mutates some attributes for easier use by the core program.
+        Checks the validity of each Component class and mutates some attrs.
         E.g., takes only major version from version string & decorates methods
     '''
 
@@ -173,6 +175,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._trackedWidgets = {}
         self._presetNames = {}
         self._commandArgs = {}
+        self._colorWidgets = {}
+        self._relativeWidgets = {}
         self._lockedProperties = None
         self._lockedError = None
 
@@ -188,7 +192,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         )
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-    # Critical Methods
+    # Render Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
     def previewRender(self):
@@ -286,7 +290,17 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             Call super() at the END if you need to subclass this.
         '''
         for attr, widget in self._trackedWidgets.items():
-            setattr(self, attr, getWidgetValue(widget))
+            if attr in self._colorWidgets:
+                rgbTuple = rgbFromString(widget.text())
+                setattr(self, attr, rgbTuple)
+                btnStyle = (
+                    "QPushButton { background-color : %s; outline: none; }"
+                    % QColor(*rgbTuple).name()
+                )
+                self._colorWidgets[attr].setStyleSheet(btnStyle)
+            else:
+                setattr(self, attr, getWidgetValue(widget))
+
         if not self.core.openingProject:
             self.parent.drawPreview()
             saveValueStore = self.savePreset()
@@ -305,7 +319,16 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             key = attr if attr not in self._presetNames \
                 else self._presetNames[attr]
             val = presetDict[key]
-            setWidgetValue(widget, val)
+
+            if attr in self._colorWidgets:
+                widget.setText('%s,%s,%s' % val)
+                btnStyle = (
+                    "QPushButton { background-color : %s; outline: none; }"
+                    % QColor(*val).name()
+                )
+                self._colorWidgets[attr].setStyleSheet(btnStyle)
+            else:
+                setWidgetValue(widget, val)
 
     def savePreset(self):
         saveValueStore = {}
@@ -352,13 +375,49 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._trackedWidgets = trackDict
         for kwarg in kwargs:
             try:
-                if kwarg in ('presetNames', 'commandArgs'):
+                if kwarg in (
+                        'presetNames',
+                        'commandArgs',
+                        'colorWidgets',
+                        'relativeWidgets',
+                        ):
                     setattr(self, '_%s' % kwarg, kwargs[kwarg])
                 else:
                     raise ComponentError(
                         self, 'Nonsensical keywords to trackWidgets.')
             except ComponentError:
                 continue
+
+            if kwarg == 'colorWidgets':
+                def makeColorFunc(attr):
+                    def pickColor_():
+                        self.pickColor(
+                            self._trackedWidgets[attr],
+                            self._colorWidgets[attr]
+                        )
+                    return pickColor_
+                self._colorFuncs = {
+                    attr: makeColorFunc(attr) for attr in kwargs[kwarg]
+                }
+                for attr, func in self._colorFuncs.items():
+                    self._colorWidgets[attr].clicked.connect(func)
+                    self._colorWidgets[attr].setStyleSheet(
+                        "QPushButton {"
+                        "background-color : #FFFFFF; outline: none; }"
+                    )
+
+    def pickColor(self, textWidget, button):
+        '''Use color picker to get color input from the user.'''
+        dialog = QtWidgets.QColorDialog()
+        dialog.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
+        color = dialog.getColor()
+        if color.isValid():
+            RGBstring = '%s,%s,%s' % (
+                str(color.red()), str(color.green()), str(color.blue()))
+            btnStyle = "QPushButton{background-color: %s; outline: none;}" \
+                % color.name()
+            textWidget.setText(RGBstring)
+            button.setStyleSheet(btnStyle)
 
     def lockProperties(self, propList):
         self._lockedProperties = propList

@@ -42,9 +42,9 @@ class PaintColor(QtGui.QColor):
             super().__init__(b, g, r, a)
 
 
-def scale(scale, width, height, returntype=None):
-    width = (float(width) / 100.0) * float(scale)
-    height = (float(height) / 100.0) * float(scale)
+def scale(scalePercent, width, height, returntype=None):
+    width = (float(width) / 100.0) * float(scalePercent)
+    height = (float(height) / 100.0) * float(scalePercent)
     if returntype == str:
         return (str(math.ceil(width)), str(math.ceil(height)))
     elif returntype == int:
