@@ -63,6 +63,8 @@ class Component(Component):
             }, relativeWidgets={
                 'x': 'x',
                 'y': 'y',
+                'sizeWidth': 'x',
+                'sizeHeight': 'y',
             },
         )
 
