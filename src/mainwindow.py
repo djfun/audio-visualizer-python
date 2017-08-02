@@ -644,9 +644,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def updateResolution(self):
         resIndex = int(self.window.comboBox_resolution.currentIndex())
         res = Core.resolutions[resIndex].split('x')
+        changed = res[0] != self.settings.value("outputWidth")
         self.settings.setValue('outputWidth', res[0])
         self.settings.setValue('outputHeight', res[1])
-        self.drawPreview()
+        if changed:
+            for i in range(len(self.core.selectedComponents)):
+                self.core.updateComponent(i)
 
     def drawPreview(self, force=False, **kwargs):
         '''Use autosave keyword arg to force saving or not saving if needed'''

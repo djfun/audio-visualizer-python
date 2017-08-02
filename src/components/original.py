@@ -40,6 +40,8 @@ class Component(Component):
             'y': self.page.spinBox_y,
         }, colorWidgets={
             'visColor': self.page.pushButton_visColor,
+        }, relativeWidgets={
+            'y': 'y',
         })
 
     def previewRender(self):

@@ -28,6 +28,9 @@ class Component(Component):
                 'imagePath': 'image',
                 'xPosition': 'x',
                 'yPosition': 'y',
+            }, relativeWidgets={
+                'xPosition': 'x',
+                'yPosition': 'y',
             },
         )
 

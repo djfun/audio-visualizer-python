@@ -6,6 +6,7 @@ from PyQt5 import uic, QtCore, QtWidgets
 from PyQt5.QtGui import QColor
 import os
 import sys
+import math
 import time
 
 from toolkit.frame import BlankFrame
@@ -176,7 +177,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._presetNames = {}
         self._commandArgs = {}
         self._colorWidgets = {}
+        self._colorFuncs = {}
         self._relativeWidgets = {}
+        self._relativeValues = {}
         self._lockedProperties = None
         self._lockedError = None
 
@@ -291,14 +294,44 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
         for attr, widget in self._trackedWidgets.items():
             if attr in self._colorWidgets:
+                # Color Widgets: text stored as tuple & update the button color
                 rgbTuple = rgbFromString(widget.text())
-                setattr(self, attr, rgbTuple)
                 btnStyle = (
                     "QPushButton { background-color : %s; outline: none; }"
-                    % QColor(*rgbTuple).name()
-                )
+                    % QColor(*rgbTuple).name())
                 self._colorWidgets[attr].setStyleSheet(btnStyle)
+                setattr(self, attr, rgbTuple)
+
+            elif attr in self._relativeWidgets:
+                # Relative widgets: number scales to fit export resolution
+                if self._relativeWidgets[attr] == 'x':
+                    dimension = self.width
+                else:
+                    dimension = self.height
+                try:
+                    oldUserValue = getattr(self, attr)
+                except AttributeError:
+                    oldUserValue = self._trackedWidgets[attr].value()
+                newUserValue = self._trackedWidgets[attr].value()
+                newRelativeVal = newUserValue / dimension
+
+                if attr in self._relativeValues:
+                    if oldUserValue == newUserValue:
+                        oldRelativeVal = self._relativeValues[attr]
+                        if oldRelativeVal != newRelativeVal:
+                            # Float changed without pixel value changing, which
+                            # means the pixel value needs to be updated
+                            self._trackedWidgets[attr].blockSignals(True)
+                            self._trackedWidgets[attr].setValue(
+                                math.ceil(dimension * oldRelativeVal))
+                            self._trackedWidgets[attr].blockSignals(False)
+                if oldUserValue != newUserValue \
+                        or attr not in self._relativeValues:
+                    self._relativeValues[attr] = newRelativeVal
+                setattr(self, attr, self._trackedWidgets[attr].value())
+
             else:
+                # Normal tracked widget
                 setattr(self, attr, getWidgetValue(widget))
 
         if not self.core.openingProject:

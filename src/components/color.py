@@ -60,6 +60,9 @@ class Component(Component):
             }, colorWidgets={
                 'color1': self.page.pushButton_color1,
                 'color2': self.page.pushButton_color2,
+            }, relativeWidgets={
+                'x': 'x',
+                'y': 'y',
             },
         )
 

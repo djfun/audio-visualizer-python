@@ -38,6 +38,9 @@ class Component(Component):
                 'loopVideo': 'loop',
                 'xPosition': 'x',
                 'yPosition': 'y',
+            }, relativeWidgets={
+                'xPosition': 'x',
+                'yPosition': 'y',
             }
         )
 

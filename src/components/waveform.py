@@ -41,6 +41,9 @@ class Component(Component):
                 'mono': self.page.checkBox_mono,
             }, colorWidgets={
                 'color': self.page.pushButton_color,
+            }, relativeWidgets={
+                'x': 'x',
+                'y': 'y',
             }
         )
 

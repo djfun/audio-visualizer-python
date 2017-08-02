@@ -49,6 +49,9 @@ class Component(Component):
                 'compress': self.page.checkBox_compress,
                 'mono': self.page.checkBox_mono,
                 'hue': self.page.spinBox_hue,
+            }, relativeWidgets={
+                'x': 'x',
+                'y': 'y',
             }
         )
         for widget in self._trackedWidgets.values():
