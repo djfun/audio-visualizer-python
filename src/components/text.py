@@ -53,6 +53,7 @@ class Component(Component):
         }, relativeWidgets={
             'xPosition': 'x',
             'yPosition': 'y',
+            'fontSize': 'y',
         })
 
     def update(self):
