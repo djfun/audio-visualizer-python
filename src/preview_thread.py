@@ -59,7 +59,9 @@ class Worker(QtCore.QObject):
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
+                    component.lockSize(width, height)
                     newFrame = component.previewRender()
+                    component.unlockSize()
                     frame = Image.alpha_composite(
                         frame, newFrame
                     )

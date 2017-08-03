@@ -451,8 +451,8 @@ class Core:
                 '1280x720',
                 '854x480',
             ],
-            'windowHasFocus': False,
             'FFMPEG_BIN': findFfmpeg(),
+            'windowHasFocus': False,
             'canceled': False,
         }
 
@@ -492,7 +492,7 @@ class Core:
 
     @classmethod
     def loadDefaultSettings(cls):
-        defaultSettings = {
+        cls.defaultSettings = {
             "outputWidth": 1280,
             "outputHeight": 720,
             "outputFrameRate": 30,
@@ -509,7 +509,7 @@ class Core:
             "pref_genericPreview": True,
         }
 
-        for parm, value in defaultSettings.items():
+        for parm, value in cls.defaultSettings.items():
             if cls.settings.value(parm) is None:
                 cls.settings.setValue(parm, value)
 

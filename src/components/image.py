@@ -21,8 +21,8 @@ class Component(Component):
             'xPosition': self.page.spinBox_x,
             'yPosition': self.page.spinBox_y,
             'stretched': self.page.checkBox_stretch,
-        }, presetNames={
             'mirror': self.page.checkBox_mirror,
+        }, presetNames={
             'imagePath': 'image',
             'xPosition': 'x',
             'yPosition': 'y',

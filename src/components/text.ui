@@ -81,6 +81,9 @@
        </item>
        <item>
         <widget class="QSpinBox" name="spinBox_fontSize">
+         <property name="minimum">
+          <number>1</number>
+         </property>
          <property name="maximum">
           <number>500</number>
          </property>

@@ -179,9 +179,14 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._colorWidgets = {}
         self._colorFuncs = {}
         self._relativeWidgets = {}
+        # pixel values stored as floats
         self._relativeValues = {}
+        # maximum values of spinBoxes at 1080p (Core.resolutions[0])
+        self._relativeMaximums = {}
+
         self._lockedProperties = None
         self._lockedError = None
+        self._lockedSize = None
 
         # Stop lengthy processes in response to this variable
         self.canceled = False
@@ -190,8 +195,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         return self.__class__.name
 
     def __repr__(self):
+        try:
+            preset = self.savePreset()
+        except Exception as e:
+            preset = '%s occured while saving preset' % str(e)
         return '%s\n%s\n%s' % (
-            self.__class__.name, str(self.__class__.version), self.savePreset()
+            self.__class__.name, str(self.__class__.version), preset
         )
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -304,27 +313,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
             elif attr in self._relativeWidgets:
                 # Relative widgets: number scales to fit export resolution
-                dimension = self.width
-                try:
-                    oldUserValue = getattr(self, attr)
-                except AttributeError:
-                    oldUserValue = self._trackedWidgets[attr].value()
-                newUserValue = self._trackedWidgets[attr].value()
-                newRelativeVal = newUserValue / dimension
-
-                if attr in self._relativeValues:
-                    if oldUserValue == newUserValue:
-                        oldRelativeVal = self._relativeValues[attr]
-                        if oldRelativeVal != newRelativeVal:
-                            # Float changed without pixel value changing, which
-                            # means the pixel value needs to be updated
-                            self._trackedWidgets[attr].blockSignals(True)
-                            self._trackedWidgets[attr].setValue(
-                                math.ceil(dimension * oldRelativeVal))
-                            self._trackedWidgets[attr].blockSignals(False)
-                if oldUserValue != newUserValue \
-                        or attr not in self._relativeValues:
-                    self._relativeValues[attr] = newRelativeVal
+                self.updateRelativeWidget(attr)
                 setattr(self, attr, self._trackedWidgets[attr].value())
 
             else:
@@ -436,6 +425,13 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                         "background-color : #FFFFFF; outline: none; }"
                     )
 
+            if kwarg == 'relativeWidgets':
+                # store maximum values of spinBoxes to be scaled appropriately
+                for attr in kwargs[kwarg]:
+                    self._relativeMaximums[attr] = \
+                            self._trackedWidgets[attr].maximum()
+                    self.updateRelativeWidgetMaximum(attr)
+
     def pickColor(self, textWidget, button):
         '''Use color picker to get color input from the user.'''
         dialog = QtWidgets.QColorDialog()
@@ -455,11 +451,17 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def lockError(self, msg):
         self._lockedError = msg
 
+    def lockSize(self, w, h):
+        self._lockedSize = (w, h)
+
     def unlockProperties(self):
         self._lockedProperties = None
 
     def unlockError(self):
         self._lockedError = None
+
+    def unlockSize(self):
+        self._lockedSize = None
 
     def loadUi(self, filename):
         '''Load a Qt Designer ui file to use for this component's widget'''
@@ -467,11 +469,17 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     @property
     def width(self):
-        return int(self.settings.value('outputWidth'))
+        if self._lockedSize is None:
+            return int(self.settings.value('outputWidth'))
+        else:
+            return self._lockedSize[0]
 
     @property
     def height(self):
-        return int(self.settings.value('outputHeight'))
+        if self._lockedSize is None:
+            return int(self.settings.value('outputHeight'))
+        else:
+            return self._lockedSize[1]
 
     def cancel(self):
         '''Stop any lengthy process in response to this variable.'''
@@ -481,6 +489,42 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.canceled = False
         self.unlockProperties()
         self.unlockError()
+
+    def updateRelativeWidget(self, attr):
+        dimension = self.width
+        if 'height' in attr.lower() \
+                or 'ypos' in attr.lower() or attr == 'y':
+            dimension = self.height
+        try:
+            oldUserValue = getattr(self, attr)
+        except AttributeError:
+            oldUserValue = self._trackedWidgets[attr].value()
+        newUserValue = self._trackedWidgets[attr].value()
+        newRelativeVal = newUserValue / dimension
+
+        if attr in self._relativeValues:
+            oldRelativeVal = self._relativeValues[attr]
+            if oldUserValue == newUserValue \
+                    and oldRelativeVal != newRelativeVal:
+                # Float changed without pixel value changing, which
+                # means the pixel value needs to be updated
+                self._trackedWidgets[attr].blockSignals(True)
+                self.updateRelativeWidgetMaximum(attr)
+                self._trackedWidgets[attr].setValue(
+                    math.ceil(dimension * oldRelativeVal))
+                self._trackedWidgets[attr].blockSignals(False)
+
+        if attr not in self._relativeValues \
+                or oldUserValue != newUserValue:
+            self._relativeValues[attr] = newRelativeVal
+
+    def updateRelativeWidgetMaximum(self, attr):
+        maxRes = int(self.core.resolutions[0].split('x')[0])
+        newMaximumValue = self.width * (
+            self._relativeMaximums[attr] /
+            maxRes
+        )
+        self._trackedWidgets[attr].setMaximum(int(newMaximumValue))
 
 
 class ComponentError(RuntimeError):
