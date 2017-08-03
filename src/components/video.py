@@ -23,26 +23,23 @@ class Component(Component):
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
         self.page.pushButton_video.clicked.connect(self.pickVideo)
-        self.trackWidgets(
-            {
-                'videoPath': self.page.lineEdit_video,
-                'loopVideo': self.page.checkBox_loop,
-                'useAudio': self.page.checkBox_useAudio,
-                'distort': self.page.checkBox_distort,
-                'scale': self.page.spinBox_scale,
-                'volume': self.page.spinBox_volume,
-                'xPosition': self.page.spinBox_x,
-                'yPosition': self.page.spinBox_y,
-            }, presetNames={
-                'videoPath': 'video',
-                'loopVideo': 'loop',
-                'xPosition': 'x',
-                'yPosition': 'y',
-            }, relativeWidgets={
-                'xPosition': 'x',
-                'yPosition': 'y',
-            }
-        )
+        self.trackWidgets({
+            'videoPath': self.page.lineEdit_video,
+            'loopVideo': self.page.checkBox_loop,
+            'useAudio': self.page.checkBox_useAudio,
+            'distort': self.page.checkBox_distort,
+            'scale': self.page.spinBox_scale,
+            'volume': self.page.spinBox_volume,
+            'xPosition': self.page.spinBox_x,
+            'yPosition': self.page.spinBox_y,
+        }, presetNames={
+            'videoPath': 'video',
+            'loopVideo': 'loop',
+            'xPosition': 'x',
+            'yPosition': 'y',
+        }, relativeWidgets=[
+            'xPosition', 'yPosition',
+        ])
 
     def update(self):
         if self.page.checkBox_useAudio.isChecked():

@@ -40,9 +40,9 @@ class Component(Component):
             'y': self.page.spinBox_y,
         }, colorWidgets={
             'visColor': self.page.pushButton_visColor,
-        }, relativeWidgets={
-            'y': 'y',
-        })
+        }, relativeWidgets=[
+            'y',
+        ])
 
     def previewRender(self):
         spectrum = numpy.fromfunction(

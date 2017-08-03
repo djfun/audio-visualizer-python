@@ -13,26 +13,22 @@ class Component(Component):
     def widget(self, *args):
         super().widget(*args)
         self.page.pushButton_image.clicked.connect(self.pickImage)
-        self.trackWidgets(
-            {
-                'imagePath': self.page.lineEdit_image,
-                'scale': self.page.spinBox_scale,
-                'rotate': self.page.spinBox_rotate,
-                'color': self.page.spinBox_color,
-                'xPosition': self.page.spinBox_x,
-                'yPosition': self.page.spinBox_y,
-                'stretched': self.page.checkBox_stretch,
-                'mirror': self.page.checkBox_mirror,
-            },
-            presetNames={
-                'imagePath': 'image',
-                'xPosition': 'x',
-                'yPosition': 'y',
-            }, relativeWidgets={
-                'xPosition': 'x',
-                'yPosition': 'y',
-            },
-        )
+        self.trackWidgets({
+            'imagePath': self.page.lineEdit_image,
+            'scale': self.page.spinBox_scale,
+            'rotate': self.page.spinBox_rotate,
+            'color': self.page.spinBox_color,
+            'xPosition': self.page.spinBox_x,
+            'yPosition': self.page.spinBox_y,
+            'stretched': self.page.checkBox_stretch,
+        }, presetNames={
+            'mirror': self.page.checkBox_mirror,
+            'imagePath': 'image',
+            'xPosition': 'x',
+            'yPosition': 'y',
+        }, relativeWidgets=[
+            'xPosition', 'yPosition',
+        ])
 
     def previewRender(self):
         return self.drawFrame(self.width, self.height)

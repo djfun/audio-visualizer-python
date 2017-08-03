@@ -37,41 +37,34 @@ class Component(Component):
             self.page.comboBox_fill.addItem(label)
         self.page.comboBox_fill.setCurrentIndex(0)
 
-        self.trackWidgets(
-            {
-                'x': self.page.spinBox_x,
-                'y': self.page.spinBox_y,
-                'sizeWidth': self.page.spinBox_width,
-                'sizeHeight': self.page.spinBox_height,
-                'trans': self.page.checkBox_trans,
-                'spread': self.page.comboBox_spread,
-                'stretch': self.page.checkBox_stretch,
-                'RG_start': self.page.spinBox_radialGradient_start,
-                'LG_start': self.page.spinBox_linearGradient_start,
-                'RG_end': self.page.spinBox_radialGradient_end,
-                'LG_end': self.page.spinBox_linearGradient_end,
-                'RG_centre': self.page.spinBox_radialGradient_spread,
-                'fillType': self.page.comboBox_fill,
-                'color1': self.page.lineEdit_color1,
-                'color2': self.page.lineEdit_color2,
-            }, presetNames={
-                'sizeWidth': 'width',
-                'sizeHeight': 'height',
-            }, colorWidgets={
-                'color1': self.page.pushButton_color1,
-                'color2': self.page.pushButton_color2,
-            }, relativeWidgets={
-                'x': 'x',
-                'y': 'y',
-                'sizeWidth': 'x',
-                'sizeHeight': 'y',
-                'RG_start': 'x',
-                'LG_start': 'x',
-                'RG_end': 'x',
-                'LG_end': 'x',
-                'RG_centre': 'x',
-            },
-        )
+        self.trackWidgets({
+            'x': self.page.spinBox_x,
+            'y': self.page.spinBox_y,
+            'sizeWidth': self.page.spinBox_width,
+            'sizeHeight': self.page.spinBox_height,
+            'trans': self.page.checkBox_trans,
+            'spread': self.page.comboBox_spread,
+            'stretch': self.page.checkBox_stretch,
+            'RG_start': self.page.spinBox_radialGradient_start,
+            'LG_start': self.page.spinBox_linearGradient_start,
+            'RG_end': self.page.spinBox_radialGradient_end,
+            'LG_end': self.page.spinBox_linearGradient_end,
+            'RG_centre': self.page.spinBox_radialGradient_spread,
+            'fillType': self.page.comboBox_fill,
+            'color1': self.page.lineEdit_color1,
+            'color2': self.page.lineEdit_color2,
+        }, presetNames={
+            'sizeWidth': 'width',
+            'sizeHeight': 'height',
+        }, colorWidgets={
+            'color1': self.page.pushButton_color1,
+            'color2': self.page.pushButton_color2,
+        }, relativeWidgets=[
+            'x', 'y',
+            'sizeWidth', 'sizeHeight',
+            'LG_start', 'LG_end',
+            'RG_start', 'RG_end', 'RG_centre',
+        ])
 
     def update(self):
         fillType = self.page.comboBox_fill.currentIndex()

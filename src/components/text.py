@@ -48,11 +48,9 @@ class Component(Component):
             'yPosition': self.page.spinBox_yTextAlign,
         }, colorWidgets={
             'textColor': self.page.pushButton_textColor,
-        }, relativeWidgets={
-            'xPosition': 'x',
-            'yPosition': 'y',
-            'fontSize': 'y',
-        })
+        }, relativeWidgets=[
+            'xPosition', 'yPosition', 'fontSize',
+        ])
 
     def update(self):
         self.titleFont = self.page.fontComboBox_titleFont.currentFont()

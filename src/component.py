@@ -304,10 +304,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
             elif attr in self._relativeWidgets:
                 # Relative widgets: number scales to fit export resolution
-                if self._relativeWidgets[attr] == 'x':
-                    dimension = self.width
-                else:
-                    dimension = self.height
+                dimension = self.width
                 try:
                     oldUserValue = getattr(self, attr)
                 except AttributeError:

@@ -28,25 +28,22 @@ class Component(Component):
                 self.update
             )
 
-        self.trackWidgets(
-            {
-                'color': self.page.lineEdit_color,
-                'mode': self.page.comboBox_mode,
-                'amplitude': self.page.comboBox_amplitude,
-                'x': self.page.spinBox_x,
-                'y': self.page.spinBox_y,
-                'mirror': self.page.checkBox_mirror,
-                'scale': self.page.spinBox_scale,
-                'opacity': self.page.spinBox_opacity,
-                'compress': self.page.checkBox_compress,
-                'mono': self.page.checkBox_mono,
-            }, colorWidgets={
-                'color': self.page.pushButton_color,
-            }, relativeWidgets={
-                'x': 'x',
-                'y': 'y',
-            }
-        )
+        self.trackWidgets({
+            'color': self.page.lineEdit_color,
+            'mode': self.page.comboBox_mode,
+            'amplitude': self.page.comboBox_amplitude,
+            'x': self.page.spinBox_x,
+            'y': self.page.spinBox_y,
+            'mirror': self.page.checkBox_mirror,
+            'scale': self.page.spinBox_scale,
+            'opacity': self.page.spinBox_opacity,
+            'compress': self.page.checkBox_compress,
+            'mono': self.page.checkBox_mono,
+        }, colorWidgets={
+            'color': self.page.pushButton_color,
+        }, relativeWidgets=[
+            'x', 'y',
+        ])
 
     def previewRender(self):
         self.updateChunksize()

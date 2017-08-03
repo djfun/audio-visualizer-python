@@ -30,31 +30,28 @@ class Component(Component):
                 self.update
             )
 
-        self.trackWidgets(
-            {
-                'filterType': self.page.comboBox_filterType,
-                'window': self.page.comboBox_window,
-                'mode': self.page.comboBox_mode,
-                'amplitude': self.page.comboBox_amplitude0,
-                'amplitude1': self.page.comboBox_amplitude1,
-                'amplitude2': self.page.comboBox_amplitude2,
-                'display': self.page.comboBox_display,
-                'zoom': self.page.spinBox_zoom,
-                'tc': self.page.spinBox_tc,
-                'x': self.page.spinBox_x,
-                'y': self.page.spinBox_y,
-                'mirror': self.page.checkBox_mirror,
-                'draw': self.page.checkBox_draw,
-                'scale': self.page.spinBox_scale,
-                'color': self.page.comboBox_color,
-                'compress': self.page.checkBox_compress,
-                'mono': self.page.checkBox_mono,
-                'hue': self.page.spinBox_hue,
-            }, relativeWidgets={
-                'x': 'x',
-                'y': 'y',
-            }
-        )
+        self.trackWidgets({
+            'filterType': self.page.comboBox_filterType,
+            'window': self.page.comboBox_window,
+            'mode': self.page.comboBox_mode,
+            'amplitude': self.page.comboBox_amplitude0,
+            'amplitude1': self.page.comboBox_amplitude1,
+            'amplitude2': self.page.comboBox_amplitude2,
+            'display': self.page.comboBox_display,
+            'zoom': self.page.spinBox_zoom,
+            'tc': self.page.spinBox_tc,
+            'x': self.page.spinBox_x,
+            'y': self.page.spinBox_y,
+            'mirror': self.page.checkBox_mirror,
+            'draw': self.page.checkBox_draw,
+            'scale': self.page.spinBox_scale,
+            'color': self.page.comboBox_color,
+            'compress': self.page.checkBox_compress,
+            'mono': self.page.checkBox_mono,
+            'hue': self.page.spinBox_hue,
+        }, relativeWidgets=[
+            'x', 'y',
+        ])
         for widget in self._trackedWidgets.values():
             connectWidget(widget, lambda: self.changed())
 
