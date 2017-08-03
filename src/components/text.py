@@ -17,8 +17,6 @@ class Component(Component):
 
     def widget(self, *args):
         super().widget(*args)
-        # height = int(self.settings.value('outputHeight'))
-        # width = int(self.settings.value('outputWidth'))
         self.textColor = (255, 255, 255)
         self.title = 'Text'
         self.alignment = 1

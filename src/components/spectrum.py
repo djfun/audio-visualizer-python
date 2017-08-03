@@ -20,6 +20,7 @@ class Component(Component):
     def widget(self, *args):
         self.previewFrame = None
         super().widget(*args)
+        self._image = BlankFrame(self.width, self.height)
         self.chunkSize = 4 * self.width * self.height
         self.changedOptions = True
 
@@ -268,11 +269,15 @@ class Component(Component):
         return changed
 
     def finalizeFrame(self, imageData):
-        image = Image.frombytes(
-            'RGBA',
-            scale(self.scale, self.width, self.height, int),
-            imageData
-        )
+        try:
+            image = Image.frombytes(
+                'RGBA',
+                scale(self.scale, self.width, self.height, int),
+                imageData
+            )
+            self._image = image
+        except ValueError:
+            image = self._image
         if self.scale != 100 \
                 or self.x != 0 or self.y != 0:
             frame = BlankFrame(self.width, self.height)

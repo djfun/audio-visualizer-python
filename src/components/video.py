@@ -16,12 +16,12 @@ class Component(Component):
 
     def widget(self, *args):
         self.videoPath = ''
-        self.badVideo = False
         self.badAudio = False
         self.x = 0
         self.y = 0
         self.loopVideo = False
         super().widget(*args)
+        self._image = BlankFrame(self.width, self.height)
         self.page.pushButton_video.clicked.connect(self.pickVideo)
         self.trackWidgets(
             {
@@ -70,8 +70,6 @@ class Component(Component):
 
         if not self.videoPath:
             self.lockError("There is no video selected.")
-        elif self.badVideo:
-            self.lockError("Could not identify an audio stream in this video.")
         elif not os.path.exists(self.videoPath):
             self.lockError("The video selected does not exist!")
         elif os.path.realpath(self.videoPath) == os.path.realpath(outputFile):
@@ -199,14 +197,10 @@ class Component(Component):
                     'RGBA',
                     scale(self.scale, self.width, self.height, int),
                     imageData)
-
+            self._image = image
         except ValueError:
-            print(
-                '### BAD VIDEO SELECTED ###\n'
-                'Video will not export with these settings'
-            )
-            self.badVideo = True
-            return BlankFrame(self.width, self.height)
+            # use last good frame
+            image = self._image
 
         if self.scale != 100 \
                 or self.xPosition != 0 or self.yPosition != 0:
@@ -214,5 +208,4 @@ class Component(Component):
             frame.paste(image, box=(self.xPosition, self.yPosition))
         else:
             frame = image
-        self.badVideo = False
         return frame

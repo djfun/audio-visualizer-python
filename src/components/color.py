@@ -65,6 +65,11 @@ class Component(Component):
                 'y': 'y',
                 'sizeWidth': 'x',
                 'sizeHeight': 'y',
+                'RG_start': 'x',
+                'LG_start': 'x',
+                'RG_end': 'x',
+                'LG_end': 'x',
+                'RG_centre': 'x',
             },
         )
 

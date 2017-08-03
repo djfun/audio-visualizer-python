@@ -19,6 +19,7 @@ class Component(Component):
 
     def widget(self, *args):
         super().widget(*args)
+        self._image = BlankFrame(self.width, self.height)
 
         self.page.lineEdit_color.setText('255,255,255')
 
@@ -178,11 +179,15 @@ class Component(Component):
         self.chunkSize = 4 * width * height
 
     def finalizeFrame(self, imageData):
-        image = Image.frombytes(
-            'RGBA',
-            scale(self.scale, self.width, self.height, int),
-            imageData
-        )
+        try:
+            image = Image.frombytes(
+                'RGBA',
+                scale(self.scale, self.width, self.height, int),
+                imageData
+            )
+            self._image = image
+        except ValueError:
+            image = self._image
         if self.scale != 100 \
                 or self.x != 0 or self.y != 0:
             frame = BlankFrame(self.width, self.height)
