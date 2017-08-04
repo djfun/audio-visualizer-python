@@ -27,7 +27,7 @@ class Component(Component):
             'xPosition': 'x',
             'yPosition': 'y',
         }, relativeWidgets=[
-            'xPosition', 'yPosition',
+            'xPosition', 'yPosition', 'scale'
         ])
 
     def previewRender(self):
