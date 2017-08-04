@@ -161,7 +161,7 @@ class Core:
                     for widget, value in data['WindowFields']:
                         widget = eval('loader.window.%s' % widget)
                         widget.blockSignals(True)
-                        widget.setText(value)
+                        toolkit.setWidgetValue(widget, value)
                         widget.blockSignals(False)
 
                 for key, value in data['Settings']:

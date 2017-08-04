@@ -346,16 +346,29 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                     % QColor(*val).name()
                 )
                 self._colorWidgets[attr].setStyleSheet(btnStyle)
+            elif attr in self._relativeWidgets:
+                self._relativeValues[attr] = val
+                pixelVal = self.pixelValForAttr(attr, val)
+                setWidgetValue(widget, pixelVal)
             else:
                 setWidgetValue(widget, val)
 
     def savePreset(self):
         saveValueStore = {}
         for attr, widget in self._trackedWidgets.items():
-            saveValueStore[
+            presetAttrName = (
                 attr if attr not in self._presetNames
                 else self._presetNames[attr]
-            ] = getattr(self, attr)
+            )
+            if attr in self._relativeWidgets:
+                try:
+                    val = self._relativeValues[attr]
+                except AttributeError:
+                    val = self.floatValForAttr(attr)
+            else:
+                val = getattr(self, attr)
+
+            saveValueStore[presetAttrName] = val
         return saveValueStore
 
     def commandHelp(self):
@@ -490,17 +503,42 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.unlockProperties()
         self.unlockError()
 
+    def relativeWidgetAxis(func):
+        def relativeWidgetAxis(self, attr, *args, **kwargs):
+            if 'axis' not in kwargs:
+                axis = self.width
+                if 'height' in attr.lower() \
+                        or 'ypos' in attr.lower() or attr == 'y':
+                    axis = self.height
+                kwargs['axis'] = axis
+            return func(self, attr, *args, **kwargs)
+        return relativeWidgetAxis
+
+    @relativeWidgetAxis
+    def pixelValForAttr(self, attr, val=None, **kwargs):
+        if val is None:
+            val = self._relativeValues[attr]
+        return math.ceil(kwargs['axis'] * val)
+
+    @relativeWidgetAxis
+    def floatValForAttr(self, attr, val=None, **kwargs):
+        if val is None:
+            val = self._trackedWidgets[attr].value()
+        return val / kwargs['axis']
+
+    def setRelativeWidget(self, attr, floatVal):
+        '''Set a relative widget using a float'''
+        pixelVal = self.pixelValForAttr(attr, floatVal)
+        self._trackedWidgets[attr].setValue(pixelVal)
+
+
     def updateRelativeWidget(self, attr):
-        dimension = self.width
-        if 'height' in attr.lower() \
-                or 'ypos' in attr.lower() or attr == 'y':
-            dimension = self.height
         try:
             oldUserValue = getattr(self, attr)
         except AttributeError:
             oldUserValue = self._trackedWidgets[attr].value()
         newUserValue = self._trackedWidgets[attr].value()
-        newRelativeVal = newUserValue / dimension
+        newRelativeVal = self.floatValForAttr(attr, newUserValue)
 
         if attr in self._relativeValues:
             oldRelativeVal = self._relativeValues[attr]
@@ -510,8 +548,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 # means the pixel value needs to be updated
                 self._trackedWidgets[attr].blockSignals(True)
                 self.updateRelativeWidgetMaximum(attr)
-                self._trackedWidgets[attr].setValue(
-                    math.ceil(dimension * oldRelativeVal))
+                pixelVal = self.pixelValForAttr(attr, oldRelativeVal)
+                self._trackedWidgets[attr].setValue(pixelVal)
                 self._trackedWidgets[attr].blockSignals(False)
 
         if attr not in self._relativeValues \

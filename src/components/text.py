@@ -9,7 +9,7 @@ from toolkit.frame import FramePainter
 
 class Component(Component):
     name = 'Title Text'
-    version = '1.0.0'
+    version = '1.0.1'
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -25,20 +25,17 @@ class Component(Component):
         self.page.comboBox_textAlign.addItem("Left")
         self.page.comboBox_textAlign.addItem("Middle")
         self.page.comboBox_textAlign.addItem("Right")
+        self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
 
         self.page.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
-        self.page.lineEdit_title.setText(self.title)
-        self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
+        self.page.lineEdit_title.setText(self.title)
 
-        fm = QtGui.QFontMetrics(self.titleFont)
-        self.page.spinBox_xTextAlign.setValue(
-            self.width / 2 - fm.width(self.title)/2)
-        self.page.spinBox_yTextAlign.setValue(self.height / 2 * 1.036)
-
+        self.page.pushButton_center.clicked.connect(self.centerXY)
         self.page.fontComboBox_titleFont.currentFontChanged.connect(
             self.update
         )
+
         self.trackWidgets({
             'textColor': self.page.lineEdit_textColor,
             'title': self.page.lineEdit_title,
@@ -51,10 +48,15 @@ class Component(Component):
         }, relativeWidgets=[
             'xPosition', 'yPosition', 'fontSize',
         ])
+        self.centerXY()
 
     def update(self):
         self.titleFont = self.page.fontComboBox_titleFont.currentFont()
         super().update()
+
+    def centerXY(self):
+        self.setRelativeWidget('xPosition', 0.5)
+        self.setRelativeWidget('yPosition', 0.5)
 
     def getXY(self):
         '''Returns true x, y after considering alignment settings'''
