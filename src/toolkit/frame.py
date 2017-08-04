@@ -6,6 +6,7 @@ from PIL import Image
 from PIL.ImageQt import ImageQt
 import sys
 import os
+import math
 
 import core
 
@@ -39,6 +40,17 @@ class PaintColor(QtGui.QColor):
             super().__init__(r, g, b, a)
         else:
             super().__init__(b, g, r, a)
+
+
+def scale(scalePercent, width, height, returntype=None):
+    width = (float(width) / 100.0) * float(scalePercent)
+    height = (float(height) / 100.0) * float(scalePercent)
+    if returntype == str:
+        return (str(math.ceil(width)), str(math.ceil(height)))
+    elif returntype == int:
+        return (math.ceil(width), math.ceil(height))
+    else:
+        return (width, height)
 
 
 def defaultSize(framefunc):

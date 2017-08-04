@@ -161,7 +161,7 @@ class Core:
                     for widget, value in data['WindowFields']:
                         widget = eval('loader.window.%s' % widget)
                         widget.blockSignals(True)
-                        widget.setText(value)
+                        toolkit.setWidgetValue(widget, value)
                         widget.blockSignals(False)
 
                 for key, value in data['Settings']:
@@ -451,8 +451,8 @@ class Core:
                 '1280x720',
                 '854x480',
             ],
-            'windowHasFocus': False,
             'FFMPEG_BIN': findFfmpeg(),
+            'windowHasFocus': False,
             'canceled': False,
         }
 
@@ -492,7 +492,7 @@ class Core:
 
     @classmethod
     def loadDefaultSettings(cls):
-        defaultSettings = {
+        cls.defaultSettings = {
             "outputWidth": 1280,
             "outputHeight": 720,
             "outputFrameRate": 30,
@@ -506,9 +506,10 @@ class Core:
             "outputContainer": "MP4",
             "projectDir": os.path.join(cls.dataDir, 'projects'),
             "pref_insertCompAtTop": True,
+            "pref_genericPreview": True,
         }
 
-        for parm, value in defaultSettings.items():
+        for parm, value in cls.defaultSettings.items():
             if cls.settings.value(parm) is None:
                 cls.settings.setValue(parm, value)
 

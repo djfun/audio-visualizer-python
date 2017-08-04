@@ -3,16 +3,21 @@
     on making a valid component.
 '''
 from PyQt5 import uic, QtCore, QtWidgets
+from PyQt5.QtGui import QColor
 import os
+import sys
+import math
 import time
 
 from toolkit.frame import BlankFrame
+from toolkit import (
+    getWidgetValue, setWidgetValue, connectWidget, rgbFromString
+)
 
 
 class ComponentMetaclass(type(QtCore.QObject)):
     '''
-        Checks the validity of each Component class imported, and
-        mutates some attributes for easier use by the core program.
+        Checks the validity of each Component class and mutates some attrs.
         E.g., takes only major version from version string & decorates methods
     '''
 
@@ -171,8 +176,17 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._trackedWidgets = {}
         self._presetNames = {}
         self._commandArgs = {}
+        self._colorWidgets = {}
+        self._colorFuncs = {}
+        self._relativeWidgets = {}
+        # pixel values stored as floats
+        self._relativeValues = {}
+        # maximum values of spinBoxes at 1080p (Core.resolutions[0])
+        self._relativeMaximums = {}
+
         self._lockedProperties = None
         self._lockedError = None
+        self._lockedSize = None
 
         # Stop lengthy processes in response to this variable
         self.canceled = False
@@ -181,12 +195,16 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         return self.__class__.name
 
     def __repr__(self):
+        try:
+            preset = self.savePreset()
+        except Exception as e:
+            preset = '%s occured while saving preset' % str(e)
         return '%s\n%s\n%s' % (
-            self.__class__.name, str(self.__class__.version), self.savePreset()
+            self.__class__.name, str(self.__class__.version), preset
         )
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-    # Critical Methods
+    # Render Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
     def previewRender(self):
@@ -197,7 +215,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
             Must call super() when subclassing
             Triggered only before a video is exported (video_thread.py)
-                self.worker = the video thread worker
+                self.audioFile = filepath to the main input audio file
                 self.completeAudioArray = a list of audio samples
                 self.sampleSize = number of audio samples per video frame
                 self.progressBarUpdate = signal to set progress bar number
@@ -273,14 +291,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         widgets['spinBox'].extend(
             self.page.findChildren(QtWidgets.QDoubleSpinBox)
         )
-        for widget in widgets['lineEdit']:
-            widget.textChanged.connect(self.update)
-        for widget in widgets['checkBox']:
-            widget.stateChanged.connect(self.update)
-        for widget in widgets['spinBox']:
-            widget.valueChanged.connect(self.update)
-        for widget in widgets['comboBox']:
-            widget.currentIndexChanged.connect(self.update)
+        for widgetList in widgets.values():
+            for widget in widgetList:
+                connectWidget(widget, self.update)
 
     def update(self):
         '''
@@ -289,15 +302,24 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             Call super() at the END if you need to subclass this.
         '''
         for attr, widget in self._trackedWidgets.items():
-            if type(widget) == QtWidgets.QLineEdit:
-                setattr(self, attr, widget.text())
-            elif type(widget) == QtWidgets.QSpinBox \
-                    or type(widget) == QtWidgets.QDoubleSpinBox:
-                setattr(self, attr, widget.value())
-            elif type(widget) == QtWidgets.QCheckBox:
-                setattr(self, attr, widget.isChecked())
-            elif type(widget) == QtWidgets.QComboBox:
-                setattr(self, attr, widget.currentIndex())
+            if attr in self._colorWidgets:
+                # Color Widgets: text stored as tuple & update the button color
+                rgbTuple = rgbFromString(widget.text())
+                btnStyle = (
+                    "QPushButton { background-color : %s; outline: none; }"
+                    % QColor(*rgbTuple).name())
+                self._colorWidgets[attr].setStyleSheet(btnStyle)
+                setattr(self, attr, rgbTuple)
+
+            elif attr in self._relativeWidgets:
+                # Relative widgets: number scales to fit export resolution
+                self.updateRelativeWidget(attr)
+                setattr(self, attr, self._trackedWidgets[attr].value())
+
+            else:
+                # Normal tracked widget
+                setattr(self, attr, getWidgetValue(widget))
+
         if not self.core.openingProject:
             self.parent.drawPreview()
             saveValueStore = self.savePreset()
@@ -313,27 +335,40 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.currentPreset = presetName \
             if presetName is not None else presetDict['preset']
         for attr, widget in self._trackedWidgets.items():
-            val = presetDict[
-                attr if attr not in self._presetNames
+            key = attr if attr not in self._presetNames \
                 else self._presetNames[attr]
-            ]
-            if type(widget) == QtWidgets.QLineEdit:
-                widget.setText(val)
-            elif type(widget) == QtWidgets.QSpinBox \
-                    or type(widget) == QtWidgets.QDoubleSpinBox:
-                widget.setValue(val)
-            elif type(widget) == QtWidgets.QCheckBox:
-                widget.setChecked(val)
-            elif type(widget) == QtWidgets.QComboBox:
-                widget.setCurrentIndex(val)
+            val = presetDict[key]
+
+            if attr in self._colorWidgets:
+                widget.setText('%s,%s,%s' % val)
+                btnStyle = (
+                    "QPushButton { background-color : %s; outline: none; }"
+                    % QColor(*val).name()
+                )
+                self._colorWidgets[attr].setStyleSheet(btnStyle)
+            elif attr in self._relativeWidgets:
+                self._relativeValues[attr] = val
+                pixelVal = self.pixelValForAttr(attr, val)
+                setWidgetValue(widget, pixelVal)
+            else:
+                setWidgetValue(widget, val)
 
     def savePreset(self):
         saveValueStore = {}
         for attr, widget in self._trackedWidgets.items():
-            saveValueStore[
+            presetAttrName = (
                 attr if attr not in self._presetNames
                 else self._presetNames[attr]
-            ] = getattr(self, attr)
+            )
+            if attr in self._relativeWidgets:
+                try:
+                    val = self._relativeValues[attr]
+                except AttributeError:
+                    val = self.floatValForAttr(attr)
+            else:
+                val = getattr(self, attr)
+
+            saveValueStore[presetAttrName] = val
         return saveValueStore
 
     def commandHelp(self):
@@ -372,7 +407,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._trackedWidgets = trackDict
         for kwarg in kwargs:
             try:
-                if kwarg in ('presetNames', 'commandArgs'):
+                if kwarg in (
+                        'presetNames',
+                        'commandArgs',
+                        'colorWidgets',
+                        'relativeWidgets',
+                        ):
                     setattr(self, '_%s' % kwarg, kwargs[kwarg])
                 else:
                     raise ComponentError(
@@ -380,11 +420,52 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             except ComponentError:
                 continue
 
+            if kwarg == 'colorWidgets':
+                def makeColorFunc(attr):
+                    def pickColor_():
+                        self.pickColor(
+                            self._trackedWidgets[attr],
+                            self._colorWidgets[attr]
+                        )
+                    return pickColor_
+                self._colorFuncs = {
+                    attr: makeColorFunc(attr) for attr in kwargs[kwarg]
+                }
+                for attr, func in self._colorFuncs.items():
+                    self._colorWidgets[attr].clicked.connect(func)
+                    self._colorWidgets[attr].setStyleSheet(
+                        "QPushButton {"
+                        "background-color : #FFFFFF; outline: none; }"
+                    )
+
+            if kwarg == 'relativeWidgets':
+                # store maximum values of spinBoxes to be scaled appropriately
+                for attr in kwargs[kwarg]:
+                    self._relativeMaximums[attr] = \
+                            self._trackedWidgets[attr].maximum()
+                    self.updateRelativeWidgetMaximum(attr)
+
+    def pickColor(self, textWidget, button):
+        '''Use color picker to get color input from the user.'''
+        dialog = QtWidgets.QColorDialog()
+        dialog.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
+        color = dialog.getColor()
+        if color.isValid():
+            RGBstring = '%s,%s,%s' % (
+                str(color.red()), str(color.green()), str(color.blue()))
+            btnStyle = "QPushButton{background-color: %s; outline: none;}" \
+                % color.name()
+            textWidget.setText(RGBstring)
+            button.setStyleSheet(btnStyle)
+
     def lockProperties(self, propList):
         self._lockedProperties = propList
 
     def lockError(self, msg):
         self._lockedError = msg
+
+    def lockSize(self, w, h):
+        self._lockedSize = (w, h)
 
     def unlockProperties(self):
         self._lockedProperties = None
@@ -392,17 +473,26 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def unlockError(self):
         self._lockedError = None
 
+    def unlockSize(self):
+        self._lockedSize = None
+
     def loadUi(self, filename):
         '''Load a Qt Designer ui file to use for this component's widget'''
         return uic.loadUi(os.path.join(self.core.componentsPath, filename))
 
     @property
     def width(self):
-        return int(self.settings.value('outputWidth'))
+        if self._lockedSize is None:
+            return int(self.settings.value('outputWidth'))
+        else:
+            return self._lockedSize[0]
 
     @property
     def height(self):
-        return int(self.settings.value('outputHeight'))
+        if self._lockedSize is None:
+            return int(self.settings.value('outputHeight'))
+        else:
+            return self._lockedSize[1]
 
     def cancel(self):
         '''Stop any lengthy process in response to this variable.'''
@@ -413,6 +503,67 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.unlockProperties()
         self.unlockError()
 
+    def relativeWidgetAxis(func):
+        def relativeWidgetAxis(self, attr, *args, **kwargs):
+            if 'axis' not in kwargs:
+                axis = self.width
+                if 'height' in attr.lower() \
+                        or 'ypos' in attr.lower() or attr == 'y':
+                    axis = self.height
+                kwargs['axis'] = axis
+            return func(self, attr, *args, **kwargs)
+        return relativeWidgetAxis
+
+    @relativeWidgetAxis
+    def pixelValForAttr(self, attr, val=None, **kwargs):
+        if val is None:
+            val = self._relativeValues[attr]
+        return math.ceil(kwargs['axis'] * val)
+
+    @relativeWidgetAxis
+    def floatValForAttr(self, attr, val=None, **kwargs):
+        if val is None:
+            val = self._trackedWidgets[attr].value()
+        return val / kwargs['axis']
+
+    def setRelativeWidget(self, attr, floatVal):
+        '''Set a relative widget using a float'''
+        pixelVal = self.pixelValForAttr(attr, floatVal)
+        self._trackedWidgets[attr].setValue(pixelVal)
+
+
+    def updateRelativeWidget(self, attr):
+        try:
+            oldUserValue = getattr(self, attr)
+        except AttributeError:
+            oldUserValue = self._trackedWidgets[attr].value()
+        newUserValue = self._trackedWidgets[attr].value()
+        newRelativeVal = self.floatValForAttr(attr, newUserValue)
+
+        if attr in self._relativeValues:
+            oldRelativeVal = self._relativeValues[attr]
+            if oldUserValue == newUserValue \
+                    and oldRelativeVal != newRelativeVal:
+                # Float changed without pixel value changing, which
+                # means the pixel value needs to be updated
+                self._trackedWidgets[attr].blockSignals(True)
+                self.updateRelativeWidgetMaximum(attr)
+                pixelVal = self.pixelValForAttr(attr, oldRelativeVal)
+                self._trackedWidgets[attr].setValue(pixelVal)
+                self._trackedWidgets[attr].blockSignals(False)
+
+        if attr not in self._relativeValues \
+                or oldUserValue != newUserValue:
+            self._relativeValues[attr] = newRelativeVal
+
+    def updateRelativeWidgetMaximum(self, attr):
+        maxRes = int(self.core.resolutions[0].split('x')[0])
+        newMaximumValue = self.width * (
+            self._relativeMaximums[attr] /
+            maxRes
+        )
+        self._trackedWidgets[attr].setMaximum(int(newMaximumValue))
+
 
 class ComponentError(RuntimeError):
     '''Gives the MainWindow a traceback to display, and cancels the export.'''
@@ -420,36 +571,43 @@ class ComponentError(RuntimeError):
     prevErrors = []
     lastTime = time.time()
 
-    def __init__(self, caller, name):
-        print('##### ComponentError by %s: %s' % (caller.name, name))
+    def __init__(self, caller, name, msg=None):
+        if msg is None and sys.exc_info()[0] is not None:
+            msg = str(sys.exc_info()[1])
+        else:
+            msg = 'Unknown error.'
+        print("##### ComponentError by %s's %s: %s" % (
+            caller.name, name, msg))
+
+        # Don't create multiple windows for quickly repeated messages
         if len(ComponentError.prevErrors) > 1:
             ComponentError.prevErrors.pop()
         ComponentError.prevErrors.insert(0, name)
         curTime = time.time()
         if name in ComponentError.prevErrors[1:] \
-                and curTime - ComponentError.lastTime < 0.2:
-            # Don't create multiple windows for quickly repeated messages
+                and curTime - ComponentError.lastTime < 1.0:
             return
         ComponentError.lastTime = time.time()
 
         from toolkit import formatTraceback
-        import sys
         if sys.exc_info()[0] is not None:
             string = (
-                "%s component's %s encountered %s %s." % (
+                "%s component (#%s): %s encountered %s %s: %s" % (
                     caller.__class__.name,
+                    str(caller.compPos),
                     name,
                     'an' if any([
                         sys.exc_info()[0].__name__.startswith(vowel)
-                        for vowel in ('A', 'I')
+                        for vowel in ('A', 'I', 'U', 'O', 'E')
                     ]) else 'a',
                     sys.exc_info()[0].__name__,
+                    str(sys.exc_info()[1])
                 )
             )
             detail = formatTraceback(sys.exc_info()[2])
         else:
             string = name
-            detail = "Methods:\n%s" % (
+            detail = "Attributes:\n%s" % (
                 "\n".join(
                     [m for m in dir(caller) if not m.startswith('_')]
                 )

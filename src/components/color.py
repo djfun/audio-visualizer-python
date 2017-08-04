@@ -6,7 +6,6 @@ import os
 
 from component import Component
 from toolkit.frame import BlankFrame, FloodFrame, FramePainter, PaintColor
-from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
@@ -14,25 +13,12 @@ class Component(Component):
     version = '1.0.0'
 
     def widget(self, *args):
-        self.color1 = (0, 0, 0)
-        self.color2 = (133, 133, 133)
         self.x = 0
         self.y = 0
         super().widget(*args)
 
-        self.page.lineEdit_color1.setText('%s,%s,%s' % self.color1)
-        self.page.lineEdit_color2.setText('%s,%s,%s' % self.color2)
-
-        btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.color1).name()
-
-        btnStyle2 = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.color2).name()
-
-        self.page.pushButton_color1.setStyleSheet(btnStyle1)
-        self.page.pushButton_color2.setStyleSheet(btnStyle2)
-        self.page.pushButton_color1.clicked.connect(lambda: self.pickColor(1))
-        self.page.pushButton_color2.clicked.connect(lambda: self.pickColor(2))
+        self.page.lineEdit_color1.setText('0,0,0')
+        self.page.lineEdit_color2.setText('133,133,133')
 
         # disable color #2 until non-default 'fill' option gets changed
         self.page.lineEdit_color2.setDisabled(True)
@@ -51,31 +37,36 @@ class Component(Component):
             self.page.comboBox_fill.addItem(label)
         self.page.comboBox_fill.setCurrentIndex(0)
 
-        self.trackWidgets(
-            {
-                'x': self.page.spinBox_x,
-                'y': self.page.spinBox_y,
-                'sizeWidth': self.page.spinBox_width,
-                'sizeHeight': self.page.spinBox_height,
-                'trans': self.page.checkBox_trans,
-                'spread': self.page.comboBox_spread,
-                'stretch': self.page.checkBox_stretch,
-                'RG_start': self.page.spinBox_radialGradient_start,
-                'LG_start': self.page.spinBox_linearGradient_start,
-                'RG_end': self.page.spinBox_radialGradient_end,
-                'LG_end': self.page.spinBox_linearGradient_end,
-                'RG_centre': self.page.spinBox_radialGradient_spread,
-                'fillType': self.page.comboBox_fill,
-            }, presetNames={
-                'sizeWidth': 'width',
-                'sizeHeight': 'height',
-            }
-        )
+        self.trackWidgets({
+            'x': self.page.spinBox_x,
+            'y': self.page.spinBox_y,
+            'sizeWidth': self.page.spinBox_width,
+            'sizeHeight': self.page.spinBox_height,
+            'trans': self.page.checkBox_trans,
+            'spread': self.page.comboBox_spread,
+            'stretch': self.page.checkBox_stretch,
+            'RG_start': self.page.spinBox_radialGradient_start,
+            'LG_start': self.page.spinBox_linearGradient_start,
+            'RG_end': self.page.spinBox_radialGradient_end,
+            'LG_end': self.page.spinBox_linearGradient_end,
+            'RG_centre': self.page.spinBox_radialGradient_spread,
+            'fillType': self.page.comboBox_fill,
+            'color1': self.page.lineEdit_color1,
+            'color2': self.page.lineEdit_color2,
+        }, presetNames={
+            'sizeWidth': 'width',
+            'sizeHeight': 'height',
+        }, colorWidgets={
+            'color1': self.page.pushButton_color1,
+            'color2': self.page.pushButton_color2,
+        }, relativeWidgets=[
+            'x', 'y',
+            'sizeWidth', 'sizeHeight',
+            'LG_start', 'LG_end',
+            'RG_start', 'RG_end', 'RG_centre',
+        ])
 
     def update(self):
-        self.color1 = rgbFromString(self.page.lineEdit_color1.text())
-        self.color2 = rgbFromString(self.page.lineEdit_color2.text())
-
         fillType = self.page.comboBox_fill.currentIndex()
         if fillType == 0:
             self.page.lineEdit_color2.setEnabled(False)
@@ -160,36 +151,6 @@ class Component(Component):
         )
 
         return image.finalize()
-
-    def loadPreset(self, pr, *args):
-        super().loadPreset(pr, *args)
-
-        self.page.lineEdit_color1.setText('%s,%s,%s' % pr['color1'])
-        self.page.lineEdit_color2.setText('%s,%s,%s' % pr['color2'])
-
-        btnStyle1 = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*pr['color1']).name()
-        btnStyle2 = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*pr['color2']).name()
-        self.page.pushButton_color1.setStyleSheet(btnStyle1)
-        self.page.pushButton_color2.setStyleSheet(btnStyle2)
-
-    def savePreset(self):
-        saveValueStore = super().savePreset()
-        saveValueStore['color1'] = self.color1
-        saveValueStore['color2'] = self.color2
-        return saveValueStore
-
-    def pickColor(self, num):
-        RGBstring, btnStyle = pickColor()
-        if not RGBstring:
-            return
-        if num == 1:
-            self.page.lineEdit_color1.setText(RGBstring)
-            self.page.pushButton_color1.setStyleSheet(btnStyle)
-        else:
-            self.page.lineEdit_color2.setText(RGBstring)
-            self.page.pushButton_color2.setStyleSheet(btnStyle)
 
     def commandHelp(self):
         print('Specify a color:\n    color=255,255,255')

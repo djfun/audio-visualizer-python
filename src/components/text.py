@@ -5,12 +5,11 @@ import os
 
 from component import Component
 from toolkit.frame import FramePainter
-from toolkit import rgbFromString, pickColor
 
 
 class Component(Component):
     name = 'Title Text'
-    version = '1.0.0'
+    version = '1.0.1'
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -18,52 +17,46 @@ class Component(Component):
 
     def widget(self, *args):
         super().widget(*args)
-        height = int(self.settings.value('outputHeight'))
-        width = int(self.settings.value('outputWidth'))
         self.textColor = (255, 255, 255)
         self.title = 'Text'
         self.alignment = 1
-        self.fontSize = height / 13.5
-        fm = QtGui.QFontMetrics(self.titleFont)
-        self.xPosition = width / 2 - fm.width(self.title)/2
-        self.yPosition = height / 2 * 1.036
+        self.fontSize = self.height / 13.5
 
         self.page.comboBox_textAlign.addItem("Left")
         self.page.comboBox_textAlign.addItem("Middle")
         self.page.comboBox_textAlign.addItem("Right")
+        self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
 
         self.page.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
-        self.page.pushButton_textColor.clicked.connect(self.pickColor)
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.textColor).name()
-        self.page.pushButton_textColor.setStyleSheet(btnStyle)
-
-        self.page.lineEdit_title.setText(self.title)
-        self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
-        self.page.spinBox_xTextAlign.setValue(int(self.xPosition))
-        self.page.spinBox_yTextAlign.setValue(int(self.yPosition))
+        self.page.lineEdit_title.setText(self.title)
 
+        self.page.pushButton_center.clicked.connect(self.centerXY)
         self.page.fontComboBox_titleFont.currentFontChanged.connect(
             self.update
         )
+
         self.trackWidgets({
+            'textColor': self.page.lineEdit_textColor,
             'title': self.page.lineEdit_title,
             'alignment': self.page.comboBox_textAlign,
             'fontSize': self.page.spinBox_fontSize,
             'xPosition': self.page.spinBox_xTextAlign,
             'yPosition': self.page.spinBox_yTextAlign,
-        })
+        }, colorWidgets={
+            'textColor': self.page.pushButton_textColor,
+        }, relativeWidgets=[
+            'xPosition', 'yPosition', 'fontSize',
+        ])
+        self.centerXY()
 
     def update(self):
         self.titleFont = self.page.fontComboBox_titleFont.currentFont()
-        self.textColor = rgbFromString(
-            self.page.lineEdit_textColor.text())
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*self.textColor).name()
-        self.page.pushButton_textColor.setStyleSheet(btnStyle)
-
         super().update()
+
+    def centerXY(self):
+        self.setRelativeWidget('xPosition', 0.5)
+        self.setRelativeWidget('yPosition', 0.5)
 
     def getXY(self):
         '''Returns true x, y after considering alignment settings'''
@@ -86,15 +79,10 @@ class Component(Component):
         font = QFont()
         font.fromString(pr['titleFont'])
         self.page.fontComboBox_titleFont.setCurrentFont(font)
-        self.page.lineEdit_textColor.setText('%s,%s,%s' % pr['textColor'])
-        btnStyle = "QPushButton { background-color : %s; outline: none; }" \
-            % QColor(*pr['textColor']).name()
-        self.page.pushButton_textColor.setStyleSheet(btnStyle)
 
     def savePreset(self):
         saveValueStore = super().savePreset()
         saveValueStore['titleFont'] = self.titleFont.toString()
-        saveValueStore['textColor'] = self.textColor
         return saveValueStore
 
     def previewRender(self):
@@ -121,13 +109,6 @@ class Component(Component):
         image.drawText(x, y, self.title)
 
         return image.finalize()
-
-    def pickColor(self):
-        RGBstring, btnStyle = pickColor()
-        if not RGBstring:
-            return
-        self.page.lineEdit_textColor.setText(RGBstring)
-        self.page.pushButton_textColor.setStyleSheet(btnStyle)
 
     def commandHelp(self):
         print('Enter a string to use as centred white text:')

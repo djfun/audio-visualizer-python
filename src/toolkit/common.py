@@ -34,28 +34,26 @@ def appendUppercase(lst):
         lst.append(form.upper())
     return lst
 
-
-def hideCmdWin(func):
-    ''' Stops CMD window from appearing on Windows.
-        Adapted from here: http://code.activestate.com/recipes/409002/
-    '''
-    def decorator(commandList, **kwargs):
+def pipeWrapper(func):
+    '''A decorator to insert proper kwargs into Popen objects.'''
+    def pipeWrapper(commandList, **kwargs):
         if sys.platform == 'win32':
+            # Stop CMD window from appearing on Windows
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             kwargs['startupinfo'] = startupinfo
+
+        if 'bufsize' not in kwargs:
+            kwargs['bufsize'] = 10**8
+        if 'stdin' not in kwargs:
+            kwargs['stdin'] = subprocess.DEVNULL
         return func(commandList, **kwargs)
-    return decorator
+    return pipeWrapper
 
 
-@hideCmdWin
+@pipeWrapper
 def checkOutput(commandList, **kwargs):
     return subprocess.check_output(commandList, **kwargs)
-
-
-@hideCmdWin
-def openPipe(commandList, **kwargs):
-    return subprocess.Popen(commandList, **kwargs)
 
 
 def disableWhenEncoding(func):
@@ -74,25 +72,6 @@ def disableWhenOpeningProject(func):
         else:
             return func(self, *args, **kwargs)
     return decorator
-
-
-def pickColor():
-    '''
-        Use color picker to get color input from the user,
-        and return this as an RGB string and QPushButton stylesheet.
-        In a subclass apply stylesheet to any color selection widgets
-    '''
-    dialog = QtWidgets.QColorDialog()
-    dialog.setOption(QtWidgets.QColorDialog.ShowAlphaChannel, True)
-    color = dialog.getColor()
-    if color.isValid():
-        RGBstring = '%s,%s,%s' % (
-            str(color.red()), str(color.green()), str(color.blue()))
-        btnStyle = "QPushButton{background-color: %s; outline: none;}" \
-            % color.name()
-        return RGBstring, btnStyle
-    else:
-        return None, None
 
 
 def rgbFromString(string):
@@ -115,3 +94,46 @@ def formatTraceback(tb=None):
         import sys
         tb = sys.exc_info()[2]
     return 'Traceback:\n%s' % "\n".join(traceback.format_tb(tb))
+
+
+def connectWidget(widget, func):
+    if type(widget) == QtWidgets.QLineEdit:
+        widget.textChanged.connect(func)
+    elif type(widget) == QtWidgets.QSpinBox \
+            or type(widget) == QtWidgets.QDoubleSpinBox:
+        widget.valueChanged.connect(func)
+    elif type(widget) == QtWidgets.QCheckBox:
+        widget.stateChanged.connect(func)
+    elif type(widget) == QtWidgets.QComboBox:
+        widget.currentIndexChanged.connect(func)
+    else:
+        return False
+    return True
+
+
+def setWidgetValue(widget, val):
+    '''Generic setValue method for use with any typical QtWidget'''
+    if type(widget) == QtWidgets.QLineEdit:
+        widget.setText(val)
+    elif type(widget) == QtWidgets.QSpinBox \
+            or type(widget) == QtWidgets.QDoubleSpinBox:
+        widget.setValue(val)
+    elif type(widget) == QtWidgets.QCheckBox:
+        widget.setChecked(val)
+    elif type(widget) == QtWidgets.QComboBox:
+        widget.setCurrentIndex(val)
+    else:
+        return False
+    return True
+
+
+def getWidgetValue(widget):
+    if type(widget) == QtWidgets.QLineEdit:
+        return widget.text()
+    elif type(widget) == QtWidgets.QSpinBox \
+            or type(widget) == QtWidgets.QDoubleSpinBox:
+        return widget.value()
+    elif type(widget) == QtWidgets.QCheckBox:
+        return widget.isChecked()
+    elif type(widget) == QtWidgets.QComboBox:
+        return widget.currentIndex()

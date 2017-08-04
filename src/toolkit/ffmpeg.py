@@ -5,9 +5,133 @@ import numpy
 import sys
 import os
 import subprocess
+import threading
+import signal
+from queue import PriorityQueue
 
 import core
-from toolkit.common import checkOutput, openPipe
+from toolkit.common import checkOutput, pipeWrapper
+from component import ComponentError
+
+
+class FfmpegVideo:
+    '''Opens a pipe to ffmpeg and stores a buffer of raw video frames.'''
+
+    # error from the thread used to fill the buffer
+    threadError = None
+
+    def __init__(self, **kwargs):
+        mandatoryArgs = [
+            'inputPath',
+            'filter_',
+            'width',
+            'height',
+            'frameRate',  # frames per second
+            'chunkSize',  # number of bytes in one frame
+            'parent',     # mainwindow object
+            'component',  # component object
+        ]
+        for arg in mandatoryArgs:
+            setattr(self, arg, kwargs[arg])
+
+        self.frameNo = -1
+        self.currentFrame = 'None'
+        self.map_ = None
+
+        if 'loopVideo' in kwargs and kwargs['loopVideo']:
+            self.loopValue = '-1'
+        else:
+            self.loopValue = '0'
+        if 'filter_' in kwargs:
+            if kwargs['filter_'][0] != '-filter_complex':
+                kwargs['filter_'].insert(0, '-filter_complex')
+        else:
+            kwargs['filter_'] = None
+
+        self.command = [
+            core.Core.FFMPEG_BIN,
+            '-thread_queue_size', '512',
+            '-r', str(self.frameRate),
+            '-stream_loop', self.loopValue,
+            '-i', self.inputPath,
+            '-f', 'image2pipe',
+            '-pix_fmt', 'rgba',
+        ]
+        if type(kwargs['filter_']) is list:
+            self.command.extend(
+                kwargs['filter_']
+            )
+        self.command.extend([
+            '-codec:v', 'rawvideo', '-',
+        ])
+
+        self.frameBuffer = PriorityQueue()
+        self.frameBuffer.maxsize = self.frameRate
+        self.finishedFrames = {}
+
+        self.thread = threading.Thread(
+            target=self.fillBuffer,
+            name='FFmpeg Frame-Fetcher'
+        )
+        self.thread.daemon = True
+        self.thread.start()
+
+    def frame(self, num):
+        while True:
+            if num in self.finishedFrames:
+                image = self.finishedFrames.pop(num)
+                return image
+
+            i, image = self.frameBuffer.get()
+            self.finishedFrames[i] = image
+            self.frameBuffer.task_done()
+
+    def fillBuffer(self):
+        logFilename = os.path.join(
+            core.Core.dataDir, 'extra_%s.log' % str(self.component.compPos))
+        with open(logFilename, 'w') as log:
+            log.write(" ".join(self.command) + '\n\n')
+        with open(logFilename, 'a') as log:
+            self.pipe = openPipe(
+                self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=log, bufsize=10**8
+            )
+        while True:
+            if self.parent.canceled:
+                break
+            self.frameNo += 1
+
+            # If we run out of frames, use the last good frame and loop.
+            try:
+                if len(self.currentFrame) == 0:
+                    self.frameBuffer.put((self.frameNo-1, self.lastFrame))
+                    continue
+            except AttributeError:
+                FfmpegVideo.threadError = ComponentError(
+                    self.component, 'video',
+                    "Video seemed playable but wasn't."
+                )
+                break
+
+            try:
+                self.currentFrame = self.pipe.stdout.read(self.chunkSize)
+            except ValueError:
+                FfmpegVideo.threadError = ComponentError(
+                    self.component, 'video')
+
+            if len(self.currentFrame) != 0:
+                self.frameBuffer.put((self.frameNo, self.currentFrame))
+                self.lastFrame = self.currentFrame
+
+
+@pipeWrapper
+def openPipe(commandList, **kwargs):
+    return subprocess.Popen(commandList, **kwargs)
+
+
+def closePipe(pipe):
+    pipe.stdout.close()
+    pipe.send_signal(signal.SIGINT)
 
 
 def findFfmpeg():
@@ -248,7 +372,12 @@ def getAudioDuration(filename):
     except subprocess.CalledProcessError as ex:
         fileInfo = ex.output
 
-    info = fileInfo.decode("utf-8").split('\n')
+    try:
+        info = fileInfo.decode("utf-8").split('\n')
+    except UnicodeDecodeError as e:
+        print('Unicode error:', str(e))
+        return False
+
     for line in info:
         if 'Duration' in line:
             d = line.split(',')[0]
@@ -321,3 +450,10 @@ def readAudioFile(filename, videoWorker):
     completeAudioArray = completeAudioArrayCopy
 
     return (completeAudioArray, duration)
+
+
+def exampleSound():
+    return (
+        'aevalsrc=tan(random(1)*PI*t)*sin(random(0)*2*PI*t),'
+        'apulsator=offset_l=0.5:offset_r=0.5,'
+    )
