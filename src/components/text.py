@@ -4,22 +4,20 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 
 from component import Component
-from toolkit.frame import FramePainter
+from toolkit.frame import FramePainter, PaintColor
 
 
 class Component(Component):
     name = 'Title Text'
     version = '1.0.1'
 
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.titleFont = QFont()
-
     def widget(self, *args):
         super().widget(*args)
         self.textColor = (255, 255, 255)
+        self.strokeColor = (0, 0, 0)
         self.title = 'Text'
         self.alignment = 1
+        self.titleFont = QFont()
         self.fontSize = self.height / 13.5
 
         self.page.comboBox_textAlign.addItem("Left")
@@ -28,6 +26,7 @@ class Component(Component):
         self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
 
         self.page.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
+        self.page.lineEdit_strokeColor.setText('%s,%s,%s' % self.strokeColor)
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
         self.page.lineEdit_title.setText(self.title)
 
@@ -43,8 +42,16 @@ class Component(Component):
             'fontSize': self.page.spinBox_fontSize,
             'xPosition': self.page.spinBox_xTextAlign,
             'yPosition': self.page.spinBox_yTextAlign,
+            'fontStyle': self.page.comboBox_fontStyle,
+            'stroke': self.page.spinBox_stroke,
+            'strokeColor': self.page.lineEdit_strokeColor,
+            'shadow': self.page.checkBox_shadow,
+            'shadX': self.page.spinBox_shadX,
+            'shadY': self.page.spinBox_shadY,
+            'shadBlur': self.page.spinBox_shadBlur,
         }, colorWidgets={
             'textColor': self.page.pushButton_textColor,
+            'strokeColor': self.page.pushButton_strokeColor,
         }, relativeWidgets=[
             'xPosition', 'yPosition', 'fontSize',
         ])
@@ -52,11 +59,23 @@ class Component(Component):
 
     def update(self):
         self.titleFont = self.page.fontComboBox_titleFont.currentFont()
+        if self.page.checkBox_shadow.isChecked():
+            self.page.label_shadX.setHidden(False)
+            self.page.spinBox_shadX.setHidden(False)
+            self.page.spinBox_shadY.setHidden(False)
+            self.page.label_shadBlur.setHidden(False)
+            self.page.spinBox_shadBlur.setHidden(False)
+        else:
+            self.page.label_shadX.setHidden(True)
+            self.page.spinBox_shadX.setHidden(True)
+            self.page.spinBox_shadY.setHidden(True)
+            self.page.label_shadBlur.setHidden(True)
+            self.page.spinBox_shadBlur.setHidden(True)
         super().update()
 
     def centerXY(self):
         self.setRelativeWidget('xPosition', 0.5)
-        self.setRelativeWidget('yPosition', 0.5)
+        self.setRelativeWidget('yPosition', 0.521)
 
     def getXY(self):
         '''Returns true x, y after considering alignment settings'''
@@ -101,13 +120,39 @@ class Component(Component):
         return self.addText(self.width, self.height)
 
     def addText(self, width, height):
-        image = FramePainter(width, height)
-        self.titleFont.setPixelSize(self.fontSize)
-        image.setFont(self.titleFont)
-        image.setPen(self.textColor)
-        x, y = self.getXY()
-        image.drawText(x, y, self.title)
+        font = self.titleFont
+        font.setPixelSize(self.fontSize)
+        font.setStyle(QFont.StyleNormal)
+        font.setWeight(QFont.Normal)
+        font.setCapitalization(QFont.MixedCase)
+        if self.fontStyle == 1:
+            font.setWeight(QFont.DemiBold)
+        if self.fontStyle == 2:
+            font.setWeight(QFont.Bold)
+        elif self.fontStyle == 3:
+            font.setStyle(QFont.StyleItalic)
+        elif self.fontStyle == 4:
+            font.setWeight(QFont.Bold)
+            font.setStyle(QFont.StyleItalic)
+        elif self.fontStyle == 5:
+            font.setStyle(QFont.StyleOblique)
+        elif self.fontStyle == 6:
+            font.setCapitalization(QFont.SmallCaps)
 
+        image = FramePainter(width, height)
+        x, y = self.getXY()
+        if self.stroke > 0:
+            outliner = QtGui.QPainterPathStroker()
+            outliner.setWidth(self.stroke)
+            path = QtGui.QPainterPath()
+            path.addText(x, y, font, self.title)
+            path = outliner.createStroke(path)
+            image.setBrush(PaintColor(*self.strokeColor))
+            image.drawPath(path)
+
+        image.setFont(font)
+        image.setPen(self.textColor)
+        image.drawText(x, y, self.title)
         return image.finalize()
 
     def commandHelp(self):
