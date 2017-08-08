@@ -53,7 +53,7 @@ class Component(Component):
             'textColor': self.page.pushButton_textColor,
             'strokeColor': self.page.pushButton_strokeColor,
         }, relativeWidgets=[
-            'xPosition', 'yPosition', 'fontSize',
+            'xPosition', 'yPosition', 'fontSize', 'stroke'
         ])
         self.centerXY()
 
@@ -147,6 +147,7 @@ class Component(Component):
             path = QtGui.QPainterPath()
             path.addText(x, y, font, self.title)
             path = outliner.createStroke(path)
+            image.setPen(QtCore.Qt.NoPen)
             image.setBrush(PaintColor(*self.strokeColor))
             image.drawPath(path)
 
