@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw
+from PIL import ImageEnhance, ImageFilter, ImageChops
 from PyQt5.QtGui import QColor, QFont
 from PyQt5 import QtGui, QtCore, QtWidgets
 import os
@@ -153,7 +153,19 @@ class Component(Component):
         image.setFont(font)
         image.setPen(self.textColor)
         image.drawText(x, y, self.title)
-        return image.finalize()
+
+        # turn QImage into Pillow frame
+        frame = image.finalize()
+        if self.shadow:
+            shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
+            shadImg = shadImg.filter(ImageFilter.GaussianBlur(self.shadBlur))
+            shadImg = ImageChops.offset(shadImg, self.shadX, self.shadY)
+            shadImg.paste(frame, box=(0, 0), mask=frame)
+            frame = shadImg
+
+        return frame
+
+
 
     def commandHelp(self):
         print('Enter a string to use as centred white text:')
