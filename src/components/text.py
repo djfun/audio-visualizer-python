@@ -53,7 +53,8 @@ class Component(Component):
             'textColor': self.page.pushButton_textColor,
             'strokeColor': self.page.pushButton_strokeColor,
         }, relativeWidgets=[
-            'xPosition', 'yPosition', 'fontSize', 'stroke'
+            'xPosition', 'yPosition', 'fontSize',
+            'stroke', 'shadX', 'shadY', 'shadBlur'
         ])
         self.centerXY()
 
