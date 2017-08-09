@@ -146,7 +146,18 @@ class Component(Component):
             outliner = QtGui.QPainterPathStroker()
             outliner.setWidth(self.stroke)
             path = QtGui.QPainterPath()
-            path.addText(x, y, font, self.title)
+            if self.fontStyle == 6:
+                # PathStroker ignores smallcaps so we need this weird hack
+                path.addText(x, y, font, self.title[0])
+                fm = QtGui.QFontMetrics(font)
+                newX = x + fm.width(self.title[0])
+                strokeFont = self.page.fontComboBox_titleFont.currentFont()
+                strokeFont.setCapitalization(QFont.SmallCaps)
+                strokeFont.setPixelSize(int((self.fontSize / 7) * 5))
+                strokeFont.setLetterSpacing(QFont.PercentageSpacing, 139)
+                path.addText(newX, y, strokeFont, self.title[1:])
+            else:
+                path.addText(x, y, font, self.title)
             path = outliner.createStroke(path)
             image.setPen(QtCore.Qt.NoPen)
             image.setBrush(PaintColor(*self.strokeColor))
@@ -166,8 +177,6 @@ class Component(Component):
             frame = shadImg
 
         return frame
-
-
 
     def commandHelp(self):
         print('Enter a string to use as centred white text:')
