@@ -198,7 +198,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         try:
             preset = self.savePreset()
         except Exception as e:
-            preset = '%s occured while saving preset' % str(e)
+            preset = '%s occurred while saving preset' % str(e)
         return '%s\n%s\n%s' % (
             self.__class__.name, str(self.__class__.version), preset
         )
@@ -275,7 +275,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             Call super().widget(*args) to create the component widget
             which also auto-connects any common widgets (e.g., checkBoxes)
             to self.update(). Then in a subclass connect special actions
-            (e.g., pushButtons to select a file/colour) and initialize
+            (e.g., pushButtons to select a file) and initialize
         '''
         self.parent = parent
         self.settings = parent.settings

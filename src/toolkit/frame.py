@@ -21,8 +21,11 @@ class FramePainter(QtGui.QPainter):
         self.image = QtGui.QImage(ImageQt(image))
         super().__init__(self.image)
 
-    def setPen(self, RgbTuple):
-        super().setPen(PaintColor(*RgbTuple))
+    def setPen(self, penStyle):
+        if type(penStyle) is tuple:
+            super().setPen(PaintColor(*penStyle))
+        else:
+            super().setPen(penStyle)
 
     def finalize(self):
         self.end()
