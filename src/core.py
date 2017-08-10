@@ -7,9 +7,15 @@ import sys
 import os
 import json
 from importlib import import_module
+import logging
 
 import toolkit
 import video_thread
+
+
+log = logging.getLogger('AVP.Core')
+STDOUT_LOGLVL = logging.WARNING
+FILE_LOGLVL = logging.DEBUG
 
 
 class Core:
@@ -35,6 +41,7 @@ class Core:
                     continue
                 elif ext == '.py':
                     yield name
+        log.debug('Importing component modules')
         self.modules = [
             import_module('components.%s' % name)
             for name in findComponents()
@@ -67,7 +74,7 @@ class Core:
             compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
             return None
-
+        log.debug('Inserting Component from module #%s' % moduleIndex)
         component = self.modules[moduleIndex].Component(
             moduleIndex, compPos, self
         )
@@ -104,7 +111,7 @@ class Core:
         self.componentListChanged()
 
     def updateComponent(self, i):
-        # print('updating %s' % self.selectedComponents[i])
+        log.debug('Updating %s #%s' % (self.selectedComponents[i], str(i)))
         self.selectedComponents[i].update()
 
     def moduleIndexFor(self, compName):
@@ -125,12 +132,17 @@ class Core:
         if not saveValueStore:
             return False
         try:
-            self.selectedComponents[compIndex].loadPreset(
+            comp = self.selectedComponents[compIndex]
+            comp.loadPreset(
                 saveValueStore,
                 presetName
             )
         except KeyError as e:
-            print('preset missing value: %s' % e)
+            log.warning(
+                '%s #%s\'s preset is missing value: %s' % (
+                    comp.name, str(compIndex), str(e)
+                )
+            )
 
         self.savedPresets[presetName] = dict(saveValueStore)
         return True
@@ -206,7 +218,7 @@ class Core:
                                 preset['preset']
                             )
                     except KeyError as e:
-                        print('%s missing value: %s' % (
+                        log.warning('%s missing value: %s' % (
                             self.selectedComponents[i], e)
                         )
 
@@ -224,7 +236,7 @@ class Core:
             typ, value, tb = data
             if typ.__name__ == 'KeyError':
                 # probably just an old version, still loadable
-                print('file missing value: %s' % value)
+                log.warning('Project file missing value: %s' % value)
                 return
             if hasattr(loader, 'createNewProject'):
                 loader.createNewProject(prompt=False)
@@ -244,6 +256,7 @@ class Core:
             Returns dictionary with section names as the keys, each one
             contains a list of tuples: (compName, version, compPresetDict)
         '''
+        log.debug('Parsing av file: %s' % filepath)
         validSections = (
                     'Components',
                     'Settings',
@@ -362,6 +375,7 @@ class Core:
 
     def createProjectFile(self, filepath, window=None):
         '''Create a project file (.avp) using the current program state'''
+        log.info('Creating %s' % filepath)
         settingsKeys = [
             'componentDir',
             'inputDir',
@@ -374,9 +388,8 @@ class Core:
                 filepath += '.avp'
             if os.path.exists(filepath):
                 os.remove(filepath)
-            with open(filepath, 'w') as f:
-                print('creating %s' % filepath)
 
+            with open(filepath, 'w') as f:
                 f.write('[Components]\n')
                 for comp in self.selectedComponents:
                     saveValueStore = comp.savePreset()
@@ -443,6 +456,7 @@ class Core:
             'settings': QtCore.QSettings(
                             os.path.join(dataDir, 'settings.ini'),
                             QtCore.QSettings.IniFormat),
+            'logDir': os.path.join(dataDir, 'log'),
             'presetDir': os.path.join(dataDir, 'presets'),
             'componentsPath': os.path.join(wd, 'components'),
             'encoderOptions': encoderOptions,
@@ -489,6 +503,13 @@ class Core:
             setattr(cls, classvar, val)
 
         cls.loadDefaultSettings()
+        if not os.path.exists(cls.dataDir):
+            os.makedirs(cls.dataDir)
+        for neededDirectory in (
+          cls.presetDir, cls.logDir, cls.settings.value("projectDir")):
+            if not os.path.exists(neededDirectory):
+                os.mkdir(neededDirectory)
+        cls.makeLogger()
 
     @classmethod
     def loadDefaultSettings(cls):
@@ -522,6 +543,42 @@ class Core:
             if val in ('true', 'false'):
                 cls.settings.setValue(key, True if val == 'true' else False)
 
+    @staticmethod
+    def makeLogger():
+        logFilename = os.path.join(Core.logDir, 'avp_debug.log')
+        libLogFilename = os.path.join(Core.logDir, 'global_debug.log')
+        # delete old logs
+        for log in (logFilename, libLogFilename):
+            if os.path.exists(log):
+                os.remove(log)
+
+        # create file handlers to capture every log message somewhere
+        logFile = logging.FileHandler(logFilename)
+        logFile.setLevel(FILE_LOGLVL)
+        libLogFile = logging.FileHandler(libLogFilename)
+        libLogFile.setLevel(FILE_LOGLVL)
+
+        # send some critical log messages to stdout as well
+        logStream = logging.StreamHandler()
+        logStream.setLevel(STDOUT_LOGLVL)
+
+        # create formatters and put everything together
+        fileFormatter = logging.Formatter(
+            '[%(asctime)s] <%(name)s> %(levelname)s: %(message)s'
+        )
+        streamFormatter = logging.Formatter(
+            '<%(name)s> %(message)s'
+        )
+        logFile.setFormatter(fileFormatter)
+        libLogFile.setFormatter(fileFormatter)
+        logStream.setFormatter(streamFormatter)
+        log = logging.getLogger('AVP')
+        log.setLevel(FILE_LOGLVL)
+        log.addHandler(logFile)
+        log.addHandler(logStream)
+        libLog = logging.getLogger()
+        libLog.setLevel(FILE_LOGLVL)
+        libLog.addHandler(libLogFile)
 
 # always store settings in class variables even if a Core object is not created
 Core.storeSettings()

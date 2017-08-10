@@ -8,11 +8,15 @@ import os
 import sys
 import math
 import time
+import logging
 
 from toolkit.frame import BlankFrame
 from toolkit import (
     getWidgetValue, setWidgetValue, connectWidget, rgbFromString
 )
+
+
+log = logging.getLogger('AVP.ComponentHandler')
 
 
 class ComponentMetaclass(type(QtCore.QObject)):
@@ -135,17 +139,17 @@ class ComponentMetaclass(type(QtCore.QObject)):
         # Turn version string into a number
         try:
             if 'version' not in attrs:
-                print(
+                log.error(
                     'No version attribute in %s. Defaulting to 1' %
                     attrs['name'])
                 attrs['version'] = 1
             else:
                 attrs['version'] = int(attrs['version'].split('.')[0])
         except ValueError:
-            print('%s component has an invalid version string:\n%s' % (
+            log.critical('%s component has an invalid version string:\n%s' % (
                     attrs['name'], str(attrs['version'])))
         except KeyError:
-            print('%s component has no version string.' % attrs['name'])
+            log.critical('%s component has no version string.' % attrs['name'])
         else:
             return super().__new__(cls, name, parents, attrs)
         quit(1)
@@ -546,6 +550,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                     and oldRelativeVal != newRelativeVal:
                 # Float changed without pixel value changing, which
                 # means the pixel value needs to be updated
+                log.debug('Updating %s #%s\'s relative widget: %s' % (
+                    self.name, self.compPos, attr))
                 self._trackedWidgets[attr].blockSignals(True)
                 self.updateRelativeWidgetMaximum(attr)
                 pixelVal = self.pixelValForAttr(attr, oldRelativeVal)
@@ -576,7 +582,7 @@ class ComponentError(RuntimeError):
             msg = str(sys.exc_info()[1])
         else:
             msg = 'Unknown error.'
-        print("##### ComponentError by %s's %s: %s" % (
+        log.error("ComponentError by %s's %s: %s" % (
             caller.name, name, msg))
 
         # Don't create multiple windows for quickly repeated messages

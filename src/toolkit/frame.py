@@ -7,8 +7,12 @@ from PIL.ImageQt import ImageQt
 import sys
 import os
 import math
+import logging
 
 import core
+
+
+log = logging.getLogger('AVP.Toolkit.Frame')
 
 
 class FramePainter(QtGui.QPainter):
@@ -79,6 +83,7 @@ def FloodFrame(width, height, RgbaTuple):
 @defaultSize
 def BlankFrame(width, height):
     '''The base frame used by each component to start drawing.'''
+    log.debug('Creating new %s*%s blank frame' % (width, height))
     return FloodFrame(width, height, (0, 0, 0, 0))
 
 
@@ -88,6 +93,7 @@ def Checkerboard(width, height):
         A checkerboard to represent transparency to the user.
         TODO: Would be cool to generate this image with numpy instead.
     '''
+    log.debug('Creating new %s*%s checkerboard' % (width, height))
     image = FloodFrame(1920, 1080, (0, 0, 0, 0))
     image.paste(Image.open(
         os.path.join(core.Core.wd, "background.png")),

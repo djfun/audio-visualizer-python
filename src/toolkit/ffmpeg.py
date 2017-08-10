@@ -8,10 +8,14 @@ import subprocess
 import threading
 import signal
 from queue import PriorityQueue
+import logging
 
 import core
 from toolkit.common import checkOutput, pipeWrapper
 from component import ComponentError
+
+
+log = logging.getLogger('AVP.Toolkit.Ffmpeg')
 
 
 class FfmpegVideo:
@@ -88,13 +92,14 @@ class FfmpegVideo:
 
     def fillBuffer(self):
         logFilename = os.path.join(
-            core.Core.dataDir, 'extra_%s.log' % str(self.component.compPos))
-        with open(logFilename, 'w') as log:
-            log.write(" ".join(self.command) + '\n\n')
-        with open(logFilename, 'a') as log:
+            core.Core.logDir, 'render_%s.log' % str(self.component.compPos))
+        log.debug('Creating ffmpeg process (log at %s)' % logFilename)
+        with open(logFilename, 'w') as logf:
+            logf.write(" ".join(self.command) + '\n\n')
+        with open(logFilename, 'a') as logf:
             self.pipe = openPipe(
                 self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=log, bufsize=10**8
+                stderr=logf, bufsize=10**8
             )
         while True:
             if self.parent.canceled:
@@ -375,7 +380,7 @@ def getAudioDuration(filename):
     try:
         info = fileInfo.decode("utf-8").split('\n')
     except UnicodeDecodeError as e:
-        print('Unicode error:', str(e))
+        log.error('Unicode error:', str(e))
         return False
 
     for line in info:
@@ -398,7 +403,7 @@ def readAudioFile(filename, videoWorker):
     '''
     duration = getAudioDuration(filename)
     if not duration:
-        print('Audio file doesn\'t exist or unreadable.')
+        log.error('Audio file doesn\'t exist or unreadable.')
         return
 
     command = [

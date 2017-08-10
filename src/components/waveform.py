@@ -4,6 +4,7 @@ from PyQt5.QtGui import QColor
 import os
 import math
 import subprocess
+import logging
 
 from component import Component
 from toolkit.frame import BlankFrame, scale
@@ -11,6 +12,9 @@ from toolkit import checkOutput
 from toolkit.ffmpeg import (
     openPipe, closePipe, getAudioDuration, FfmpegVideo, exampleSound
 )
+
+
+log = logging.getLogger('AVP.Components.Waveform')
 
 
 class Component(Component):
@@ -106,10 +110,16 @@ class Component(Component):
             '-codec:v', 'rawvideo', '-',
             '-frames:v', '1',
         ])
-        pipe = openPipe(
-            command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, bufsize=10**8
-        )
+        logFilename = os.path.join(
+            self.core.logDir, 'preview_%s.log' % str(self.compPos))
+        log.debug('Creating ffmpeg process (log at %s)' % logFilename)
+        with open(logFilename, 'w') as logf:
+            logf.write(" ".join(command) + '\n\n')
+        with open(logFilename, 'a') as logf:
+            pipe = openPipe(
+                command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=logf, bufsize=10**8
+            )
         byteFrame = pipe.stdout.read(self.chunkSize)
         closePipe(pipe)
 

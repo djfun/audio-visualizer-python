@@ -13,6 +13,7 @@ import os
 import signal
 import filecmp
 import time
+import logging
 
 from core import Core
 import preview_thread
@@ -20,11 +21,15 @@ from presetmanager import PresetManager
 from toolkit import disableWhenEncoding, disableWhenOpeningProject, checkOutput
 
 
+log = logging.getLogger('AVP.MainWindow')
+
+
 class PreviewWindow(QtWidgets.QLabel):
     '''
         Paints the preview QLabel and maintains the aspect ratio when the
         window is resized.
     '''
+    log = logging.getLogger('AVP.MainWindow.Preview')
 
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()
@@ -58,11 +63,15 @@ class PreviewWindow(QtWidgets.QLabel):
         if i >= 0:
             component = self.parent.core.selectedComponents[i]
             if not hasattr(component, 'previewClickEvent'):
+                self.log.info('Ignored click event')
                 return
             pos = (event.x(), event.y())
             size = (self.width(), self.height())
+            butt = event.button()
+            self.log.info('Click event for #%s: %s button %s' % (
+                i, pos, butt))
             component.previewClickEvent(
-                pos, size, event.button()
+                pos, size, butt
             )
             self.parent.core.updateComponent(i)
 
@@ -91,9 +100,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, window, project):
         QtWidgets.QMainWindow.__init__(self)
-        # print('main thread id: {}'.format(QtCore.QThread.currentThreadId()))
         self.window = window
         self.core = Core()
+        log.debug(
+            'Main thread id: {}'.format(QtCore.QThread.currentThreadId()))
 
         # widgets of component settings
         self.pages = []
@@ -103,27 +113,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autosaveCooldown = 0.2
         self.encoding = False
 
-        # Create data directory, load/create settings
+        # Find settings created by Core object
         self.dataDir = Core.dataDir
         self.presetDir = Core.presetDir
         self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
         self.settings = Core.settings
+
         self.presetManager = PresetManager(
             uic.loadUi(
                 os.path.join(Core.wd, 'presetmanager.ui')), self)
 
-        if not os.path.exists(self.dataDir):
-            os.makedirs(self.dataDir)
-        for neededDirectory in (
-          self.presetDir, self.settings.value("projectDir")):
-            if not os.path.exists(neededDirectory):
-                os.mkdir(neededDirectory)
-
         # Create the preview window and its thread, queues, and timers
+        log.debug('Creating preview window')
         self.previewWindow = PreviewWindow(self, os.path.join(
             Core.wd, "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
+        log.debug('Starting preview thread')
         self.previewQueue = Queue()
         self.previewThread = QtCore.QThread(self)
         self.previewWorker = preview_thread.Worker(self, self.previewQueue)
@@ -132,6 +138,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.previewWorker.imageCreated.connect(self.showPreviewImage)
         self.previewThread.start()
 
+        log.debug('Starting preview timer')
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.processTask.emit)
         self.timer.start(500)
@@ -141,6 +148,8 @@ class MainWindow(QtWidgets.QMainWindow):
         componentList = self.window.listWidget_componentList
 
         if sys.platform == 'darwin':
+            log.debug(
+                'Darwin detected: showing progress label below progress bar')
             window.progressBar_createVideo.setTextVisible(False)
         else:
             window.progressLabel.setHidden(True)
@@ -276,6 +285,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         self.updateWindowTitle()
+        log.debug('Showing main window')
         window.show()
 
         if project and project != self.autosavePath:
@@ -398,6 +408,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def cleanUp(self, *args):
+        log.info('Ending the preview thread')
         self.timer.stop()
         self.previewThread.quit()
         self.previewThread.wait()
@@ -414,11 +425,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 appName += '*'
         except AttributeError:
             pass
+        log.debug('Setting window title to %s' % appName)
         self.window.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
     def updateComponentTitle(self, pos, presetStore=False):
-        if type(presetStore) == dict:
+        if type(presetStore) is dict:
             name = presetStore['preset']
             if name is None or name not in self.core.savedPresets:
                 modified = False
@@ -428,11 +440,20 @@ class MainWindow(QtWidgets.QMainWindow):
             modified = bool(presetStore)
         if pos < 0:
             pos = len(self.core.selectedComponents)-1
-        title = str(self.core.selectedComponents[pos])
+        name = str(self.core.selectedComponents[pos])
+        title = str(name)
         if self.core.selectedComponents[pos].currentPreset:
             title += ' - %s' % self.core.selectedComponents[pos].currentPreset
             if modified:
                 title += '*'
+        if type(presetStore) is bool:
+            log.debug('Forcing %s #%s\'s modified status to %s: %s' % (
+                name, pos, modified, title
+            ))
+        else:
+            log.debug('Setting %s #%s\'s title: %s' % (
+                name, pos, title
+            ))
         self.window.listWidget_componentList.item(pos).setText(title)
 
     def updateCodecs(self):
@@ -493,6 +514,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 elif force or timeDiff >= self.autosaveCooldown * 5:
                     self.autosaveCooldown = 0.2
             self.autosaveTimes.insert(0, self.lastAutosave)
+        else:
+            log.debug('Autosave rejected by cooldown')
 
     def autosaveExists(self, identical=True):
         '''Determines if creating the autosave should be blocked.'''
@@ -500,9 +523,14 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.currentProject and os.path.exists(self.autosavePath) \
                 and filecmp.cmp(
                     self.autosavePath, self.currentProject) == identical:
+                log.debug(
+                    'Autosave found %s to be identical' % \
+                        'not' if not identical else ''
+                )
                 return True
         except FileNotFoundError:
-            print('project file couldn\'t be located:', self.currentProject)
+            log.error(
+                'Project file couldn\'t be located:', self.currentProject)
             return identical
         return False
 
@@ -543,7 +571,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.window.lineEdit_outputFile.setText(fileName)
 
     def stopVideo(self):
-        print('stop')
+        log.info('Export cancelled')
         self.videoWorker.cancel()
         self.canceled = True
 
@@ -773,6 +801,7 @@ class MainWindow(QtWidgets.QMainWindow):
             mousePos = -1
         else:
             mousePos = mousePos.index(True)
+        log.debug('Click component list row %s' % mousePos)
         return mousePos
 
     @disableWhenEncoding
