@@ -1,10 +1,10 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
-from PIL import ImageDraw, ImageEnhance, ImageChops, ImageFilter
+from PIL import Image, ImageDraw, ImageEnhance, ImageChops, ImageFilter
 import os
 import math
 
 from component import Component
-from toolkit.frame import BlankFrame, FramePainter
+from toolkit.frame import BlankFrame, scale
 
 
 class Component(Component):
@@ -16,19 +16,51 @@ class Component(Component):
         self.scale = 32
         self.updateGridSize()
         self.startingGrid = {}
+        self.page.pushButton_pickImage.clicked.connect(self.pickImage)
         self.trackWidgets({
             'tickRate': self.page.spinBox_tickRate,
             'scale': self.page.spinBox_scale,
             'color': self.page.lineEdit_color,
             'shapeType': self.page.comboBox_shapeType,
             'shadow': self.page.checkBox_shadow,
+            'customImg': self.page.checkBox_customImg,
+            'image': self.page.lineEdit_image,
         }, colorWidgets={
             'color': self.page.pushButton_color,
         })
         self.page.spinBox_scale.setValue(self.scale)
+        self.page.spinBox_scale.valueChanged.connect(self.updateGridSize)
+
+    def pickImage(self):
+        imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self.page, "Choose Image", imgDir,
+            "Image Files (%s)" % " ".join(self.core.imageFormats))
+        if filename:
+            self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.page.lineEdit_image.setText(filename)
+            self.update()
 
     def update(self):
         self.updateGridSize()
+        if self.page.checkBox_customImg.isChecked():
+            self.page.label_color.setVisible(False)
+            self.page.lineEdit_color.setVisible(False)
+            self.page.pushButton_color.setVisible(False)
+            self.page.label_shape.setVisible(False)
+            self.page.comboBox_shapeType.setVisible(False)
+            self.page.label_image.setVisible(True)
+            self.page.lineEdit_image.setVisible(True)
+            self.page.pushButton_pickImage.setVisible(True)
+        else:
+            self.page.label_color.setVisible(True)
+            self.page.lineEdit_color.setVisible(True)
+            self.page.pushButton_color.setVisible(True)
+            self.page.label_shape.setVisible(True)
+            self.page.comboBox_shapeType.setVisible(True)
+            self.page.label_image.setVisible(False)
+            self.page.lineEdit_image.setVisible(False)
+            self.page.pushButton_pickImage.setVisible(False)
         super().update()
 
     def previewClickEvent(self, pos, size, button):
@@ -59,6 +91,8 @@ class Component(Component):
         for frameNo in range(
                 self.tickRate, len(self.completeAudioArray), self.sampleSize
                 ):
+            if self.parent.canceled:
+                break
             if frameNo % self.tickRate == 0:
                 tick += 1
                 self.tickGrids[tick] = self.gridForTick(tick)
@@ -71,6 +105,16 @@ class Component(Component):
                 self.progressBarSetText.emit(pStr)
                 self.progressBarUpdate.emit(int(progress))
 
+    def properties(self):
+        if self.customImg and (
+                not self.image or not os.path.exists(self.image)
+                ):
+            return ['error']
+        return []
+
+    def error(self):
+        return "No image selected to represent life."
+
     def frameRender(self, frameNo):
         tick = math.floor(frameNo / self.tickRate)
         grid = self.tickGrids[tick]
@@ -78,23 +122,124 @@ class Component(Component):
 
     def drawGrid(self, grid):
         frame = BlankFrame(self.width, self.height)
-        drawer = ImageDraw.Draw(frame)
+
+        def drawCustomImg():
+            try:
+                img = Image.open(self.image)
+            except Exception:
+                return
+            img = img.resize((self.pxWidth, self.pxHeight), Image.ANTIALIAS)
+            frame.paste(img, box=(drawPtX, drawPtY))
+
+        def drawShape():
+            drawer = ImageDraw.Draw(frame)
+
+            # Rectangle
+            if self.shapeType == 0:
+                drawer.rectangle(rect, fill=self.color)
+
+            # Ellipse
+            elif self.shapeType == 1:
+                drawer.ellipse(rect, fill=self.color)
+
+            tenthX, tenthY = scale(10, self.pxWidth, self.pxHeight, int)
+            smallerShape = (
+                (drawPtX + tenthX + int(tenthX / 4),
+                    drawPtY + tenthY + int(tenthY / 2)),
+                (drawPtX + self.pxWidth - tenthX - int(tenthX / 4),
+                    drawPtY + self.pxHeight - (tenthY + int(tenthY / 2)))
+            )
+            outlineShape = (
+                (drawPtX + int(tenthX / 4),
+                    drawPtY + int(tenthY / 2)),
+                (drawPtX + self.pxWidth - int(tenthX / 4),
+                    drawPtY + self.pxHeight - int(tenthY / 2))
+            )
+
+            # Circle
+            if self.shapeType == 2:
+                drawer.ellipse(outlineShape, fill=self.color)
+                drawer.ellipse(smallerShape, fill=(0,0,0,0))
+
+            # Lilypad
+            elif self.shapeType == 3:
+                drawer.pieslice(smallerShape, 290, 250, fill=self.color)
+
+            # Pac-Man
+            elif self.shapeType == 4:
+                drawer.pieslice(outlineShape, 35, 320, fill=self.color)
+
+            hX, hY = scale(50, self.pxWidth, self.pxHeight, int) # halfline
+            tX, tY = scale(33, self.pxWidth, self.pxHeight, int) # thirdline
+            qX, qY = scale(20, self.pxWidth, self.pxHeight, int) # quarterline
+
+            # Duck
+            if self.shapeType == 5:
+                duckHead = (
+                    (drawPtX + qX, drawPtY + qY),
+                    (drawPtX + int(qX * 3), drawPtY + int(tY * 2))
+                )
+                duckBeak = (
+                    (drawPtX + hX, drawPtY + qY),
+                    (drawPtX + self.pxWidth + qX,
+                        drawPtY + int(qY * 3))
+                )
+                duckWing = (
+                    (drawPtX, drawPtY + hY),
+                    rect[1]
+                )
+                duckBody = (
+                    (drawPtX + int(qX / 4), drawPtY + int(qY * 3)),
+                    (drawPtX + int(tX * 2), drawPtY + self.pxHeight)
+                )
+                drawer.ellipse(duckBody, fill=self.color)
+                drawer.ellipse(duckHead, fill=self.color)
+                drawer.pieslice(duckWing, 130, 200, fill=self.color)
+                drawer.pieslice(duckBeak, 145, 200, fill=self.color)
+
+            # Peace
+            elif self.shapeType == 6:
+                line = (
+                    (drawPtX + hX - int(tenthX / 2), drawPtY + int(tenthY / 2)),
+                    (drawPtX + hX + int(tenthX / 2),
+                    drawPtY + self.pxHeight - int(tenthY / 2))
+                )
+                drawer.ellipse(outlineShape, fill=self.color)
+                drawer.ellipse(smallerShape, fill=(0,0,0,0))
+                drawer.rectangle(line, fill=self.color)
+                slantLine = lambda difference: (
+                    ((drawPtX + difference),
+                        (drawPtY + self.pxHeight - qY)),
+                    ((drawPtX + hX),
+                        (drawPtY + hY)),
+                )
+                drawer.line(
+                    slantLine(qX),
+                    fill=self.color,
+                    width=tenthX
+                )
+                drawer.line(
+                    slantLine(self.pxWidth - qX),
+                    fill=self.color,
+                    width=tenthX
+                )
 
         for x, y in grid:
             drawPtX = x * self.pxWidth
+            if drawPtX > self.width:
+                continue
             drawPtY = y * self.pxHeight
+            if drawPtY > self.height:
+                continue
             rect = (
                 (drawPtX, drawPtY),
                 (drawPtX + self.pxWidth, drawPtY + self.pxHeight)
             )
-            if self.shapeType == 0:
-                drawer.rectangle(rect, fill=self.color)
-            elif self.shapeType == 1:
-                drawer.ellipse(rect, fill=self.color)
-            elif self.shapeType == 2:
-                drawer.pieslice(rect, 290, 250, fill=self.color)
-            elif self.shapeType == 3:
-                drawer.pieslice(rect, 20, 340, fill=self.color)
+
+            if self.customImg:
+                drawCustomImg()
+            else:
+                drawShape()
 
         if self.shadow:
             shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
