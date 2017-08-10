@@ -4,12 +4,13 @@ import os
 import math
 
 from component import Component
+from toolkit import alphabetizeDict
 from toolkit.frame import BlankFrame, scale
 
 
 class Component(Component):
     name = 'Conway\'s Game of Life'
-    version = '1.0.0a'
+    version = '1.0.0'
 
     def widget(self, *args):
         super().widget(*args)
@@ -329,12 +330,12 @@ class Component(Component):
 
     def savePreset(self):
         pr = super().savePreset()
-        pr['GRID'] = self.startingGrid
+        pr['GRID'] = alphabetizeDict(self.startingGrid)
         return pr
 
     def loadPreset(self, pr, *args):
         super().loadPreset(pr, *args)
-        self.startingGrid = pr['GRID']
+        self.startingGrid = dict(pr['GRID'])
 
 
 def nearbyCoords(x, y):

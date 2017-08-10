@@ -2,7 +2,7 @@ from setuptools import setup
 import os
 
 
-__version__ = '2.0.0.rc3'
+__version__ = '2.0.0.rc4'
 
 
 def package_files(directory):

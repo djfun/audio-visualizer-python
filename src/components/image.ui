@@ -293,6 +293,22 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QSpinBox" name="spinBox_scale_stretch">
+         <property name="suffix">
+          <string>%</string>
+         </property>
+         <property name="minimum">
+          <number>10</number>
+         </property>
+         <property name="maximum">
+          <number>400</number>
+         </property>
+         <property name="value">
+          <number>100</number>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>
