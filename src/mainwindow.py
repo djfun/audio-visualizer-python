@@ -50,6 +50,22 @@ class PreviewWindow(QtWidgets.QLabel):
         self.pixmap = QtGui.QPixmap(img)
         self.repaint()
 
+    def mousePressEvent(self, event):
+        if self.parent.encoding:
+            return
+
+        i = self.parent.window.listWidget_componentList.currentRow()
+        if i >= 0:
+            component = self.parent.core.selectedComponents[i]
+            if not hasattr(component, 'previewClickEvent'):
+                return
+            pos = (event.x(), event.y())
+            size = (self.width(), self.height())
+            component.previewClickEvent(
+                pos, size, event.button()
+            )
+            self.parent.core.updateComponent(i)
+
     @QtCore.pyqtSlot(str)
     def threadError(self, msg):
         self.parent.showMessage(

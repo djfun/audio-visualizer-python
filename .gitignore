@@ -13,3 +13,4 @@ env/*
 ffmpeg
 *.bak
 *~
+*.goutput*
