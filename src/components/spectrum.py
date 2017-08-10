@@ -4,6 +4,7 @@ import os
 import math
 import subprocess
 import time
+import logging
 
 from component import Component
 from toolkit.frame import BlankFrame, scale
@@ -11,6 +12,9 @@ from toolkit import checkOutput, connectWidget
 from toolkit.ffmpeg import (
     openPipe, closePipe, getAudioDuration, FfmpegVideo, exampleSound
 )
+
+
+log = logging.getLogger('AVP.Components.Spectrum')
 
 
 class Component(Component):
@@ -68,6 +72,7 @@ class Component(Component):
         if not changedSize \
                 and not self.changedOptions \
                 and self.previewFrame is not None:
+            log.debug('Comp #%s is reusing old preview frame' % self.compPos)
             return self.previewFrame
 
         frame = self.getPreviewFrame()
@@ -131,13 +136,14 @@ class Component(Component):
             '-frames:v', '1',
         ])
         logFilename = os.path.join(
-            self.core.dataDir, 'preview_%s.log' % str(self.compPos))
-        with open(logFilename, 'w') as log:
-            log.write(" ".join(command) + '\n\n')
-        with open(logFilename, 'a') as log:
+            self.core.logDir, 'preview_%s.log' % str(self.compPos))
+        log.debug('Creating ffmpeg process (log at %s)' % logFilename)
+        with open(logFilename, 'w') as logf:
+            logf.write(" ".join(command) + '\n\n')
+        with open(logFilename, 'a') as logf:
             pipe = openPipe(
                 command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=log, bufsize=10**8
+                stderr=logf, bufsize=10**8
             )
         byteFrame = pipe.stdout.read(self.chunkSize)
         closePipe(pipe)

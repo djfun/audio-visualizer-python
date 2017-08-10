@@ -17,6 +17,7 @@ from queue import Queue, PriorityQueue
 from threading import Thread, Event
 import time
 import signal
+import logging
 
 from component import ComponentError
 from toolkit.frame import Checkerboard
@@ -24,6 +25,9 @@ from toolkit.ffmpeg import (
     openPipe, readAudioFile,
     getAudioDuration, createFfmpegCommand
 )
+
+
+log = logging.getLogger("AVP.VideoThread")
 
 
 class Worker(QtCore.QObject):
@@ -92,7 +96,7 @@ class Worker(QtCore.QObject):
             by a renderNode later. All indices are multiples of self.sampleSize
             sampleSize * frameNo = audioI, AKA audio data starting at frameNo
         '''
-        print('Dispatching Frames for Compositing...')
+        log.debug('Dispatching Frames for Compositing...')
 
         for audioI in range(0, len(self.completeAudioArray), self.sampleSize):
             self.compositeQueue.put(audioI)
@@ -156,10 +160,12 @@ class Worker(QtCore.QObject):
         self.progressBarUpdate.emit(0)
         self.progressBarSetText.emit("Starting components...")
         canceledByComponent = False
-        print('Loaded Components:', ", ".join([
+        initText =  ", ".join([
             "%s) %s" % (num, str(component))
             for num, component in enumerate(reversed(self.components))
-        ]))
+        ])
+        print('Loaded Components:', initText)
+        log.info('Calling preFrameRender for %s' % initText)
         self.staticComponents = {}
         for compNo, comp in enumerate(reversed(self.components)):
             try:
@@ -191,6 +197,7 @@ class Worker(QtCore.QObject):
                         compError[0]
                     )
                 )
+                log.critical(errMsg)
                 comp._error.emit(errMsg, compError[1])
                 break
             if 'static' in compProps:
@@ -199,7 +206,7 @@ class Worker(QtCore.QObject):
 
         if self.canceled:
             if canceledByComponent:
-                print('Export cancelled by component #%s (%s): %s' % (
+                log.critical('Export cancelled by component #%s (%s): %s' % (
                     compNo,
                     comp.name,
                     'No message.' if comp.error() is None else (
@@ -224,8 +231,11 @@ class Worker(QtCore.QObject):
         ffmpegCommand = createFfmpegCommand(
             self.inputFile, self.outputFile, self.components, duration
         )
-        print('###### FFMPEG COMMAND ######\n%s' % " ".join(ffmpegCommand))
+        cmd = " ".join(ffmpegCommand)
+        print('###### FFMPEG COMMAND ######\n%s' % cmd)
         print('############################')
+        log.info('Opening pipe to ffmpeg')
+        log.info(cmd)
         self.out_pipe = openPipe(
             ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
         )
@@ -298,9 +308,9 @@ class Worker(QtCore.QObject):
         try:
             self.out_pipe.stdin.close()
         except BrokenPipeError:
-            print('Broken pipe to ffmpeg!')
+            log.error('Broken pipe to ffmpeg!')
         if self.out_pipe.stderr is not None:
-            print(self.out_pipe.stderr.read())
+            log.error(self.out_pipe.stderr.read())
             self.out_pipe.stderr.close()
             self.error = True
         self.out_pipe.wait()

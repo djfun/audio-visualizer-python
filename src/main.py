@@ -1,8 +1,12 @@
 from PyQt5 import uic, QtWidgets
 import sys
 import os
+import logging
 
 from __init__ import wd
+
+
+log = logging.getLogger('AVP.Entrypoint')
 
 
 def main():
@@ -28,6 +32,7 @@ def main():
         from command import Command
 
         main = Command()
+        log.debug("Finished creating command object")
 
     elif mode == 'GUI':
         from mainwindow import MainWindow
@@ -48,6 +53,7 @@ def main():
         # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
 
         main = MainWindow(window, proj)
+        log.debug("Finished creating main window")
         window.raise_()
 
         signal.signal(signal.SIGINT, main.cleanUp)

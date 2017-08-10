@@ -8,9 +8,13 @@ from PIL import Image
 from PIL.ImageQt import ImageQt
 from queue import Queue, Empty
 import os
+import logging
 
 from toolkit.frame import Checkerboard
 from toolkit import disableWhenOpeningProject
+
+
+log = logging.getLogger("AVP.PreviewThread")
 
 
 class Worker(QtCore.QObject):
@@ -55,7 +59,7 @@ class Worker(QtCore.QObject):
                 self.background = Checkerboard(width, height)
 
             frame = self.background.copy()
-
+            log.debug('Creating new preview frame')
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
@@ -73,10 +77,11 @@ class Worker(QtCore.QObject):
                             newFrame.width, newFrame.height,
                             width, height
                         )
+                    log.critical(errMsg)
                     self.error.emit(errMsg)
                     break
                 except RuntimeError as e:
-                    print(e)
+                    log.error(str(e))
             else:
                 self.frame = ImageQt(frame)
                 self.imageCreated.emit(QtGui.QImage(self.frame))
