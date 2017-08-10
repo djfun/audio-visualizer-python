@@ -133,13 +133,18 @@ class Component(Component):
 
         def drawShape():
             drawer = ImageDraw.Draw(frame)
+            rect = (
+                (drawPtX, drawPtY),
+                (drawPtX + self.pxWidth, drawPtY + self.pxHeight)
+            )
+            shape = self.page.comboBox_shapeType.currentText().lower()
 
             # Rectangle
-            if self.shapeType == 0:
+            if shape == 'rectangle':
                 drawer.rectangle(rect, fill=self.color)
 
-            # Ellipse
-            elif self.shapeType == 1:
+            # Elliptical
+            elif shape == 'elliptical':
                 drawer.ellipse(rect, fill=self.color)
 
             tenthX, tenthY = scale(10, self.pxWidth, self.pxHeight, int)
@@ -155,26 +160,75 @@ class Component(Component):
                 (drawPtX + self.pxWidth - int(tenthX / 4),
                     drawPtY + self.pxHeight - int(tenthY / 2))
             )
-
             # Circle
-            if self.shapeType == 2:
+            if shape == 'circle':
                 drawer.ellipse(outlineShape, fill=self.color)
                 drawer.ellipse(smallerShape, fill=(0,0,0,0))
 
             # Lilypad
-            elif self.shapeType == 3:
+            elif shape == 'lilypad':
                 drawer.pieslice(smallerShape, 290, 250, fill=self.color)
 
             # Pac-Man
-            elif self.shapeType == 4:
+            elif shape == 'pac-man':
                 drawer.pieslice(outlineShape, 35, 320, fill=self.color)
 
             hX, hY = scale(50, self.pxWidth, self.pxHeight, int) # halfline
             tX, tY = scale(33, self.pxWidth, self.pxHeight, int) # thirdline
             qX, qY = scale(20, self.pxWidth, self.pxHeight, int) # quarterline
 
+            # Path
+            if shape == 'path':
+                drawer.ellipse(rect, fill=self.color)
+                rects = {
+                    direction: False
+                    for direction in (
+                        'up', 'down', 'left', 'right',
+                    )
+                }
+                for cell in nearbyCoords(x, y):
+                    if grid.get(cell) is None:
+                        continue
+                    if cell[0] == x:
+                        if cell[1] < y:
+                            rects['up'] = True
+                        if cell[1] > y:
+                            rects['down'] = True
+                    if cell[1] == y:
+                        if cell[0] < x:
+                            rects['left'] = True
+                        if cell[0] > x:
+                            rects['right'] = True
+
+                for direction, rect in rects.items():
+                    if rect:
+                        if direction == 'up':
+                            sect = (
+                                (drawPtX, drawPtY),
+                                (drawPtX + self.pxWidth, drawPtY + hY)
+                            )
+                        elif direction == 'down':
+                            sect = (
+                                (drawPtX, drawPtY + hY),
+                                (drawPtX + self.pxWidth,
+                                drawPtY + self.pxHeight)
+                            )
+                        elif direction == 'left':
+                            sect = (
+                                (drawPtX, drawPtY),
+                                (drawPtX + hX,
+                                drawPtY + self.pxHeight)
+                            )
+                        elif direction == 'right':
+                            sect = (
+                                (drawPtX + hX, drawPtY),
+                                (drawPtX + self.pxWidth,
+                                drawPtY + self.pxHeight)
+                            )
+                        drawer.rectangle(sect, fill=self.color)
+
             # Duck
-            if self.shapeType == 5:
+            elif shape == 'duck':
                 duckHead = (
                     (drawPtX + qX, drawPtY + qY),
                     (drawPtX + int(qX * 3), drawPtY + int(tY * 2))
@@ -198,7 +252,7 @@ class Component(Component):
                 drawer.pieslice(duckBeak, 145, 200, fill=self.color)
 
             # Peace
-            elif self.shapeType == 6:
+            elif shape == 'peace':
                 line = (
                     (drawPtX + hX - int(tenthX / 2), drawPtY + int(tenthY / 2)),
                     (drawPtX + hX + int(tenthX / 2),
@@ -231,10 +285,6 @@ class Component(Component):
             drawPtY = y * self.pxHeight
             if drawPtY > self.height:
                 continue
-            rect = (
-                (drawPtX, drawPtY),
-                (drawPtX + self.pxWidth, drawPtY + self.pxHeight)
-            )
 
             if self.customImg:
                 drawCustomImg()
@@ -253,23 +303,10 @@ class Component(Component):
         '''Given a tick number over 0, returns a new grid dict of tuples'''
         lastGrid = self.tickGrids[tick - 1]
 
-        def nearbyCoords(x, y):
-            yield x + 1, y + 1
-            yield x + 1, y - 1
-            yield x - 1, y + 1
-            yield x - 1, y - 1
-            yield x, y + 1
-            yield x, y - 1
-            yield x + 1, y
-            yield x - 1, y
-
         def neighbours(x, y):
-            nearbyCells = [
-                lastGrid.get(cell) for cell in nearbyCoords(x, y)
-            ]
             return [
-                nearbyCell for nearbyCell in nearbyCells
-                if nearbyCell is not None
+                cell for cell in nearbyCoords(x, y)
+                if lastGrid.get(cell) is not None
             ]
 
         newGrid = {}
@@ -298,3 +335,14 @@ class Component(Component):
     def loadPreset(self, pr, *args):
         super().loadPreset(pr, *args)
         self.startingGrid = pr['GRID']
+
+
+def nearbyCoords(x, y):
+    yield x + 1, y + 1
+    yield x + 1, y - 1
+    yield x - 1, y + 1
+    yield x - 1, y - 1
+    yield x, y + 1
+    yield x, y - 1
+    yield x + 1, y
+    yield x - 1, y

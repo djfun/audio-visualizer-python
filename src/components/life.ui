@@ -215,12 +215,17 @@
           <widget class="QComboBox" name="comboBox_shapeType">
            <item>
             <property name="text">
+             <string>Path</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
              <string>Rectangle</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Ellipse</string>
+             <string>Elliptical</string>
             </property>
            </item>
            <item>
