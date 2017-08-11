@@ -83,7 +83,7 @@
          <item>
           <widget class="QSpinBox" name="spinBox_scale">
            <property name="minimum">
-            <number>24</number>
+            <number>22</number>
            </property>
            <property name="maximum">
             <number>128</number>
@@ -280,6 +280,13 @@
           </widget>
          </item>
          <item>
+          <widget class="QCheckBox" name="checkBox_showGrid">
+           <property name="text">
+            <string>Show Grid</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <spacer name="horizontalSpacer_6">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
@@ -296,6 +303,46 @@
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_9">
+         <item>
+          <widget class="QToolButton" name="toolButton_up">
+           <property name="text">
+            <string>Up</string>
+           </property>
+           <property name="arrowType">
+            <enum>Qt::UpArrow</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="toolButton_down">
+           <property name="text">
+            <string>Down</string>
+           </property>
+           <property name="arrowType">
+            <enum>Qt::DownArrow</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="toolButton_left">
+           <property name="text">
+            <string>Left</string>
+           </property>
+           <property name="arrowType">
+            <enum>Qt::LeftArrow</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="toolButton_right">
+           <property name="text">
+            <string>Right</string>
+           </property>
+           <property name="arrowType">
+            <enum>Qt::RightArrow</enum>
+           </property>
+          </widget>
+         </item>
          <item>
           <spacer name="horizontalSpacer_9">
            <property name="orientation">

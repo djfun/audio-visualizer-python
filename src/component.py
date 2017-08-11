@@ -323,7 +323,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             else:
                 # Normal tracked widget
                 setattr(self, attr, getWidgetValue(widget))
+        self.sendUpdateSignal()
 
+    def sendUpdateSignal(self):
         if not self.core.openingProject:
             self.parent.drawPreview()
             saveValueStore = self.savePreset()

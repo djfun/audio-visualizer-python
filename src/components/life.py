@@ -25,10 +25,24 @@ class Component(Component):
             'shapeType': self.page.comboBox_shapeType,
             'shadow': self.page.checkBox_shadow,
             'customImg': self.page.checkBox_customImg,
+            'showGrid': self.page.checkBox_showGrid,
             'image': self.page.lineEdit_image,
         }, colorWidgets={
             'color': self.page.pushButton_color,
         })
+        self.shiftButtons = (
+            self.page.toolButton_up,
+            self.page.toolButton_down,
+            self.page.toolButton_left,
+            self.page.toolButton_right,
+        )
+        def shiftFunc(i):
+            def shift():
+                self.shiftGrid(i)
+            return shift
+        shiftFuncs = [shiftFunc(i) for i in range(len(self.shiftButtons))]
+        for i, widget in enumerate(self.shiftButtons):
+            widget.clicked.connect(shiftFuncs[i])
         self.page.spinBox_scale.setValue(self.scale)
         self.page.spinBox_scale.valueChanged.connect(self.updateGridSize)
 
@@ -41,6 +55,24 @@ class Component(Component):
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)
             self.update()
+
+    def shiftGrid(self, d):
+        def newGrid(Xchange, Ychange):
+            return {
+                (x + Xchange, y + Ychange): True
+                for x, y in self.startingGrid
+            }
+
+        if d == 0:
+            newGrid = newGrid(0, -1)
+        elif d == 1:
+            newGrid = newGrid(0, 1)
+        elif d == 2:
+            newGrid = newGrid(-1, 0)
+        elif d == 3:
+            newGrid = newGrid(1, 0)
+        self.startingGrid = newGrid
+        self.sendUpdateSignal()
 
     def update(self):
         self.updateGridSize()
@@ -62,6 +94,9 @@ class Component(Component):
             self.page.label_image.setVisible(False)
             self.page.lineEdit_image.setVisible(False)
             self.page.pushButton_pickImage.setVisible(False)
+        enabled = (len(self.startingGrid) > 0)
+        for widget in self.shiftButtons:
+            widget.setEnabled(enabled)
         super().update()
 
     def previewClickEvent(self, pos, size, button):
@@ -298,6 +333,22 @@ class Component(Component):
             shadImg = ImageChops.offset(shadImg, -2, 2)
             shadImg.paste(frame, box=(0, 0), mask=frame)
             frame = shadImg
+        if self.showGrid:
+            drawer = ImageDraw.Draw(frame)
+            w, h = scale(0.05, self.width, self.height, int)
+            for x in range(self.pxWidth, self.width, self.pxWidth):
+                drawer.rectangle(
+                    ((x, 0),
+                    (x + w, self.height)),
+                    fill=self.color,
+                )
+            for y in range(self.pxHeight, self.height, self.pxHeight):
+                drawer.rectangle(
+                    ((0, y),
+                    (self.width, y + h)),
+                    fill=self.color,
+                )
+
         return frame
 
     def gridForTick(self, tick):
@@ -334,8 +385,11 @@ class Component(Component):
         return pr
 
     def loadPreset(self, pr, *args):
-        super().loadPreset(pr, *args)
         self.startingGrid = dict(pr['GRID'])
+        if self.startingGrid:
+            for widget in self.shiftButtons:
+                widget.setEnabled(True)
+        super().loadPreset(pr, *args)
 
 
 def nearbyCoords(x, y):
