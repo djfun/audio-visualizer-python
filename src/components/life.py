@@ -4,7 +4,6 @@ import os
 import math
 
 from component import Component
-from toolkit import alphabetizeDict
 from toolkit.frame import BlankFrame, scale
 
 
@@ -16,7 +15,7 @@ class Component(Component):
         super().widget(*args)
         self.scale = 32
         self.updateGridSize()
-        self.startingGrid = {}
+        self.startingGrid = set()
         self.page.pushButton_pickImage.clicked.connect(self.pickImage)
         self.trackWidgets({
             'tickRate': self.page.spinBox_tickRate,
@@ -59,7 +58,7 @@ class Component(Component):
     def shiftGrid(self, d):
         def newGrid(Xchange, Ychange):
             return {
-                (x + Xchange, y + Ychange): True
+                (x + Xchange, y + Ychange)
                 for x, y in self.startingGrid
             }
 
@@ -105,9 +104,9 @@ class Component(Component):
             math.ceil((pos[1] / size[1]) * self.gridHeight) - 1
         )
         if button == 1:
-            self.startingGrid[pos] = True
-        elif button == 2 and pos in self.startingGrid:
-            self.startingGrid.pop(pos)
+            self.startingGrid.add(pos)
+        elif button == 2:
+            self.startingGrid.discard(pos)
 
     def updateGridSize(self):
         w, h = self.core.resolutions[-1].split('x')
@@ -223,7 +222,7 @@ class Component(Component):
                     )
                 }
                 for cell in nearbyCoords(x, y):
-                    if grid.get(cell) is None:
+                    if cell not in grid:
                         continue
                     if cell[0] == x:
                         if cell[1] < y:
@@ -352,40 +351,40 @@ class Component(Component):
         return frame
 
     def gridForTick(self, tick):
-        '''Given a tick number over 0, returns a new grid dict of tuples'''
+        '''Given a tick number over 0, returns a new grid set of tuples'''
         lastGrid = self.tickGrids[tick - 1]
 
         def neighbours(x, y):
-            return [
+            return {
                 cell for cell in nearbyCoords(x, y)
-                if lastGrid.get(cell) is not None
-            ]
+                if cell in lastGrid
+            }
 
-        newGrid = {}
+        newGrid = set()
         for x, y in lastGrid:
             surrounding = len(neighbours(x, y))
             if surrounding == 2 or surrounding == 3:
-                newGrid[(x, y)] = True
-        potentialNewCells = set([
+                newGrid.add((x, y))
+        potentialNewCells = {
             coordTup for origin in lastGrid
             for coordTup in list(nearbyCoords(*origin))
-        ])
+        }
         for x, y in potentialNewCells:
             if (x, y) in newGrid:
                 continue
             surrounding = len(neighbours(x, y))
             if surrounding == 3:
-                newGrid[(x, y)] = True
+                newGrid.add((x, y))
 
         return newGrid
 
     def savePreset(self):
         pr = super().savePreset()
-        pr['GRID'] = alphabetizeDict(self.startingGrid)
+        pr['GRID'] = sorted(self.startingGrid)
         return pr
 
     def loadPreset(self, pr, *args):
-        self.startingGrid = dict(pr['GRID'])
+        self.startingGrid = set(pr['GRID'])
         if self.startingGrid:
             for widget in self.shiftButtons:
                 widget.setEnabled(True)
