@@ -77,27 +77,40 @@ def defaultSize(framefunc):
 
 
 def FloodFrame(width, height, RgbaTuple):
+    log.debug('Creating new %s*%s %s flood frame' % (
+        width, height,
+        'blank' if RgbaTuple[3] == 0 else RgbaTuple
+        )
+    )
     return Image.new("RGBA", (width, height), RgbaTuple)
 
 
 @defaultSize
-def BlankFrame(width, height):
+def BlankFrame(width, height, blankFrames={}):
     '''The base frame used by each component to start drawing.'''
-    log.debug('Creating new %s*%s blank frame' % (width, height))
-    return FloodFrame(width, height, (0, 0, 0, 0))
+    try:
+        return blankFrames[(width, height)]
+    except KeyError:
+        newFrame = FloodFrame(width, height, (0, 0, 0, 0))
+        blankFrames[(width, height)] = newFrame
+        return newFrame
 
 
 @defaultSize
-def Checkerboard(width, height):
+def Checkerboard(width, height, checkerboards={}):
     '''
         A checkerboard to represent transparency to the user.
         TODO: Would be cool to generate this image with numpy instead.
     '''
-    log.debug('Creating new %s*%s checkerboard' % (width, height))
-    image = FloodFrame(1920, 1080, (0, 0, 0, 0))
-    image.paste(Image.open(
-        os.path.join(core.Core.wd, "background.png")),
-        (0, 0)
-    )
-    image = image.resize((width, height))
-    return image
+    try:
+        return checkerboards[(width, height)]
+    except KeyError:
+        log.debug('Creating new %s*%s checkerboard' % (width, height))
+        image = FloodFrame(1920, 1080, (0, 0, 0, 0))
+        image.paste(Image.open(
+            os.path.join(core.Core.wd, "background.png")),
+            (0, 0)
+        )
+        image = image.resize((width, height))
+        checkerboards[(width, height)] = image
+        return image
