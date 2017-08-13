@@ -124,7 +124,7 @@ class Component(Component):
         self.tickGrids = {0: self.startingGrid}
         tick = 0
         for frameNo in range(
-                self.tickRate, len(self.completeAudioArray), self.sampleSize
+                self.tickRate, self.audioArrayLen, self.sampleSize
                 ):
             if self.parent.canceled:
                 break
@@ -133,7 +133,7 @@ class Component(Component):
                 self.tickGrids[tick] = self.gridForTick(tick)
 
                 # update progress bar
-                progress = int(100*(frameNo/len(self.completeAudioArray)))
+                progress = int(100*(frameNo/self.audioArrayLen))
                 if progress >= 100:
                     progress = 100
                 pStr = "Computing evolution: "+str(progress)+'%'
