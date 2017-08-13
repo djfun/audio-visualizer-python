@@ -32,12 +32,12 @@ class FramePainter(QtGui.QPainter):
             super().setPen(penStyle)
 
     def finalize(self):
-        self.end()
         imBytes = self.image.bits().asstring(self.image.byteCount())
-
-        return Image.frombytes(
+        frame =  Image.frombytes(
             'RGBA', (self.image.width(), self.image.height()), imBytes
         )
+        self.end()
+        return frame
 
 
 class PaintColor(QtGui.QColor):
@@ -78,19 +78,14 @@ def defaultSize(framefunc):
 
 def FloodFrame(width, height, RgbaTuple):
     log.debug('Creating new %s*%s %s flood frame' % (
-        width, height,
-        'blank' if RgbaTuple[3] == 0 else RgbaTuple
-        )
-    )
+        width, height, RgbaTuple))
     return Image.new("RGBA", (width, height), RgbaTuple)
 
 
 @defaultSize
 def BlankFrame(width, height):
     '''The base frame used by each component to start drawing.'''
-    newFrame = FloodFrame(width, height, (0, 0, 0, 0))
-    blankFrames[(width, height)] = newFrame
-    return newFrame
+    return FloodFrame(width, height, (0, 0, 0, 0))
 
 
 @defaultSize
@@ -106,5 +101,4 @@ def Checkerboard(width, height):
         (0, 0)
     )
     image = image.resize((width, height))
-    checkerboards[(width, height)] = image
     return image
