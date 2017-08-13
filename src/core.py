@@ -10,7 +10,6 @@ from importlib import import_module
 import logging
 
 import toolkit
-import video_thread
 
 
 log = logging.getLogger('AVP.Core')
@@ -418,6 +417,7 @@ class Core:
 
     def newVideoWorker(self, loader, audioFile, outputPath):
         '''loader is MainWindow or Command object which must own the thread'''
+        import video_thread
         self.videoThread = QtCore.QThread(loader)
         videoWorker = video_thread.Worker(
             loader, audioFile, outputPath, self.selectedComponents

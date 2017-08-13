@@ -12,7 +12,6 @@ import logging
 
 import core
 from toolkit.common import checkOutput, pipeWrapper
-from component import ComponentError
 
 
 log = logging.getLogger('AVP.Toolkit.Ffmpeg')
@@ -91,6 +90,7 @@ class FfmpegVideo:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
+        from component import ComponentError
         logFilename = os.path.join(
             core.Core.logDir, 'render_%s.log' % str(self.component.compPos))
         log.debug('Creating ffmpeg process (log at %s)' % logFilename)
