@@ -67,7 +67,9 @@ class Worker(QtCore.QObject):
             self.closePipe()
             self.cancelExport()
             self.error = True
-            comp._error.emit('A render node failed critically.', str(e))
+            msg = 'A render node failed critically.'
+            log.critical(msg)
+            comp._error.emit(msg, str(e))
 
         while not self.stopped:
             audioI = self.compositeQueue.get()
