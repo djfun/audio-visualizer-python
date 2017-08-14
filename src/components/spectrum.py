@@ -19,7 +19,7 @@ log = logging.getLogger('AVP.Components.Spectrum')
 
 class Component(Component):
     name = 'Spectrum'
-    version = '1.0.0'
+    version = '1.0.1'
 
     def widget(self, *args):
         self.previewFrame = None
@@ -65,8 +65,17 @@ class Component(Component):
         self.changedOptions = True
 
     def update(self):
-        self.page.stackedWidget.setCurrentIndex(
-            self.page.comboBox_filterType.currentIndex())
+        filterType = self.page.comboBox_filterType.currentIndex()
+        self.page.stackedWidget.setCurrentIndex(filterType)
+        if filterType == 3:
+            self.page.spinBox_hue.setEnabled(False)
+        else:
+            self.page.spinBox_hue.setEnabled(True)
+        if filterType == 2 or filterType == 4:
+            self.page.checkBox_mono.setEnabled(False)
+        else:
+            self.page.checkBox_mono.setEnabled(True)
+
         super().update()
 
     def previewRender(self):
@@ -81,6 +90,8 @@ class Component(Component):
         frame = self.getPreviewFrame()
         self.changedOptions = False
         if not frame:
+            log.warning(
+                'Spectrum #%s failed to create a preview frame' % self.compPos)
             self.previewFrame = None
             return BlankFrame(self.width, self.height)
         else:
@@ -244,13 +255,21 @@ class Component(Component):
                 )
             )
 
+        if self.filterType < 2:
+            exampleSnd = exampleSound('freq')
+        elif self.filterType == 2 or self.filterType == 4:
+            exampleSnd = exampleSound('stereo')
+        elif self.filterType == 3:
+            exampleSnd = exampleSound('white')
+
         return [
             '-filter_complex',
             '%s%s%s%s [v1]; '
             '[v1] %s%s%s%s%s [v]' % (
-                exampleSound() if preview and genericPreview else '[0:a] ',
+                exampleSnd if preview and genericPreview else '[0:a] ',
                 'compand=gain=4,' if self.compress else '',
-                'aformat=channel_layouts=mono,' if self.mono else '',
+                'aformat=channel_layouts=mono,'
+                if self.mono and self.filterType not in (2, 4) else '',
                 filter_,
                 'hflip, ' if self.mirror else '',
                 'trim=start=%s:end=%s, ' % (
@@ -259,7 +278,8 @@ class Component(Component):
                 ) if preview else '',
                 'scale=%sx%s' % scale(
                     self.scale, self.width, self.height, str),
-                ', hue=h=%s:s=10' % str(self.hue) if self.hue > 0 else '',
+                ', hue=h=%s:s=10' % str(self.hue)
+                if self.hue > 0 and self.filterType != 3 else '',
                 ', convolution=-2 -1 0 -1 1 1 0 1 2:-2 -1 0 -1 1 1 0 1 2:-2 '
                 '-1 0 -1 1 1 0 1 2:-2 -1 0 -1 1 1 0 1 2'
                 if self.filterType == 3 else ''

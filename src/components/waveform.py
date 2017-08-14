@@ -140,13 +140,16 @@ class Component(Component):
         opacity = "{0:.1f}".format(self.opacity / 100)
         genericPreview = self.settings.value("pref_genericPreview")
         if self.mode < 3:
-            filter_ = 'showwaves=r=%s:s=%sx%s:mode=%s:colors=%s@%s:scale=%s' % (
-                self.settings.value("outputFrameRate"),
-                self.settings.value("outputWidth"),
-                self.settings.value("outputHeight"),
-                self.page.comboBox_mode.currentText().lower()
-                if self.mode != 3 else 'p2p',
-                hexcolor, opacity, amplitude,
+            filter_ = (
+                'showwaves='
+                'r=%s:s=%sx%s:mode=%s:colors=%s@%s:scale=%s' % (
+                    self.settings.value("outputFrameRate"),
+                    self.settings.value("outputWidth"),
+                    self.settings.value("outputHeight"),
+                    self.page.comboBox_mode.currentText().lower()
+                    if self.mode != 3 else 'p2p',
+                    hexcolor, opacity, amplitude,
+                )
             )
         elif self.mode > 2:
             filter_ = (
@@ -160,18 +163,20 @@ class Component(Component):
                 )
             )
 
+        baselineHeight = int(self.height * (4 / 1080))
         return [
             '-filter_complex',
             '%s%s%s'
             '%s%s%s [v1]; '
             '[v1] scale=%s:%s%s [v]' % (
-                exampleSound() if preview and genericPreview else '[0:a] ',
+                exampleSound('wave', extra='')
+                if preview and genericPreview else '[0:a] ',
                 'compand=gain=4,' if self.compress else '',
                 'aformat=channel_layouts=mono,'
                 if self.mono and self.mode < 3 else '',
                 filter_,
-                ', drawbox=x=(iw-w)/2:y=(ih-h)/2:w=iw:h=4:color=%s@%s' % (
-                    hexcolor, opacity
+                ', drawbox=x=(iw-w)/2:y=(ih-h)/2:w=iw:h=%s:color=%s@%s' % (
+                    baselineHeight, hexcolor, opacity,
                 ) if self.mode < 2 else '',
                 ', hflip' if self.mirror else'',
                 w, h,

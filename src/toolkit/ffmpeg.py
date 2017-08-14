@@ -457,8 +457,17 @@ def readAudioFile(filename, videoWorker):
     return (completeAudioArray, duration)
 
 
-def exampleSound():
-    return (
-        'aevalsrc=tan(random(1)*PI*t)*sin(random(0)*2*PI*t),'
-        'apulsator=offset_l=0.5:offset_r=0.5,'
-    )
+def exampleSound(
+    style='white', extra='apulsator=offset_l=0.35:offset_r=0.67'):
+    '''Help generate an example sound for use in creating a preview'''
+
+    if style == 'white':
+        src = '-2+random(0)'
+    elif style == 'freq':
+        src = 'sin(1000*t*PI*t)'
+    elif style == 'wave':
+        src = 'sin(random(0)*2*PI*t)*tan(random(0)*2*PI*t)'
+    elif style == 'stereo':
+        src = '0.1*sin(2*PI*(360-2.5/2)*t) : 0.1*sin(2*PI*(360+2.5/2)*t)'
+
+    return "aevalsrc='%s', %s%s" % (src, extra, ', ' if extra else '')
