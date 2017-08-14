@@ -44,7 +44,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.window = window
         self.core = Core()
         log.debug(
-            'Main thread id: {}'.format(QtCore.QThread.currentThreadId()))
+            'Main thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
 
         # widgets of component settings
         self.pages = []
@@ -465,8 +465,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 and filecmp.cmp(
                     self.autosavePath, self.currentProject) == identical:
                 log.debug(
-                    'Autosave found %s to be identical' % \
-                        'not' if not identical else ''
+                    'Autosave found %s to be identical'
+                    % 'not' if not identical else ''
                 )
                 return True
         except FileNotFoundError:

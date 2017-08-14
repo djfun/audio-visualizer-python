@@ -27,6 +27,8 @@ class Component(Component):
         self._image = BlankFrame(self.width, self.height)
         self.chunkSize = 4 * self.width * self.height
         self.changedOptions = True
+        self.previewSize = (214, 120)
+        self.previewPipe = None
 
         if hasattr(self.parent, 'window'):
             # update preview when audio file changes (if genericPreview is off)
@@ -72,7 +74,8 @@ class Component(Component):
         if not changedSize \
                 and not self.changedOptions \
                 and self.previewFrame is not None:
-            log.debug('Comp #%s is reusing old preview frame' % self.compPos)
+            log.debug(
+                'Spectrum #%s is reusing old preview frame' % self.compPos)
             return self.previewFrame
 
         frame = self.getPreviewFrame()
@@ -86,6 +89,7 @@ class Component(Component):
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
+        self.previewPipe.wait()
         self.updateChunksize()
         w, h = scale(self.scale, self.width, self.height, str)
         self.video = FfmpegVideo(
@@ -141,18 +145,21 @@ class Component(Component):
         with open(logFilename, 'w') as logf:
             logf.write(" ".join(command) + '\n\n')
         with open(logFilename, 'a') as logf:
-            pipe = openPipe(
+            self.previewPipe = openPipe(
                 command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=logf, bufsize=10**8
             )
-        byteFrame = pipe.stdout.read(self.chunkSize)
-        closePipe(pipe)
+        byteFrame = self.previewPipe.stdout.read(self.chunkSize)
+        closePipe(self.previewPipe)
 
         frame = self.finalizeFrame(byteFrame)
         return frame
 
     def makeFfmpegFilter(self, preview=False, startPt=0):
-        w, h = scale(self.scale, self.width, self.height, str)
+        if preview:
+            w, h = self.previewSize
+        else:
+            w, h = (self.width, self.height)
         color = self.page.comboBox_color.currentText().lower()
         genericPreview = self.settings.value("pref_genericPreview")
 
@@ -173,8 +180,7 @@ class Component(Component):
                 'showspectrum=s=%sx%s:slide=scroll:win_func=%s:'
                 'color=%s:scale=%s,'
                 'colorkey=color=black:similarity=0.1:blend=0.5' % (
-                    self.settings.value("outputWidth"),
-                    self.settings.value("outputHeight"),
+                    w, h,
                     self.page.comboBox_window.currentText(),
                     color, amplitude,
                 )
@@ -197,8 +203,7 @@ class Component(Component):
             filter_ = (
                 'ahistogram=r=%s:s=%sx%s:dmode=separate:ascale=%s:scale=%s' % (
                     self.settings.value("outputFrameRate"),
-                    self.settings.value("outputWidth"),
-                    self.settings.value("outputHeight"),
+                    w, h,
                     amplitude, display
                 )
             )
@@ -214,8 +219,7 @@ class Component(Component):
             m = self.page.comboBox_mode.currentText()
             filter_ = (
                 'avectorscope=s=%sx%s:draw=%s:m=%s:scale=%s:zoom=%s' % (
-                    self.settings.value("outputWidth"),
-                    self.settings.value("outputHeight"),
+                    w, h,
                     'line'if self.draw else 'dot',
                     m, amplitude, str(self.zoom),
                 )
@@ -225,8 +229,7 @@ class Component(Component):
                 'showcqt=r=%s:s=%sx%s:count=30:text=0:tc=%s,'
                 'colorkey=color=black:similarity=0.1:blend=0.5 ' % (
                     self.settings.value("outputFrameRate"),
-                    self.settings.value("outputWidth"),
-                    self.settings.value("outputHeight"),
+                    w, h,
                     str(self.tc),
                 )
             )
@@ -235,28 +238,28 @@ class Component(Component):
                 'aphasemeter=r=%s:s=%sx%s:video=1 [atrash][vtmp1]; '
                 '[atrash] anullsink; '
                 '[vtmp1] colorkey=color=black:similarity=0.1:blend=0.5, '
-                'crop=in_w/8:in_h:(in_w/8)*7:0  '% (
+                'crop=in_w/8:in_h:(in_w/8)*7:0  ' % (
                     self.settings.value("outputFrameRate"),
-                    self.settings.value("outputWidth"),
-                    self.settings.value("outputHeight"),
+                    w, h,
                 )
             )
 
         return [
             '-filter_complex',
             '%s%s%s%s [v1]; '
-            '[v1] %sscale=%s:%s%s%s%s [v]' % (
+            '[v1] %s%s%s%s%s [v]' % (
                 exampleSound() if preview and genericPreview else '[0:a] ',
                 'compand=gain=4,' if self.compress else '',
                 'aformat=channel_layouts=mono,' if self.mono else '',
                 filter_,
                 'hflip, ' if self.mirror else '',
-                w, h,
-                ', hue=h=%s:s=10' % str(self.hue) if self.hue > 0 else '',
-                ', trim=start=%s:end=%s' % (
+                'trim=start=%s:end=%s, ' % (
                     "{0:.3f}".format(startPt + 12),
                     "{0:.3f}".format(startPt + 12.5)
                 ) if preview else '',
+                'scale=%sx%s' % scale(
+                    self.scale, self.width, self.height, str),
+                ', hue=h=%s:s=10' % str(self.hue) if self.hue > 0 else '',
                 ', convolution=-2 -1 0 -1 1 1 0 1 2:-2 -1 0 -1 1 1 0 1 2:-2 '
                 '-1 0 -1 1 1 0 1 2:-2 -1 0 -1 1 1 0 1 2'
                 if self.filterType == 3 else ''
@@ -281,10 +284,7 @@ class Component(Component):
             self._image = image
         except ValueError:
             image = self._image
-        if self.scale != 100 \
-                or self.x != 0 or self.y != 0:
-            frame = BlankFrame(self.width, self.height)
-            frame.paste(image, box=(self.x, self.y))
-        else:
-            frame = image
+
+        frame = BlankFrame(self.width, self.height)
+        frame.paste(image, box=(self.x, self.y))
         return frame

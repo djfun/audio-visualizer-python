@@ -212,7 +212,7 @@ class Worker(QtCore.QObject):
                         compError[0]
                     )
                 )
-                log.critical(errMsg)
+                log.error(errMsg)
                 comp._error.emit(errMsg, compError[1])
                 break
             if 'static' in compProps:
@@ -221,7 +221,7 @@ class Worker(QtCore.QObject):
 
         if self.canceled:
             if canceledByComponent:
-                log.critical('Export cancelled by component #%s (%s): %s' % (
+                log.error('Export cancelled by component #%s (%s): %s' % (
                     compNo,
                     comp.name,
                     'No message.' if comp.error() is None else (

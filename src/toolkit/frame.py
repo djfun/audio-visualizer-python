@@ -21,6 +21,7 @@ class FramePainter(QtGui.QPainter):
         Pillow image with finalize()
     '''
     def __init__(self, width, height):
+        log.verbose('Creating new FramePainter')
         image = BlankFrame(width, height)
         self.image = QtGui.QImage(ImageQt(image))
         super().__init__(self.image)
@@ -77,7 +78,7 @@ def defaultSize(framefunc):
 
 
 def FloodFrame(width, height, RgbaTuple):
-    log.debug('Creating new %s*%s %s flood frame' % (
+    log.verbose('Creating new %s*%s %s flood frame' % (
         width, height, RgbaTuple))
     return Image.new("RGBA", (width, height), RgbaTuple)
 

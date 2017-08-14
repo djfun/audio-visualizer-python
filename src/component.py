@@ -39,6 +39,11 @@ class ComponentMetaclass(type(QtCore.QObject)):
     def renderWrapper(func):
         def renderWrapper(self, *args, **kwargs):
             try:
+                log.verbose('### %s #%s renders%s frame %s###' % (
+                    self.__class__.name, str(self.compPos),
+                    '' if args else ' a preview',
+                    '' if not args else '%s ' % args[0],
+                ))
                 return func(self, *args, **kwargs)
             except Exception as e:
                 try:

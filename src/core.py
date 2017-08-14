@@ -562,9 +562,10 @@ class Core:
         logStream = logging.StreamHandler()
         logStream.setLevel(STDOUT_LOGLVL)
 
-        # create formatters and put everything together
+        # create formatters for each stream
         fileFormatter = logging.Formatter(
-            '[%(asctime)s] <%(name)s> %(levelname)s: %(message)s'
+            '[%(asctime)s] %(threadName)-10.10s %(name)-23.23s %(levelname)s: '
+            '%(message)s'
         )
         streamFormatter = logging.Formatter(
             '<%(name)s> %(message)s'
@@ -572,13 +573,14 @@ class Core:
         logFile.setFormatter(fileFormatter)
         libLogFile.setFormatter(fileFormatter)
         logStream.setFormatter(streamFormatter)
+
         log = logging.getLogger('AVP')
-        log.setLevel(FILE_LOGLVL)
         log.addHandler(logFile)
         log.addHandler(logStream)
         libLog = logging.getLogger()
-        libLog.setLevel(FILE_LOGLVL)
         libLog.addHandler(libLogFile)
+        # lowest level must be explicitly set on the root Logger
+        libLog.setLevel(0)
 
 # always store settings in class variables even if a Core object is not created
 Core.storeSettings()
