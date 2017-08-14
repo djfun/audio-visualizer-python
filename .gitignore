@@ -6,6 +6,10 @@ env/*
 .vscode/*
 *.mkv
 *.mp4
+*.wav
+*.mp3
+*.aif
+*.ac3
 *.zip
 *.tar
 *.tar.*
