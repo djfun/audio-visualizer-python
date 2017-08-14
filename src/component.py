@@ -59,9 +59,8 @@ class ComponentMetaclass(type(QtCore.QObject)):
         '''Intercepts the command() method to check for global args'''
         def commandWrapper(self, arg):
             if arg.startswith('preset='):
-                from presetmanager import getPresetDir
                 _, preset = arg.split('=', 1)
-                path = os.path.join(getPresetDir(self), preset)
+                path = os.path.join(self.core.getPresetDir(self), preset)
                 if not os.path.exists(path):
                     print('Couldn\'t locate preset "%s"' % preset)
                     quit(1)

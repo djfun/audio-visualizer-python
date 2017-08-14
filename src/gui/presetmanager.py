@@ -302,7 +302,7 @@ class PresetManager(QtWidgets.QDialog):
                     self.findPresets()
                     self.drawPresetList()
                     for i, comp in enumerate(self.core.selectedComponents):
-                        if getPresetDir(comp) == path \
+                        if self.core.getPresetDir(comp) == path \
                                 and comp.currentPreset == oldName:
                             self.core.openPreset(newPath, i, newName)
                             self.parent.updateComponentTitle(i, False)
@@ -351,8 +351,3 @@ class PresetManager(QtWidgets.QDialog):
 
     def clearPresetListSelection(self):
         self.window.listWidget_presets.setCurrentRow(-1)
-
-
-def getPresetDir(comp):
-    '''Get the preset subdir for a particular version of a component'''
-    return os.path.join(Core.presetDir, str(comp), str(comp.version))

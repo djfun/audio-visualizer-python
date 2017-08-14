@@ -64,31 +64,39 @@ class Core:
         for i, component in enumerate(self.selectedComponents):
             component.compPos = i
 
-    def insertComponent(self, compPos, moduleIndex, loader):
+    def insertComponent(self, compPos, component, loader):
         '''
             Creates a new component using these args:
-            (compPos, moduleIndex in self.modules, MWindow/Command/Core obj)
+            (compPos, component obj or moduleIndex, MWindow/Command/Core obj)
         '''
         if compPos < 0 or compPos > len(self.selectedComponents):
             compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
             return None
-        log.debug('Inserting Component from module #%s' % moduleIndex)
-        component = self.modules[moduleIndex].Component(
-            moduleIndex, compPos, self
+        if type(component) is int:
+            # create component using module index in self.modules
+            moduleIndex = int(component)
+            log.debug('Creating new component from module #%s' % moduleIndex)
+            component = self.modules[moduleIndex].Component(
+                moduleIndex, compPos, self
+            )
+            # init component's widget for loading/saving presets
+            component.widget(loader)
+        else:
+            moduleIndex = -1
+            log.debug(
+                'Inserting previously-created %s component' % component.name)
+
+        component._error.connect(
+            loader.videoThreadError
         )
         self.selectedComponents.insert(
             compPos,
             component
         )
         self.componentListChanged()
-        self.selectedComponents[compPos]._error.connect(
-            loader.videoThreadError
-        )
-
-        # init component's widget for loading/saving presets
-        self.selectedComponents[compPos].widget(loader)
-        self.updateComponent(compPos)
+        if moduleIndex > -1:
+            self.updateComponent(compPos)
 
         if hasattr(loader, 'insertComponent'):
             loader.insertComponent(compPos)
@@ -155,6 +163,10 @@ class Core:
                 saveValueStore = toolkit.presetFromString(line.strip())
                 break
         return saveValueStore
+
+    def getPresetDir(self, comp):
+        '''Get the preset subdir for a particular version of a component'''
+        return os.path.join(Core.presetDir, str(comp), str(comp.version))
 
     def openProject(self, loader, filepath):
         ''' loader is the object calling this method which must have

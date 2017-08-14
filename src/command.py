@@ -19,6 +19,7 @@ class Command(QtCore.QObject):
     def __init__(self):
         QtCore.QObject.__init__(self)
         self.core = Core()
+        Core.mode = 'commandline'
         self.dataDir = self.core.dataDir
         self.canceled = False
 

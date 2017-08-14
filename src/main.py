@@ -35,11 +35,11 @@ def main():
         log.debug("Finished creating command object")
 
     elif mode == 'GUI':
-        from mainwindow import MainWindow
+        from gui.mainwindow import MainWindow
         import atexit
         import signal
 
-        window = uic.loadUi(os.path.join(wd, "mainwindow.ui"))
+        window = uic.loadUi(os.path.join(wd, "gui", "mainwindow.ui"))
         # window.adjustSize()
         desc = QtWidgets.QDesktopWidget()
         dpi = desc.physicalDpiX()

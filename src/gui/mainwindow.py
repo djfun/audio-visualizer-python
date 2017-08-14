@@ -16,9 +16,10 @@ import time
 import logging
 
 from core import Core
-import preview_thread
-from preview_win import PreviewWindow
-from presetmanager import PresetManager
+import gui.preview_thread as preview_thread
+from gui.preview_win import PreviewWindow
+from gui.presetmanager import PresetManager
+from gui.actions import *
 from toolkit import disableWhenEncoding, disableWhenOpeningProject, checkOutput
 
 
@@ -43,8 +44,11 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QMainWindow.__init__(self)
         self.window = window
         self.core = Core()
+        Core.mode = 'GUI'
         log.debug(
             'Main thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
+
+        self.undoStack = QtWidgets.QUndoStack(self)
 
         # widgets of component settings
         self.pages = []
@@ -62,7 +66,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.presetManager = PresetManager(
             uic.loadUi(
-                os.path.join(Core.wd, 'presetmanager.ui')), self)
+                os.path.join(Core.wd, 'gui', 'presetmanager.ui')), self)
 
         # Create the preview window and its thread, queues, and timers
         log.debug('Creating preview window')
@@ -298,6 +302,9 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
         QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
         QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
+        QtWidgets.QShortcut("Ctrl+Z", self.window, self.undoStack.undo)
+        QtWidgets.QShortcut("Ctrl+Y", self.window, self.undoStack.redo)
+        QtWidgets.QShortcut("Ctrl+Shift+Z", self.window, self.undoStack.redo)
 
         # Hotkeys for component list
         for inskey in ("Ctrl+T", QtCore.Qt.Key_Insert):
@@ -685,15 +692,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def removeComponent(self):
         componentList = self.window.listWidget_componentList
-
-        for selected in componentList.selectedItems():
-            index = componentList.row(selected)
-            self.window.stackedWidget.removeWidget(self.pages[index])
-            componentList.takeItem(index)
-            self.core.removeComponent(index)
-            self.pages.pop(index)
-            self.changeComponentWidget()
-        self.drawPreview()
+        selected = componentList.selectedItems()
+        if selected:
+            action = RemoveComponent(self, selected)
+            self.undoStack.push(action)
 
     @disableWhenEncoding
     def moveComponent(self, change):
