@@ -42,13 +42,22 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, window, project):
         QtWidgets.QMainWindow.__init__(self)
+        log.debug(
+            'Main thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
         self.window = window
         self.core = Core()
         Core.mode = 'GUI'
-        log.debug(
-            'Main thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
 
+        # Find settings created by Core object
+        self.dataDir = Core.dataDir
+        self.presetDir = Core.presetDir
+        self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
+        self.settings = Core.settings
+
+        # Create stack of undoable user actions
         self.undoStack = QtWidgets.QUndoStack(self)
+        undoLimit = self.settings.value("pref_undoLimit")
+        self.undoStack.setUndoLimit(undoLimit)
 
         # widgets of component settings
         self.pages = []
@@ -57,12 +66,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autosaveTimes = []
         self.autosaveCooldown = 0.2
         self.encoding = False
-
-        # Find settings created by Core object
-        self.dataDir = Core.dataDir
-        self.presetDir = Core.presetDir
-        self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
-        self.settings = Core.settings
 
         self.presetManager = PresetManager(
             uic.loadUi(
@@ -302,6 +305,7 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
         QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
         QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
+
         QtWidgets.QShortcut("Ctrl+Z", self.window, self.undoStack.undo)
         QtWidgets.QShortcut("Ctrl+Y", self.window, self.undoStack.redo)
         QtWidgets.QShortcut("Ctrl+Shift+Z", self.window, self.undoStack.redo)
@@ -352,6 +356,9 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         QtWidgets.QShortcut(
             "Ctrl+Alt+Shift+F", self.window, self.showFfmpegCommand
+        )
+        QtWidgets.QShortcut(
+            "Ctrl+Alt+Shift+U", self.window, self.showUndoStack
         )
 
     @QtCore.pyqtSlot()
@@ -658,6 +665,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
 
+    def showUndoStack(self):
+        dialog = QtWidgets.QDialog(self.window)
+        undoView = QtWidgets.QUndoView(self.undoStack)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(undoView)
+        dialog.setLayout(layout)
+        dialog.show()
+
     def showFfmpegCommand(self):
         from textwrap import wrap
         from toolkit.ffmpeg import createFfmpegCommand
@@ -784,6 +799,7 @@ class MainWindow(QtWidgets.QMainWindow):
             field.blockSignals(False)
         self.progressBarUpdated(0)
         self.progressBarSetText('')
+        self.undoStack.clear()
 
     @disableWhenEncoding
     def createNewProject(self, prompt=True):
@@ -847,7 +863,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def openProject(self, filepath, prompt=True):
         if not filepath or not os.path.exists(filepath) \
-          or not filepath.endswith('.avp'):
+                or not filepath.endswith('.avp'):
             return
 
         self.clear()

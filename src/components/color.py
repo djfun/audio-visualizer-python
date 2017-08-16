@@ -17,9 +17,6 @@ class Component(Component):
         self.y = 0
         super().widget(*args)
 
-        self.page.lineEdit_color1.setText('0,0,0')
-        self.page.lineEdit_color2.setText('133,133,133')
-
         # disable color #2 until non-default 'fill' option gets changed
         self.page.lineEdit_color2.setDisabled(True)
         self.page.pushButton_color2.setDisabled(True)

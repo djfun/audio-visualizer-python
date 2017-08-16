@@ -12,7 +12,7 @@ import logging
 
 from toolkit.frame import BlankFrame
 from toolkit import (
-    getWidgetValue, setWidgetValue, connectWidget, rgbFromString
+    getWidgetValue, setWidgetValue, connectWidget, rgbFromString, blockSignals
 )
 
 
@@ -305,14 +305,46 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def update(self):
         '''
-            Reads all tracked widget values into instance attributes
-            and tells the MainWindow that the component was modified.
-            Call super() at the END if you need to subclass this.
+            A component update triggered by the user changing a widget value
+            Call super() at the END when subclassing this.
         '''
-        for attr, widget in self._trackedWidgets.items():
+        oldWidgetVals = {
+            attr: getattr(self, attr)
+            for attr in self._trackedWidgets
+        }
+        newWidgetVals = {
+            attr: getWidgetValue(widget)
+            if attr not in self._colorWidgets else rgbFromString(widget.text())
+            for attr, widget in self._trackedWidgets.items()
+        }
+        if any([val != oldWidgetVals[attr]
+                for attr, val in newWidgetVals.items()
+                ]):
+            action = ComponentUpdate(self, oldWidgetVals, newWidgetVals)
+            self.parent.undoStack.push(action)
+
+    def _update(self):
+        '''An internal component update that is not undoable'''
+
+        newWidgetVals = {
+            attr: getWidgetValue(widget)
+            for attr, widget in self._trackedWidgets.items()
+        }
+        self.setAttrs(newWidgetVals)
+        self.sendUpdateSignal()
+
+    def setAttrs(self, attrDict):
+        '''
+            Sets attrs (linked to trackedWidgets) in this preset to
+            the values in the attrDict. Mutates certain widget values if needed
+        '''
+        for attr, val in attrDict.items():
             if attr in self._colorWidgets:
                 # Color Widgets: text stored as tuple & update the button color
-                rgbTuple = rgbFromString(widget.text())
+                if type(val) is tuple:
+                    rgbTuple = val
+                else:
+                    rgbTuple = rgbFromString(val)
                 btnStyle = (
                     "QPushButton { background-color : %s; outline: none; }"
                     % QColor(*rgbTuple).name())
@@ -322,12 +354,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             elif attr in self._relativeWidgets:
                 # Relative widgets: number scales to fit export resolution
                 self.updateRelativeWidget(attr)
-                setattr(self, attr, self._trackedWidgets[attr].value())
+                setattr(self, attr, val)
 
             else:
                 # Normal tracked widget
-                setattr(self, attr, getWidgetValue(widget))
-        self.sendUpdateSignal()
+                setattr(self, attr, val)
 
     def sendUpdateSignal(self):
         if not self.core.openingProject:
@@ -541,7 +572,6 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         pixelVal = self.pixelValForAttr(attr, floatVal)
         self._trackedWidgets[attr].setValue(pixelVal)
 
-
     def updateRelativeWidget(self, attr):
         try:
             oldUserValue = getattr(self, attr)
@@ -628,3 +658,30 @@ class ComponentError(RuntimeError):
         super().__init__(string)
         caller.lockError(string)
         caller._error.emit(string, detail)
+
+
+class ComponentUpdate(QtWidgets.QUndoCommand):
+    '''Command object for making a component action undoable'''
+    def __init__(self, parent, oldWidgetVals, newWidgetVals):
+        super().__init__(
+            'Changed %s component #%s' % (
+                parent.name, parent.compPos
+            )
+        )
+        self.parent = parent
+        self.oldWidgetVals = oldWidgetVals
+        self.newWidgetVals = newWidgetVals
+
+    def redo(self):
+        self.parent.setAttrs(self.newWidgetVals)
+        self.parent.sendUpdateSignal()
+
+    def undo(self):
+        self.parent.setAttrs(self.oldWidgetVals)
+        with blockSignals(self.parent):
+            for attr, widget in self.parent._trackedWidgets.items():
+                val = self.oldWidgetVals[attr]
+                if attr in self.parent._colorWidgets:
+                    val = '%s,%s,%s' % val
+                setWidgetValue(widget, val)
+        self.parent.sendUpdateSignal()

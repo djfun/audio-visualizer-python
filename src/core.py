@@ -94,12 +94,11 @@ class Core:
             compPos,
             component
         )
-        self.componentListChanged()
-        if moduleIndex > -1:
-            self.updateComponent(compPos)
-
         if hasattr(loader, 'insertComponent'):
             loader.insertComponent(compPos)
+
+        self.componentListChanged()
+        self.updateComponent(compPos)
         return compPos
 
     def moveComponent(self, startI, endI):
@@ -119,7 +118,7 @@ class Core:
 
     def updateComponent(self, i):
         log.debug('Updating %s #%s' % (self.selectedComponents[i], str(i)))
-        self.selectedComponents[i].update()
+        self.selectedComponents[i]._update()
 
     def moduleIndexFor(self, compName):
         try:
@@ -540,6 +539,7 @@ class Core:
             "projectDir": os.path.join(cls.dataDir, 'projects'),
             "pref_insertCompAtTop": True,
             "pref_genericPreview": True,
+            "pref_undoLimit": 10,
         }
 
         for parm, value in cls.defaultSettings.items():
@@ -552,8 +552,14 @@ class Core:
             if not key.startswith('pref_'):
                 continue
             val = cls.settings.value(key)
-            if val in ('true', 'false'):
-                cls.settings.setValue(key, True if val == 'true' else False)
+            try:
+                val = int(val)
+            except ValueError:
+                if val == 'true':
+                    val = True
+                elif val == 'false':
+                    val = False
+            cls.settings.setValue(key, val)
 
     @staticmethod
     def makeLogger():

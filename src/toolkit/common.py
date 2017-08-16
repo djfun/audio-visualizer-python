@@ -9,6 +9,18 @@ import subprocess
 from collections import OrderedDict
 
 
+class blockSignals:
+    '''A context manager to temporarily block a Qt widget from updating'''
+    def __init__(self, widget):
+        self.widget = widget
+
+    def __enter__(self):
+        self.widget.blockSignals(True)
+
+    def __exit__(self, *args):
+        self.widget.blockSignals(False)
+
+
 def badName(name):
     '''Returns whether a name contains non-alphanumeric chars'''
     return any([letter in string.punctuation for letter in name])

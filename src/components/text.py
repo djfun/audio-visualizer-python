@@ -13,8 +13,6 @@ class Component(Component):
 
     def widget(self, *args):
         super().widget(*args)
-        self.textColor = (255, 255, 255)
-        self.strokeColor = (0, 0, 0)
         self.title = 'Text'
         self.alignment = 1
         self.titleFont = QFont()
@@ -25,8 +23,6 @@ class Component(Component):
         self.page.comboBox_textAlign.addItem("Right")
         self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
 
-        self.page.lineEdit_textColor.setText('%s,%s,%s' % self.textColor)
-        self.page.lineEdit_strokeColor.setText('%s,%s,%s' % self.strokeColor)
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
         self.page.lineEdit_title.setText(self.title)
 

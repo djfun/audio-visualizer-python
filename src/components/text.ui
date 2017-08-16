@@ -427,6 +427,9 @@
          <property name="focusPolicy">
           <enum>Qt::NoFocus</enum>
          </property>
+         <property name="text">
+          <string>255,255,255</string>
+         </property>
         </widget>
        </item>
        <item>
@@ -484,6 +487,9 @@
          </property>
          <property name="focusPolicy">
           <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="text">
+          <string>0,0,0</string>
          </property>
         </widget>
        </item>
