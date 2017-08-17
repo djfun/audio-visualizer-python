@@ -716,27 +716,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def moveComponent(self, change):
         '''Moves a component relatively from its current position'''
         componentList = self.window.listWidget_componentList
+        tag = change
         if change == 'top':
             change = -componentList.currentRow()
         elif change == 'bottom':
             change = len(componentList)-componentList.currentRow()-1
-        stackedWidget = self.window.stackedWidget
+        else:
+            tag = 'down' if change == 1 else 'up'
 
         row = componentList.currentRow()
         newRow = row + change
         if newRow > -1 and newRow < componentList.count():
-            self.core.moveComponent(row, newRow)
-
-            # update widgets
-            page = self.pages.pop(row)
-            self.pages.insert(newRow, page)
-            item = componentList.takeItem(row)
-            newItem = componentList.insertItem(newRow, item)
-            widget = stackedWidget.removeWidget(page)
-            stackedWidget.insertWidget(newRow, page)
-            componentList.setCurrentRow(newRow)
-            stackedWidget.setCurrentIndex(newRow)
-            self.drawPreview(True)
+            action = MoveComponent(self, row, newRow, tag)
+            self.undoStack.push(action)
 
     def getComponentListMousePos(self, position):
         '''

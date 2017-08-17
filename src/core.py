@@ -73,6 +73,7 @@ class Core:
             compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
             return None
+
         if type(component) is int:
             # create component using module index in self.modules
             moduleIndex = int(component)

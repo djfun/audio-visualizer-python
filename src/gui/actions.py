@@ -35,3 +35,42 @@ class RemoveComponent(QUndoCommand):
             )
         self.parent.drawPreview()
 
+
+class MoveComponent(QUndoCommand):
+    def __init__(self, parent, row, newRow, tag):
+        super().__init__("Move component %s" % tag)
+        self.parent = parent
+        self.row = row
+        self.newRow = newRow
+        self.id_ = ord(tag[0])
+
+    def id(self):
+        '''If 2 consecutive updates have same id, Qt will call mergeWith()'''
+        return self.id_
+
+    def mergeWith(self, other):
+        self.newRow = other.newRow
+        return True
+
+    def do(self, rowa, rowb):
+        componentList = self.parent.window.listWidget_componentList
+
+        page = self.parent.pages.pop(rowa)
+        self.parent.pages.insert(rowb, page)
+
+        item = componentList.takeItem(rowa)
+        componentList.insertItem(rowb, item)
+
+        stackedWidget = self.parent.window.stackedWidget
+        widget = stackedWidget.removeWidget(page)
+        stackedWidget.insertWidget(rowb, page)
+        componentList.setCurrentRow(rowb)
+        stackedWidget.setCurrentIndex(rowb)
+        self.parent.core.moveComponent(rowa, rowb)
+        self.parent.drawPreview(True)
+
+    def redo(self):
+        self.do(self.row, self.newRow)
+
+    def undo(self):
+        self.do(self.newRow, self.row)
