@@ -317,10 +317,14 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             if attr not in self._colorWidgets else rgbFromString(widget.text())
             for attr, widget in self._trackedWidgets.items()
         }
-        if any([val != oldWidgetVals[attr]
-                for attr, val in newWidgetVals.items()
-                ]):
-            action = ComponentUpdate(self, oldWidgetVals, newWidgetVals)
+        modifiedWidgets = {
+            attr: val
+            for attr, val in newWidgetVals.items()
+            if val != oldWidgetVals[attr]
+        }
+
+        if modifiedWidgets:
+            action = ComponentUpdate(self, oldWidgetVals, modifiedWidgets)
             self.parent.undoStack.push(action)
 
     def _update(self):
@@ -662,25 +666,55 @@ class ComponentError(RuntimeError):
 
 class ComponentUpdate(QtWidgets.QUndoCommand):
     '''Command object for making a component action undoable'''
-    def __init__(self, parent, oldWidgetVals, newWidgetVals):
+    def __init__(self, parent, oldWidgetVals, modifiedVals):
         super().__init__(
             'Changed %s component #%s' % (
                 parent.name, parent.compPos
             )
         )
         self.parent = parent
-        self.oldWidgetVals = oldWidgetVals
-        self.newWidgetVals = newWidgetVals
+        self.oldWidgetVals = {
+            attr: val
+            for attr, val in oldWidgetVals.items()
+            if attr in modifiedVals
+        }
+        self.modifiedVals = modifiedVals
+
+        # Determine if this update is mergeable
+        self.id_ = -1
+        if len(self.modifiedVals) == 1:
+            attr, val = self.modifiedVals.popitem()
+            widget = self.parent._trackedWidgets[attr]
+            if type(widget) is QtWidgets.QLineEdit:
+                self.id_ = 10
+            elif type(widget) is QtWidgets.QSpinBox \
+                    or type(widget) is QtWidgets.QDoubleSpinBox:
+                self.id_ = 20
+            self.modifiedVals[attr] = val
+        else:
+            log.warning(
+                '%s component settings changed at once. (%s)' % (
+                    len(self.modifiedVals), repr(self.modifiedVals)
+                )
+            )
+
+    def id(self):
+        '''If 2 consecutive updates have same id, Qt will call mergeWith()'''
+        return self.id_
+
+    def mergeWith(self, other):
+        self.modifiedVals.update(other.modifiedVals)
+        return True
 
     def redo(self):
-        self.parent.setAttrs(self.newWidgetVals)
+        self.parent.setAttrs(self.modifiedVals)
         self.parent.sendUpdateSignal()
 
     def undo(self):
         self.parent.setAttrs(self.oldWidgetVals)
         with blockSignals(self.parent):
-            for attr, widget in self.parent._trackedWidgets.items():
-                val = self.oldWidgetVals[attr]
+            for attr, val in self.oldWidgetVals.items():
+                widget = self.parent._trackedWidgets[attr]
                 if attr in self.parent._colorWidgets:
                     val = '%s,%s,%s' % val
                 setWidgetValue(widget, val)
