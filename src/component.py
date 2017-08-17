@@ -684,12 +684,7 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
         self.id_ = -1
         if len(self.modifiedVals) == 1:
             attr, val = self.modifiedVals.popitem()
-            widget = self.parent._trackedWidgets[attr]
-            if type(widget) is QtWidgets.QLineEdit:
-                self.id_ = 10
-            elif type(widget) is QtWidgets.QSpinBox \
-                    or type(widget) is QtWidgets.QDoubleSpinBox:
-                self.id_ = 20
+            self.id_ = sum([ord(letter) for letter in attr[:14]])
             self.modifiedVals[attr] = val
         else:
             log.warning(
