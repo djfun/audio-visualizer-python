@@ -99,6 +99,23 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 return func(self)
         return errorWrapper
 
+    def presetWrapper(func):
+        '''Wraps loadPreset to handle the self.openingPreset boolean'''
+        class openingPreset:
+            def __init__(self, comp):
+                self.comp = comp
+
+            def __enter__(self):
+                self.comp.openingPreset = True
+
+            def __exit__(self, *args):
+                self.comp.openingPreset = False
+
+        def presetWrapper(self, *args):
+            with openingPreset(self):
+                return func(self, *args)
+        return presetWrapper
+
     def __new__(cls, name, parents, attrs):
         if 'ui' not in attrs:
             # Use module name as ui filename by default
@@ -111,7 +128,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
             'names',                            # Class methods
             'error', 'audio', 'properties',     # Properties
             'preFrameRender', 'previewRender',
-            'frameRender', 'command',
+            'frameRender', 'command', 'loadPreset'
         )
 
         # Auto-decorate methods
@@ -139,6 +156,9 @@ class ComponentMetaclass(type(QtCore.QObject)):
 
             if key == 'error':
                 attrs[key] = cls.errorWrapper(attrs[key])
+
+            if key == 'loadPreset':
+                attrs[key] = cls.presetWrapper(attrs[key])
 
         # Turn version string into a number
         try:
@@ -180,6 +200,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.compPos = compPos
         self.core = core
         self.currentPreset = None
+        self.openingPreset = False
 
         self._trackedWidgets = {}
         self._presetNames = {}
@@ -207,7 +228,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             preset = self.savePreset()
         except Exception as e:
             preset = '%s occurred while saving preset' % str(e)
-        return '%s\n%s\n%s' % (
+
+        return 'Component(%s, %s, Core)\n' \
+               'Name: %s v%s\n Preset: %s' % (
+            self.moduleIndex, self.compPos,
             self.__class__.name, str(self.__class__.version), preset
         )
 
@@ -308,6 +332,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             A component update triggered by the user changing a widget value
             Call super() at the END when subclassing this.
         '''
+        if self.openingPreset or not hasattr(self.parent, 'undoStack'):
+            return self._update()
+
         oldWidgetVals = {
             attr: getattr(self, attr)
             for attr in self._trackedWidgets
@@ -328,7 +355,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             self.parent.undoStack.push(action)
 
     def _update(self):
-        '''An internal component update that is not undoable'''
+        '''A component update that is not undoable'''
 
         newWidgetVals = {
             attr: getWidgetValue(widget)
@@ -684,7 +711,7 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
         self.id_ = -1
         if len(self.modifiedVals) == 1:
             attr, val = self.modifiedVals.popitem()
-            self.id_ = sum([ord(letter) for letter in attr[:14]])
+            self.id_ = sum([ord(letter) for letter in attr[-14:]])
             self.modifiedVals[attr] = val
         else:
             log.warning(

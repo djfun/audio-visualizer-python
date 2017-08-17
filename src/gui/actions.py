@@ -4,6 +4,23 @@
 from PyQt5.QtWidgets import QUndoCommand
 
 
+class AddComponent(QUndoCommand):
+    def __init__(self, parent, compI, moduleI):
+        super().__init__(
+            "New %s component" %
+            parent.core.modules[moduleI].Component.name
+        )
+        self.parent = parent
+        self.moduleI = moduleI
+        self.compI = compI
+
+    def redo(self):
+        self.parent.core.insertComponent(self.compI, self.moduleI, self.parent)
+
+    def undo(self):
+        self.parent._removeComponent(self.compI)
+
+
 class RemoveComponent(QUndoCommand):
     def __init__(self, parent, selectedRows):
         super().__init__('Remove component')
@@ -17,15 +34,7 @@ class RemoveComponent(QUndoCommand):
         ]
 
     def redo(self):
-        stackedWidget = self.parent.window.stackedWidget
-        componentList = self.parent.window.listWidget_componentList
-        for index in self.selectedRows:
-            stackedWidget.removeWidget(self.parent.pages[index])
-            componentList.takeItem(index)
-            self.parent.core.removeComponent(index)
-            self.parent.pages.pop(index)
-            self.parent.changeComponentWidget()
-        self.parent.drawPreview()
+        self.parent._removeComponent(self.selectedRows[0])
 
     def undo(self):
         componentList = self.parent.window.listWidget_componentList
@@ -74,3 +83,21 @@ class MoveComponent(QUndoCommand):
 
     def undo(self):
         self.do(self.newRow, self.row)
+
+
+class ClearPreset(QUndoCommand):
+    def __init__(self, parent, compI):
+        super().__init__("Clear preset")
+        self.parent = parent
+        self.compI = compI
+        self.component = self.parent.core.selectedComponents[compI]
+        self.store = self.component.savePreset()
+        self.store['preset'] = self.component.currentPreset
+
+    def redo(self):
+        self.parent.core.clearPreset(self.compI)
+        self.parent.updateComponentTitle(self.compI, False)
+
+    def undo(self):
+        self.parent.core.selectedComponents[self.compI].loadPreset(self.store)
+        self.parent.updateComponentTitle(self.compI, self.store)

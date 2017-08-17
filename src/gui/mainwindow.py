@@ -20,7 +20,9 @@ import gui.preview_thread as preview_thread
 from gui.preview_win import PreviewWindow
 from gui.presetmanager import PresetManager
 from gui.actions import *
-from toolkit import disableWhenEncoding, disableWhenOpeningProject, checkOutput
+from toolkit import (
+    disableWhenEncoding, disableWhenOpeningProject, checkOutput, blockSignals
+)
 
 
 log = logging.getLogger('AVP.MainWindow')
@@ -165,7 +167,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.name)
             action.triggered.connect(
-                lambda _, item=i: self.core.insertComponent(0, item, self)
+                lambda _, item=i: self.addComponent(0, item)
             )
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
@@ -686,7 +688,13 @@ class MainWindow(QtWidgets.QMainWindow):
             msg="Current FFmpeg command:\n\n %s" % " ".join(lines)
         )
 
+    def addComponent(self, compPos, moduleIndex):
+        '''Creates an undoable action that adds a new component.'''
+        action = AddComponent(self, compPos, moduleIndex)
+        self.undoStack.push(action)
+
     def insertComponent(self, index):
+        '''Triggered by Core to finish initializing a new component.'''
         componentList = self.window.listWidget_componentList
         stackedWidget = self.window.stackedWidget
 
@@ -711,6 +719,16 @@ class MainWindow(QtWidgets.QMainWindow):
         if selected:
             action = RemoveComponent(self, selected)
             self.undoStack.push(action)
+
+    def _removeComponent(self, index):
+        stackedWidget = self.window.stackedWidget
+        componentList = self.window.listWidget_componentList
+        stackedWidget.removeWidget(self.pages[index])
+        componentList.takeItem(index)
+        self.core.removeComponent(index)
+        self.pages.pop(index)
+        self.changeComponentWidget()
+        self.drawPreview()
 
     @disableWhenEncoding
     def moveComponent(self, change):
@@ -786,9 +804,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.window.lineEdit_audioFile,
                 self.window.lineEdit_outputFile
                 ):
-            field.blockSignals(True)
-            field.setText('')
-            field.blockSignals(False)
+            with blockSignals(field):
+                field.setText('')
         self.progressBarUpdated(0)
         self.progressBarSetText('')
         self.undoStack.clear()
@@ -938,8 +955,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for i, comp in enumerate(self.core.modules):
             menuItem = self.submenu.addAction(comp.Component.name)
             menuItem.triggered.connect(
-                lambda _, item=i: self.core.insertComponent(
-                    0 if insertCompAtTop else index, item, self
+                lambda _, item=i: self.addComponent(
+                    0 if insertCompAtTop else index, item
                 )
             )
 
