@@ -99,7 +99,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 return func(self)
         return errorWrapper
 
-    def presetWrapper(func):
+    def loadPresetWrapper(func):
         '''Wraps loadPreset to handle the self.openingPreset boolean'''
         class openingPreset:
             def __init__(self, comp):
@@ -116,6 +116,36 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 return func(self, *args)
         return presetWrapper
 
+    def updateWrapper(func):
+        '''
+            For undoable updates triggered by the user,
+            call _userUpdate() after the subclass's update() method.
+            For non-user updates, call _autoUpdate()
+        '''
+        class wrap:
+            def __init__(self, comp, auto):
+                self.comp = comp
+                self.auto = auto
+
+            def __enter__(self):
+                pass
+
+            def __exit__(self, *args):
+                if self.auto or self.comp.openingPreset \
+                        or not hasattr(self.comp.parent, 'undoStack'):
+                    self.comp._autoUpdate()
+                else:
+                    self.comp._userUpdate()
+
+        def updateWrapper(self, **kwargs):
+            auto = False
+            if 'auto' in kwargs:
+                auto = kwargs['auto']
+
+            with wrap(self, auto):
+                return func(self)
+        return updateWrapper
+
     def __new__(cls, name, parents, attrs):
         if 'ui' not in attrs:
             # Use module name as ui filename by default
@@ -128,37 +158,32 @@ class ComponentMetaclass(type(QtCore.QObject)):
             'names',                            # Class methods
             'error', 'audio', 'properties',     # Properties
             'preFrameRender', 'previewRender',
-            'frameRender', 'command', 'loadPreset'
+            'frameRender', 'command',
+            'loadPreset', 'update'
         )
 
         # Auto-decorate methods
         for key in decorate:
             if key not in attrs:
                 continue
-
             if key in ('names'):
                 attrs[key] = classmethod(attrs[key])
-
-            if key in ('audio'):
+            elif key in ('audio'):
                 attrs[key] = property(attrs[key])
-
-            if key == 'command':
+            elif key == 'command':
                 attrs[key] = cls.commandWrapper(attrs[key])
-
-            if key in ('previewRender', 'frameRender'):
+            elif key in ('previewRender', 'frameRender'):
                 attrs[key] = cls.renderWrapper(attrs[key])
-
-            if key == 'preFrameRender':
+            elif key == 'preFrameRender':
                 attrs[key] = cls.initializationWrapper(attrs[key])
-
-            if key == 'properties':
+            elif key == 'properties':
                 attrs[key] = cls.propertiesWrapper(attrs[key])
-
-            if key == 'error':
+            elif key == 'error':
                 attrs[key] = cls.errorWrapper(attrs[key])
-
-            if key == 'loadPreset':
-                attrs[key] = cls.presetWrapper(attrs[key])
+            elif key == 'loadPreset':
+                attrs[key] = cls.loadPresetWrapper(attrs[key])
+            elif key == 'update':
+                attrs[key] = cls.updateWrapper(attrs[key])
 
         # Turn version string into a number
         try:
@@ -229,10 +254,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         except Exception as e:
             preset = '%s occurred while saving preset' % str(e)
 
-        return 'Component(%s, %s, Core)\n' \
-               'Name: %s v%s\n Preset: %s' % (
-            self.moduleIndex, self.compPos,
-            self.__class__.name, str(self.__class__.version), preset
+        return (
+            'Component(%s, %s, Core)\n'
+            'Name: %s v%s\n Preset: %s' % (
+                self.moduleIndex, self.compPos,
+                self.__class__.name, str(self.__class__.version), preset
+            )
         )
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -329,74 +356,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def update(self):
         '''
-            A component update triggered by the user changing a widget value
-            Call super() at the END when subclassing this.
+            Starting point for a component update. A subclass should override
+            this method, and the base class will then magically insert a call
+            to either _autoUpdate() or _userUpdate() at the end.
         '''
-        if self.openingPreset or not hasattr(self.parent, 'undoStack'):
-            return self._update()
-
-        oldWidgetVals = {
-            attr: getattr(self, attr)
-            for attr in self._trackedWidgets
-        }
-        newWidgetVals = {
-            attr: getWidgetValue(widget)
-            if attr not in self._colorWidgets else rgbFromString(widget.text())
-            for attr, widget in self._trackedWidgets.items()
-        }
-        modifiedWidgets = {
-            attr: val
-            for attr, val in newWidgetVals.items()
-            if val != oldWidgetVals[attr]
-        }
-
-        if modifiedWidgets:
-            action = ComponentUpdate(self, oldWidgetVals, modifiedWidgets)
-            self.parent.undoStack.push(action)
-
-    def _update(self):
-        '''A component update that is not undoable'''
-
-        newWidgetVals = {
-            attr: getWidgetValue(widget)
-            for attr, widget in self._trackedWidgets.items()
-        }
-        self.setAttrs(newWidgetVals)
-        self.sendUpdateSignal()
-
-    def setAttrs(self, attrDict):
-        '''
-            Sets attrs (linked to trackedWidgets) in this preset to
-            the values in the attrDict. Mutates certain widget values if needed
-        '''
-        for attr, val in attrDict.items():
-            if attr in self._colorWidgets:
-                # Color Widgets: text stored as tuple & update the button color
-                if type(val) is tuple:
-                    rgbTuple = val
-                else:
-                    rgbTuple = rgbFromString(val)
-                btnStyle = (
-                    "QPushButton { background-color : %s; outline: none; }"
-                    % QColor(*rgbTuple).name())
-                self._colorWidgets[attr].setStyleSheet(btnStyle)
-                setattr(self, attr, rgbTuple)
-
-            elif attr in self._relativeWidgets:
-                # Relative widgets: number scales to fit export resolution
-                self.updateRelativeWidget(attr)
-                setattr(self, attr, val)
-
-            else:
-                # Normal tracked widget
-                setattr(self, attr, val)
-
-    def sendUpdateSignal(self):
-        if not self.core.openingProject:
-            self.parent.drawPreview()
-            saveValueStore = self.savePreset()
-            saveValueStore['preset'] = self.currentPreset
-            self.modified.emit(self.compPos, saveValueStore)
 
     def loadPreset(self, presetDict, presetName=None):
         '''
@@ -464,6 +427,69 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # "Private" Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    def _userUpdate(self):
+        '''An undoable component update triggered by the user'''
+        oldWidgetVals = {
+            attr: getattr(self, attr)
+            for attr in self._trackedWidgets
+        }
+        newWidgetVals = {
+            attr: getWidgetValue(widget)
+            if attr not in self._colorWidgets else rgbFromString(widget.text())
+            for attr, widget in self._trackedWidgets.items()
+        }
+        modifiedWidgets = {
+            attr: val
+            for attr, val in newWidgetVals.items()
+            if val != oldWidgetVals[attr]
+        }
+
+        if modifiedWidgets:
+            action = ComponentUpdate(self, oldWidgetVals, modifiedWidgets)
+            self.parent.undoStack.push(action)
+
+    def _autoUpdate(self):
+        '''An internal component update that is not undoable'''
+        newWidgetVals = {
+            attr: getWidgetValue(widget)
+            for attr, widget in self._trackedWidgets.items()
+        }
+        self.setAttrs(newWidgetVals)
+        self._sendUpdateSignal()
+
+    def setAttrs(self, attrDict):
+        '''
+            Sets attrs (linked to trackedWidgets) in this preset to
+            the values in the attrDict. Mutates certain widget values if needed
+        '''
+        for attr, val in attrDict.items():
+            if attr in self._colorWidgets:
+                # Color Widgets: text stored as tuple & update the button color
+                if type(val) is tuple:
+                    rgbTuple = val
+                else:
+                    rgbTuple = rgbFromString(val)
+                btnStyle = (
+                    "QPushButton { background-color : %s; outline: none; }"
+                    % QColor(*rgbTuple).name())
+                self._colorWidgets[attr].setStyleSheet(btnStyle)
+                setattr(self, attr, rgbTuple)
+
+            elif attr in self._relativeWidgets:
+                # Relative widgets: number scales to fit export resolution
+                self.updateRelativeWidget(attr)
+                setattr(self, attr, val)
+
+            else:
+                # Normal tracked widget
+                setattr(self, attr, val)
+
+    def _sendUpdateSignal(self):
+        if not self.core.openingProject:
+            self.parent.drawPreview()
+            saveValueStore = self.savePreset()
+            saveValueStore['preset'] = self.currentPreset
+            self.modified.emit(self.compPos, saveValueStore)
 
     def trackWidgets(self, trackDict, **kwargs):
         '''
@@ -730,7 +756,7 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
 
     def redo(self):
         self.parent.setAttrs(self.modifiedVals)
-        self.parent.sendUpdateSignal()
+        self.parent._sendUpdateSignal()
 
     def undo(self):
         self.parent.setAttrs(self.oldWidgetVals)
@@ -740,4 +766,4 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
                 if attr in self.parent._colorWidgets:
                     val = '%s,%s,%s' % val
                 setWidgetValue(widget, val)
-        self.parent.sendUpdateSignal()
+        self.parent._sendUpdateSignal()

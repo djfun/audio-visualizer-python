@@ -83,6 +83,8 @@ class Core:
             )
             # init component's widget for loading/saving presets
             component.widget(loader)
+            # use autoUpdate() method before update() this 1 time to set attrs
+            component._autoUpdate()
         else:
             moduleIndex = -1
             log.debug(
@@ -118,8 +120,9 @@ class Core:
         self.componentListChanged()
 
     def updateComponent(self, i):
-        log.debug('Updating %s #%s' % (self.selectedComponents[i], str(i)))
-        self.selectedComponents[i]._update()
+        log.debug('Auto-updating %s #%s' % (
+            self.selectedComponents[i], str(i)))
+        self.selectedComponents[i].update(auto=True)
 
     def moduleIndexFor(self, compName):
         try:
