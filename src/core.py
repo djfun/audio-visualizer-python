@@ -83,7 +83,7 @@ class Core:
             )
             # init component's widget for loading/saving presets
             component.widget(loader)
-            # use autoUpdate() method before update() this 1 time to set attrs
+            # use  autoUpdate() method before update() this 1 time to set attrs
             component._autoUpdate()
         else:
             moduleIndex = -1
@@ -169,7 +169,7 @@ class Core:
 
     def getPresetDir(self, comp):
         '''Get the preset subdir for a particular version of a component'''
-        return os.path.join(Core.presetDir, str(comp), str(comp.version))
+        return os.path.join(Core.presetDir, comp.name, str(comp.version))
 
     def openProject(self, loader, filepath):
         ''' loader is the object calling this method which must have
