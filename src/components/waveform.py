@@ -98,7 +98,7 @@ class Component(Component):
             '-r', self.settings.value("outputFrameRate"),
             '-ss', "{0:.3f}".format(startPt),
             '-i',
-            os.path.join(self.core.wd, 'background.png')
+            self.core.junkStream
             if genericPreview else inputFile,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',

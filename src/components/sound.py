@@ -53,7 +53,6 @@ class Component(Component):
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_sound.setText(filename)
-            self.update()
 
     def commandHelp(self):
         print('Path to audio file:\n    path=/filepath/to/sound.ogg')

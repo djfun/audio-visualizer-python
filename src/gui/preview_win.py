@@ -7,7 +7,7 @@ class PreviewWindow(QtWidgets.QLabel):
         Paints the preview QLabel in MainWindow and maintains the aspect ratio
         when the window is resized.
     '''
-    log = logging.getLogger('AVP.PreviewWindow')
+    log = logging.getLogger('AVP.Gui.PreviewWindow')
 
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()

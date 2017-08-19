@@ -6,7 +6,7 @@ import logging
 from __init__ import wd
 
 
-log = logging.getLogger('AVP.Entrypoint')
+log = logging.getLogger('AVP.Main')
 
 
 def main():

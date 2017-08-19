@@ -53,7 +53,6 @@ class Component(Component):
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)
-            self.update()
 
     def shiftGrid(self, d):
         def newGrid(Xchange, Ychange):

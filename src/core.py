@@ -13,7 +13,7 @@ import toolkit
 
 
 log = logging.getLogger('AVP.Core')
-STDOUT_LOGLVL = logging.WARNING
+STDOUT_LOGLVL = logging.VERBOSE
 FILE_LOGLVL = logging.DEBUG
 
 
@@ -81,10 +81,7 @@ class Core:
             component = self.modules[moduleIndex].Component(
                 moduleIndex, compPos, self
             )
-            # init component's widget for loading/saving presets
             component.widget(loader)
-            # use  autoUpdate() method before update() this 1 time to set attrs
-            component._autoUpdate()
         else:
             moduleIndex = -1
             log.debug(
@@ -186,9 +183,8 @@ class Core:
                 if hasattr(loader, 'window'):
                     for widget, value in data['WindowFields']:
                         widget = eval('loader.window.%s' % widget)
-                        widget.blockSignals(True)
-                        toolkit.setWidgetValue(widget, value)
-                        widget.blockSignals(False)
+                        with toolkit.blockSignals(widget):
+                            toolkit.setWidgetValue(widget, value)
 
                 for key, value in data['Settings']:
                     Core.settings.setValue(key, value)
@@ -474,6 +470,7 @@ class Core:
             'logDir': os.path.join(dataDir, 'log'),
             'presetDir': os.path.join(dataDir, 'presets'),
             'componentsPath': os.path.join(wd, 'components'),
+            'junkStream': os.path.join(wd, 'gui', 'background.png'),
             'encoderOptions': encoderOptions,
             'resolutions': [
                 '1920x1080',

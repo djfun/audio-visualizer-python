@@ -5,10 +5,14 @@
 from PyQt5 import QtCore, QtWidgets
 import string
 import os
+import logging
 
 from toolkit import badName
 from core import Core
 from gui.actions import *
+
+
+log = logging.getLogger('AVP.Gui.PresetManager')
 
 
 class PresetManager(QtWidgets.QDialog):

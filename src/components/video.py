@@ -52,7 +52,6 @@ class Component(Component):
         else:
             self.page.label_volume.setEnabled(False)
             self.page.spinBox_volume.setEnabled(False)
-        super().update()
 
     def previewRender(self):
         self.updateChunksize()
@@ -119,7 +118,6 @@ class Component(Component):
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_video.setText(filename)
-            self.update()
 
     def getPreviewFrame(self, width, height):
         if not self.videoPath or not os.path.exists(self.videoPath):

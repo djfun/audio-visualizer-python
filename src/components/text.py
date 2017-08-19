@@ -68,7 +68,6 @@ class Component(Component):
             self.page.spinBox_shadY.setHidden(True)
             self.page.label_shadBlur.setHidden(True)
             self.page.spinBox_shadBlur.setHidden(True)
-        super().update()
 
     def centerXY(self):
         self.setRelativeWidget('xPosition', 0.5)

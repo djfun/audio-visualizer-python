@@ -20,11 +20,20 @@ class AddComponent(QUndoCommand):
         self.parent = parent
         self.moduleI = moduleI
         self.compI = compI
+        self.comp = None
 
     def redo(self):
-        self.parent.core.insertComponent(self.compI, self.moduleI, self.parent)
+        if self.comp is None:
+            self.parent.core.insertComponent(
+                self.compI, self.moduleI, self.parent)
+        else:
+            # inserting previously-created component
+            self.parent.core.insertComponent(
+                self.compI, self.comp, self.parent)
+
 
     def undo(self):
+        self.comp = self.parent.core.selectedComponents[self.compI]
         self.parent._removeComponent(self.compI)
 
 

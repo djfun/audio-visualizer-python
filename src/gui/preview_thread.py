@@ -14,7 +14,7 @@ from toolkit.frame import Checkerboard
 from toolkit import disableWhenOpeningProject
 
 
-log = logging.getLogger("AVP.PreviewThread")
+log = logging.getLogger("AVP.Gui.PreviewThread")
 
 
 class Worker(QtCore.QObject):

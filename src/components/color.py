@@ -82,8 +82,6 @@ class Component(Component):
             self.page.pushButton_color2.setEnabled(False)
         self.page.fillWidget.setCurrentIndex(fillType)
 
-        super().update()
-
     def previewRender(self):
         return self.drawFrame(self.width, self.height)
 

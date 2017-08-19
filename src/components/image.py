@@ -84,7 +84,6 @@ class Component(Component):
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
             self.page.lineEdit_image.setText(filename)
-            self.update()
 
     def command(self, arg):
         if '=' in arg:
@@ -123,4 +122,3 @@ class Component(Component):
         else:
             scaleBox.setVisible(True)
             stretchScaleBox.setVisible(False)
-        super().update()

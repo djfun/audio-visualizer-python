@@ -9,6 +9,7 @@ import sys
 import math
 import time
 import logging
+from copy import copy
 
 from toolkit.frame import BlankFrame
 from toolkit import (
@@ -113,14 +114,20 @@ class ComponentMetaclass(type(QtCore.QObject)):
 
         def presetWrapper(self, *args):
             with openingPreset(self):
-                return func(self, *args)
+                try:
+                    return func(self, *args)
+                except Exception:
+                    try:
+                        raise ComponentError(self, 'preset loader')
+                    except ComponentError:
+                        return
         return presetWrapper
 
     def updateWrapper(func):
         '''
-            For undoable updates triggered by the user,
-            call _userUpdate() after the subclass's update() method.
-            For non-user updates, call _autoUpdate()
+            Calls _preUpdate before every subclass update().
+            Afterwards, for non-user updates, calls _autoUpdate().
+            For undoable updates triggered by the user, calls _userUpdate()
         '''
         class wrap:
             def __init__(self, comp, auto):
@@ -128,23 +135,56 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 self.auto = auto
 
             def __enter__(self):
-                pass
+                self.comp._preUpdate()
 
             def __exit__(self, *args):
                 if self.auto or self.comp.openingPreset \
                         or not hasattr(self.comp.parent, 'undoStack'):
+                    log.verbose('Automatic update')
                     self.comp._autoUpdate()
                 else:
+                    log.verbose('User update')
                     self.comp._userUpdate()
 
         def updateWrapper(self, **kwargs):
-            auto = False
-            if 'auto' in kwargs:
-                auto = kwargs['auto']
-
+            auto = kwargs['auto'] if 'auto' in kwargs else False
             with wrap(self, auto):
-                return func(self)
+                try:
+                    return func(self)
+                except Exception:
+                    try:
+                        raise ComponentError(self, 'update method')
+                    except ComponentError:
+                        return
         return updateWrapper
+
+    def widgetWrapper(func):
+        '''Connects all widgets to update method after the subclass's method'''
+        class wrap:
+            def __init__(self, comp):
+                self.comp = comp
+
+            def __enter__(self):
+                pass
+
+            def __exit__(self, *args):
+                for widgetList in self.comp._allWidgets.values():
+                    for widget in widgetList:
+                        log.verbose('Connecting %s' % str(
+                            widget.__class__.__name__))
+                        connectWidget(widget, self.comp.update)
+
+        def widgetWrapper(self, *args, **kwargs):
+            auto = kwargs['auto'] if 'auto' in kwargs else False
+            with wrap(self):
+                try:
+                    return func(self, *args, **kwargs)
+                except Exception:
+                    try:
+                        raise ComponentError(self, 'widget creation')
+                    except ComponentError:
+                        return
+        return widgetWrapper
 
     def __new__(cls, name, parents, attrs):
         if 'ui' not in attrs:
@@ -153,13 +193,12 @@ class ComponentMetaclass(type(QtCore.QObject)):
                     attrs['__module__'].split('.')[-1]
                 )[0]
 
-        # if parents[0] == QtCore.QObject: else:
         decorate = (
             'names',                            # Class methods
             'error', 'audio', 'properties',     # Properties
             'preFrameRender', 'previewRender',
             'frameRender', 'command',
-            'loadPreset', 'update'
+            'loadPreset', 'update', 'widget',
         )
 
         # Auto-decorate methods
@@ -184,6 +223,8 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 attrs[key] = cls.loadPresetWrapper(attrs[key])
             elif key == 'update':
                 attrs[key] = cls.updateWrapper(attrs[key])
+            elif key == 'widget' and parents[0] != QtCore.QObject:
+                attrs[key] = cls.widgetWrapper(attrs[key])
 
         # Turn version string into a number
         try:
@@ -224,23 +265,28 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.moduleIndex = moduleIndex
         self.compPos = compPos
         self.core = core
-        self.currentPreset = None
-        self.openingPreset = False
 
+        # STATUS VARIABLES
+        self.currentPreset = None
+        self._allWidgets = {}
         self._trackedWidgets = {}
         self._presetNames = {}
         self._commandArgs = {}
         self._colorWidgets = {}
         self._colorFuncs = {}
         self._relativeWidgets = {}
-        # pixel values stored as floats
+        # Pixel values stored as floats
         self._relativeValues = {}
-        # maximum values of spinBoxes at 1080p (Core.resolutions[0])
+        # Maximum values of spinBoxes at 1080p (Core.resolutions[0])
         self._relativeMaximums = {}
 
+        # LOCKING VARIABLES
+        self.openingPreset = False
         self._lockedProperties = None
         self._lockedError = None
         self._lockedSize = None
+        # If set to a dict, values are used as basis to update relative widgets
+        self.oldAttrs = None
 
         # Stop lengthy processes in response to this variable
         self.canceled = False
@@ -338,21 +384,21 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
         self.parent = parent
         self.settings = parent.settings
+        log.verbose('Creating UI for %s #%s\'s widget' % (
+            self.name, self.compPos
+        ))
         self.page = self.loadUi(self.__class__.ui)
 
-        # Connect widget signals
-        widgets = {
+        # Find all normal widgets which will be connected after subclass method
+        self._allWidgets = {
             'lineEdit': self.page.findChildren(QtWidgets.QLineEdit),
             'checkBox': self.page.findChildren(QtWidgets.QCheckBox),
             'spinBox': self.page.findChildren(QtWidgets.QSpinBox),
             'comboBox': self.page.findChildren(QtWidgets.QComboBox),
         }
-        widgets['spinBox'].extend(
+        self._allWidgets['spinBox'].extend(
             self.page.findChildren(QtWidgets.QDoubleSpinBox)
         )
-        for widgetList in widgets.values():
-            for widget in widgetList:
-                connectWidget(widget, self.update)
 
     def update(self):
         '''
@@ -427,10 +473,15 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # "Private" Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    def _preUpdate(self):
+        '''Happens before subclass update()'''
+        for attr in self._relativeWidgets:
+            self.updateRelativeWidget(attr)
+
     def _userUpdate(self):
-        '''An undoable component update triggered by the user'''
+        '''Happens after subclass update() for an undoable update by user.'''
         oldWidgetVals = {
-            attr: getattr(self, attr)
+            attr: copy(getattr(self, attr))
             for attr in self._trackedWidgets
         }
         newWidgetVals = {
@@ -443,13 +494,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             for attr, val in newWidgetVals.items()
             if val != oldWidgetVals[attr]
         }
-
         if modifiedWidgets:
             action = ComponentUpdate(self, oldWidgetVals, modifiedWidgets)
             self.parent.undoStack.push(action)
 
     def _autoUpdate(self):
-        '''An internal component update that is not undoable'''
+        '''Happens after subclass update() for an internal component update.'''
         newWidgetVals = {
             attr: getWidgetValue(widget)
             for attr, widget in self._trackedWidgets.items()
@@ -459,12 +509,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def setAttrs(self, attrDict):
         '''
-            Sets attrs (linked to trackedWidgets) in this preset to
+            Sets attrs (linked to trackedWidgets) in this component to
             the values in the attrDict. Mutates certain widget values if needed
         '''
         for attr, val in attrDict.items():
             if attr in self._colorWidgets:
-                # Color Widgets: text stored as tuple & update the button color
+                # Color Widgets must have a tuple & have a button to update
                 if type(val) is tuple:
                     rgbTuple = val
                 else:
@@ -475,14 +525,24 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 self._colorWidgets[attr].setStyleSheet(btnStyle)
                 setattr(self, attr, rgbTuple)
 
-            elif attr in self._relativeWidgets:
-                # Relative widgets: number scales to fit export resolution
-                self.updateRelativeWidget(attr)
-                setattr(self, attr, val)
-
             else:
                 # Normal tracked widget
                 setattr(self, attr, val)
+
+    def setWidgetValues(self, attrDict):
+        '''
+            Sets widgets defined by keys in trackedWidgets in this preset to
+            the values in the attrDict.
+        '''
+        affectedWidgets = [
+            self._trackedWidgets[attr] for attr in attrDict
+        ]
+        with blockSignals(affectedWidgets):
+            for attr, val in attrDict.items():
+                widget = self._trackedWidgets[attr]
+                if attr in self._colorWidgets:
+                    val = '%s,%s,%s' % val
+                setWidgetValue(widget, val)
 
     def _sendUpdateSignal(self):
         if not self.core.openingProject:
@@ -499,6 +559,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             Optional args:
                 'presetNames': preset variable names to replace attr names
                 'commandArgs': arg keywords that differ from attr names
+                'colorWidgets': identify attr as RGB tuple & update button CSS
+                'relativeWidgets': change value proportionally to resolution
 
             NOTE: Any kwarg key set to None will selectively disable tracking.
         '''
@@ -542,6 +604,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                     self._relativeMaximums[attr] = \
                             self._trackedWidgets[attr].maximum()
                     self.updateRelativeWidgetMaximum(attr)
+        self._preUpdate()
+        self._autoUpdate()
 
     def pickColor(self, textWidget, button):
         '''Use color picker to get color input from the user.'''
@@ -627,12 +691,28 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def setRelativeWidget(self, attr, floatVal):
         '''Set a relative widget using a float'''
         pixelVal = self.pixelValForAttr(attr, floatVal)
-        self._trackedWidgets[attr].setValue(pixelVal)
+        with blockSignals(self._allWidgets):
+            self._trackedWidgets[attr].setValue(pixelVal)
+        self.update(auto=True)
+
+    def getOldAttr(self, attr):
+        '''
+            Returns previous state of this attr. Used to determine whether
+            a relative widget must be updated. Required because undoing/redoing
+            can make determining the 'previous' value tricky.
+        '''
+        if self.oldAttrs is not None:
+            log.verbose('Using nonstandard oldAttr for %s' % attr)
+            return self.oldAttrs[attr]
+        else:
+            return getattr(self, attr)
 
     def updateRelativeWidget(self, attr):
+        '''Called by _preUpdate() for each relativeWidget before each update'''
         try:
-            oldUserValue = getattr(self, attr)
-        except AttributeError:
+            oldUserValue = self.getOldAttr(attr)
+        except (AttributeError, KeyError):
+            log.info('Using visible values as basis for relative widgets')
             oldUserValue = self._trackedWidgets[attr].value()
         newUserValue = self._trackedWidgets[attr].value()
         newRelativeVal = self.floatValForAttr(attr, newUserValue)
@@ -645,11 +725,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 # means the pixel value needs to be updated
                 log.debug('Updating %s #%s\'s relative widget: %s' % (
                     self.name, self.compPos, attr))
-                self._trackedWidgets[attr].blockSignals(True)
-                self.updateRelativeWidgetMaximum(attr)
-                pixelVal = self.pixelValForAttr(attr, oldRelativeVal)
-                self._trackedWidgets[attr].setValue(pixelVal)
-                self._trackedWidgets[attr].blockSignals(False)
+                with blockSignals(self._trackedWidgets[attr]):
+                    self.updateRelativeWidgetMaximum(attr)
+                    pixelVal = self.pixelValForAttr(attr, oldRelativeVal)
+                    self._trackedWidgets[attr].setValue(pixelVal)
 
         if attr not in self._relativeValues \
                 or oldUserValue != newUserValue:
@@ -725,13 +804,21 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
                 parent.name, parent.compPos
             )
         )
+        self.undone = False
         self.parent = parent
         self.oldWidgetVals = {
-            attr: val
+            attr: copy(val)
             for attr, val in oldWidgetVals.items()
             if attr in modifiedVals
         }
         self.modifiedVals = modifiedVals
+
+        # Because relative widgets change themselves every update based on
+        # their previous value, we must store ALL their values in case of undo
+        self.redoRelativeWidgetVals = {
+            attr: copy(getattr(self.parent, attr))
+            for attr in self.parent._relativeWidgets
+        }
 
         # Determine if this update is mergeable
         self.id_ = -1
@@ -755,15 +842,26 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
         return True
 
     def redo(self):
+        if self.undone:
+            log.debug('Redoing component update')
+            self.parent.setWidgetValues(self.modifiedVals)
         self.parent.setAttrs(self.modifiedVals)
-        self.parent._sendUpdateSignal()
+        if self.undone:
+            self.parent.oldAttrs = self.redoRelativeWidgetVals
+            self.parent.update(auto=True)
+            self.parent.oldAttrs = None
+        else:
+            self.undoRelativeWidgetVals = {
+                attr: copy(getattr(self.parent, attr))
+                for attr in self.parent._relativeWidgets
+            }
+            self.parent._sendUpdateSignal()
 
     def undo(self):
+        log.debug('Undoing component update')
+        self.undone = True
+        self.parent.oldAttrs = self.undoRelativeWidgetVals
+        self.parent.setWidgetValues(self.oldWidgetVals)
         self.parent.setAttrs(self.oldWidgetVals)
-        with blockSignals(self.parent):
-            for attr, val in self.oldWidgetVals.items():
-                widget = self.parent._trackedWidgets[attr]
-                if attr in self.parent._colorWidgets:
-                    val = '%s,%s,%s' % val
-                setWidgetValue(widget, val)
-        self.parent._sendUpdateSignal()
+        self.parent.update(auto=True)
+        self.parent.oldAttrs = None

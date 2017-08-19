@@ -25,7 +25,7 @@ from toolkit import (
 )
 
 
-log = logging.getLogger('AVP.MainWindow')
+log = logging.getLogger('AVP.Gui.MainWindow')
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -76,7 +76,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Create the preview window and its thread, queues, and timers
         log.debug('Creating preview window')
         self.previewWindow = PreviewWindow(self, os.path.join(
-            Core.wd, "background.png"))
+            Core.wd, 'gui', "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
         log.debug('Starting preview thread')
