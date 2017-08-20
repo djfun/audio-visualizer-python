@@ -285,6 +285,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
         # LOCKING VARIABLES
         self.openingPreset = False
+        self.mergeUndo = True
         self._lockedProperties = None
         self._lockedError = None
         self._lockedSize = None
@@ -587,10 +588,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             if kwarg == 'colorWidgets':
                 def makeColorFunc(attr):
                     def pickColor_():
+                        self.mergeUndo = False
                         self.pickColor(
                             self._trackedWidgets[attr],
                             self._colorWidgets[attr]
                         )
+                        self.mergeUndo = True
                     return pickColor_
                 self._colorFuncs = {
                     attr: makeColorFunc(attr) for attr in kwargs[kwarg]
@@ -850,7 +853,7 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
 
         # Determine if this update is mergeable
         self.id_ = -1
-        if len(self.modifiedVals) == 1:
+        if len(self.modifiedVals) == 1 and self.parent.mergeUndo:
             attr, val = self.modifiedVals.popitem()
             self.id_ = sum([ord(letter) for letter in attr[-14:]])
             self.modifiedVals[attr] = val

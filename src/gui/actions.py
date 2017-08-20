@@ -32,7 +32,6 @@ class AddComponent(QUndoCommand):
             self.parent.core.insertComponent(
                 self.compI, self.comp, self.parent)
 
-
     def undo(self):
         self.comp = self.parent.core.selectedComponents[self.compI]
         self.parent._removeComponent(self.compI)

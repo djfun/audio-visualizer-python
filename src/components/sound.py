@@ -52,7 +52,9 @@ class Component(Component):
             "Audio Files (%s)" % " ".join(self.core.audioFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.mergeUndo = False
             self.page.lineEdit_sound.setText(filename)
+            self.mergeUndo = True
 
     def commandHelp(self):
         print('Path to audio file:\n    path=/filepath/to/sound.ogg')

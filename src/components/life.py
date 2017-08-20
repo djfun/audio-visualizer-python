@@ -35,6 +35,7 @@ class Component(Component):
             self.page.toolButton_left,
             self.page.toolButton_right,
         )
+
         def shiftFunc(i):
             def shift():
                 self.shiftGrid(i)
@@ -52,7 +53,9 @@ class Component(Component):
             "Image Files (%s)" % " ".join(self.core.imageFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.mergeUndo = False
             self.page.lineEdit_image.setText(filename)
+            self.mergeUndo = True
 
     def shiftGrid(self, d):
         def newGrid(Xchange, Ychange):
@@ -197,7 +200,7 @@ class Component(Component):
             # Circle
             if shape == 'circle':
                 drawer.ellipse(outlineShape, fill=self.color)
-                drawer.ellipse(smallerShape, fill=(0,0,0,0))
+                drawer.ellipse(smallerShape, fill=(0, 0, 0, 0))
 
             # Lilypad
             elif shape == 'lilypad':
@@ -207,9 +210,9 @@ class Component(Component):
             elif shape == 'pac-man':
                 drawer.pieslice(outlineShape, 35, 320, fill=self.color)
 
-            hX, hY = scale(50, self.pxWidth, self.pxHeight, int) # halfline
-            tX, tY = scale(33, self.pxWidth, self.pxHeight, int) # thirdline
-            qX, qY = scale(20, self.pxWidth, self.pxHeight, int) # quarterline
+            hX, hY = scale(50, self.pxWidth, self.pxHeight, int)  # halfline
+            tX, tY = scale(33, self.pxWidth, self.pxHeight, int)  # thirdline
+            qX, qY = scale(20, self.pxWidth, self.pxHeight, int)  # quarterline
 
             # Path
             if shape == 'path':
@@ -245,19 +248,19 @@ class Component(Component):
                             sect = (
                                 (drawPtX, drawPtY + hY),
                                 (drawPtX + self.pxWidth,
-                                drawPtY + self.pxHeight)
+                                    drawPtY + self.pxHeight)
                             )
                         elif direction == 'left':
                             sect = (
                                 (drawPtX, drawPtY),
                                 (drawPtX + hX,
-                                drawPtY + self.pxHeight)
+                                    drawPtY + self.pxHeight)
                             )
                         elif direction == 'right':
                             sect = (
                                 (drawPtX + hX, drawPtY),
                                 (drawPtX + self.pxWidth,
-                                drawPtY + self.pxHeight)
+                                    drawPtY + self.pxHeight)
                             )
                         drawer.rectangle(sect, fill=self.color)
 
@@ -287,20 +290,25 @@ class Component(Component):
 
             # Peace
             elif shape == 'peace':
-                line = (
-                    (drawPtX + hX - int(tenthX / 2), drawPtY + int(tenthY / 2)),
+                line = ((
+                    drawPtX + hX - int(tenthX / 2), drawPtY + int(tenthY / 2)),
                     (drawPtX + hX + int(tenthX / 2),
-                    drawPtY + self.pxHeight - int(tenthY / 2))
+                        drawPtY + self.pxHeight - int(tenthY / 2))
                 )
                 drawer.ellipse(outlineShape, fill=self.color)
-                drawer.ellipse(smallerShape, fill=(0,0,0,0))
+                drawer.ellipse(smallerShape, fill=(0, 0, 0, 0))
                 drawer.rectangle(line, fill=self.color)
-                slantLine = lambda difference: (
-                    ((drawPtX + difference),
-                        (drawPtY + self.pxHeight - qY)),
-                    ((drawPtX + hX),
-                        (drawPtY + hY)),
-                )
+
+                def slantLine(difference):
+                    return (
+                        (drawPtX + difference),
+                        (drawPtY + self.pxHeight - qY)
+                    ),
+                    (
+                        (drawPtX + hX),
+                        (drawPtY + hY)
+                    )
+
                 drawer.line(
                     slantLine(qX),
                     fill=self.color,
@@ -337,13 +345,13 @@ class Component(Component):
             for x in range(self.pxWidth, self.width, self.pxWidth):
                 drawer.rectangle(
                     ((x, 0),
-                    (x + w, self.height)),
+                        (x + w, self.height)),
                     fill=self.color,
                 )
             for y in range(self.pxHeight, self.height, self.pxHeight):
                 drawer.rectangle(
                     ((0, y),
-                    (self.width, y + h)),
+                        (self.width, y + h)),
                     fill=self.color,
                 )
 

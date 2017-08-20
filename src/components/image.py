@@ -83,7 +83,9 @@ class Component(Component):
             "Image Files (%s)" % " ".join(self.core.imageFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.mergeUndo = False
             self.page.lineEdit_image.setText(filename)
+            self.mergeUndo = True
 
     def command(self, arg):
         if '=' in arg:
