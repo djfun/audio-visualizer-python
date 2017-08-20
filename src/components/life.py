@@ -70,7 +70,7 @@ class Component(Component):
         elif d == 3:
             newGrid = newGrid(1, 0)
         self.startingGrid = newGrid
-        self.sendUpdateSignal()
+        self._sendUpdateSignal()
 
     def update(self):
         self.updateGridSize()

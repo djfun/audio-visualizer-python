@@ -40,7 +40,8 @@ class ComponentMetaclass(type(QtCore.QObject)):
     def renderWrapper(func):
         def renderWrapper(self, *args, **kwargs):
             try:
-                log.verbose('### %s #%s renders%s frame %s###',
+                log.verbose(
+                    '### %s #%s renders%s frame %s###',
                     self.__class__.name, str(self.compPos),
                     '' if args else ' a preview',
                     '' if not args else '%s ' % args[0],
@@ -289,7 +290,6 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._lockedSize = None
         # If set to a dict, values are used as basis to update relative widgets
         self.oldAttrs = None
-
         # Stop lengthy processes in response to this variable
         self.canceled = False
 
@@ -386,7 +386,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
         self.parent = parent
         self.settings = parent.settings
-        log.verbose('Creating UI for %s #%s\'s widget',
+        log.verbose(
+            'Creating UI for %s #%s\'s widget',
             self.name, self.compPos
         )
         self.page = self.loadUi(self.__class__.ui)
@@ -530,6 +531,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             else:
                 # Normal tracked widget
                 setattr(self, attr, val)
+            log.verbose('Setting %s self.%s to %s' % (self.name, attr, val))
 
     def setWidgetValues(self, attrDict):
         '''
@@ -669,11 +671,21 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def relativeWidgetAxis(func):
         def relativeWidgetAxis(self, attr, *args, **kwargs):
+            hasVerticalWords = (
+                lambda attr:
+                'height' in attr.lower() or
+                'ypos' in attr.lower() or
+                attr == 'y'
+            )
             if 'axis' not in kwargs:
                 axis = self.width
-                if 'height' in attr.lower() \
-                        or 'ypos' in attr.lower() or attr == 'y':
+                if hasVerticalWords(attr):
                     axis = self.height
+                kwargs['axis'] = axis
+            if 'axis' in kwargs and type(kwargs['axis']) is tuple:
+                axis = kwargs['axis'][0]
+                if hasVerticalWords(attr):
+                    axis = kwargs['axis'][1]
                 kwargs['axis'] = axis
             return func(self, attr, *args, **kwargs)
         return relativeWidgetAxis
@@ -682,7 +694,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def pixelValForAttr(self, attr, val=None, **kwargs):
         if val is None:
             val = self._relativeValues[attr]
-        return math.ceil(kwargs['axis'] * val)
+        result = math.ceil(kwargs['axis'] * val)
+        log.verbose(
+            'Converting %s: f%s to px%s using axis %s',
+            attr, val, result, kwargs['axis']
+        )
+        return result
 
     @relativeWidgetAxis
     def floatValForAttr(self, attr, val=None, **kwargs):
@@ -693,7 +710,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def setRelativeWidget(self, attr, floatVal):
         '''Set a relative widget using a float'''
         pixelVal = self.pixelValForAttr(attr, floatVal)
-        with blockSignals(self._allWidgets):
+        with blockSignals(self._trackedWidgets[attr]):
             self._trackedWidgets[attr].setValue(pixelVal)
         self.update(auto=True)
 
@@ -707,15 +724,15 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             log.verbose('Using nonstandard oldAttr for %s', attr)
             return self.oldAttrs[attr]
         else:
-            return getattr(self, attr)
+            try:
+                return getattr(self, attr)
+            except AttributeError:
+                log.info('Using visible values instead of attrs')
+                return self._trackedWidgets[attr].value()
 
     def updateRelativeWidget(self, attr):
         '''Called by _preUpdate() for each relativeWidget before each update'''
-        try:
-            oldUserValue = self.getOldAttr(attr)
-        except (AttributeError, KeyError):
-            log.info('Using visible values as basis for relative widgets')
-            oldUserValue = self._trackedWidgets[attr].value()
+        oldUserValue = self.getOldAttr(attr)
         newUserValue = self._trackedWidgets[attr].value()
         newRelativeVal = self.floatValForAttr(attr, newUserValue)
 
@@ -808,17 +825,25 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
             )
         )
         self.undone = False
+        self.res = (int(parent.width), int(parent.height))
         self.parent = parent
         self.oldWidgetVals = {
             attr: copy(val)
+            if attr not in self.parent._relativeWidgets
+            else self.parent.floatValForAttr(attr, val, axis=self.res)
             for attr, val in oldWidgetVals.items()
             if attr in modifiedVals
         }
-        self.modifiedVals = modifiedVals
+        self.modifiedVals = {
+            attr: val
+            if attr not in self.parent._relativeWidgets
+            else self.parent.floatValForAttr(attr, val, axis=self.res)
+            for attr, val in modifiedVals.items()
+        }
 
         # Because relative widgets change themselves every update based on
         # their previous value, we must store ALL their values in case of undo
-        self.redoRelativeWidgetVals = {
+        self.relativeWidgetValsAfterUndo = {
             attr: copy(getattr(self.parent, attr))
             for attr in self.parent._relativeWidgets
         }
@@ -843,17 +868,28 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
         self.modifiedVals.update(other.modifiedVals)
         return True
 
+    def setWidgetValues(self, attrDict):
+        '''
+            Mask the component's usual method to handle our
+            relative widgets in case the resolution has changed.
+        '''
+        newAttrDict = {
+            attr: val if attr not in self.parent._relativeWidgets
+            else self.parent.pixelValForAttr(attr, val)
+            for attr, val in attrDict.items()
+        }
+        self.parent.setWidgetValues(newAttrDict)
+
     def redo(self):
         if self.undone:
             log.debug('Redoing component update')
-            self.parent.setWidgetValues(self.modifiedVals)
-        self.parent.setAttrs(self.modifiedVals)
-        if self.undone:
-            self.parent.oldAttrs = self.redoRelativeWidgetVals
+            self.parent.oldAttrs = self.relativeWidgetValsAfterUndo
+            self.setWidgetValues(self.modifiedVals)
             self.parent.update(auto=True)
             self.parent.oldAttrs = None
         else:
-            self.undoRelativeWidgetVals = {
+            self.parent.setAttrs(self.modifiedVals)
+            self.relativeWidgetValsAfterRedo = {
                 attr: copy(getattr(self.parent, attr))
                 for attr in self.parent._relativeWidgets
             }
@@ -862,8 +898,7 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
     def undo(self):
         log.debug('Undoing component update')
         self.undone = True
-        self.parent.oldAttrs = self.undoRelativeWidgetVals
-        self.parent.setWidgetValues(self.oldWidgetVals)
-        self.parent.setAttrs(self.oldWidgetVals)
+        self.parent.oldAttrs = self.relativeWidgetValsAfterRedo
+        self.setWidgetValues(self.oldWidgetVals)
         self.parent.update(auto=True)
         self.parent.oldAttrs = None

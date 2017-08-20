@@ -84,6 +84,7 @@ def appendUppercase(lst):
         lst.append(form.upper())
     return lst
 
+
 def pipeWrapper(func):
     '''A decorator to insert proper kwargs into Popen objects.'''
     def pipeWrapper(commandList, **kwargs):

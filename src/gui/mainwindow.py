@@ -88,10 +88,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.previewWorker.imageCreated.connect(self.showPreviewImage)
         self.previewThread.start()
 
-        log.debug('Starting preview timer')
+        timeout = 500
+        log.debug(
+            'Preview timer set to trigger when idle for %sms' % str(timeout)
+        )
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.processTask.emit)
-        self.timer.start(500)
+        self.timer.start(timeout)
 
         # Begin decorating the window and connecting events
         self.window.installEventFilter(self)

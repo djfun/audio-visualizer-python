@@ -45,8 +45,6 @@ class Worker(QtCore.QObject):
 
     @pyqtSlot()
     def process(self):
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
         try:
             nextPreviewInformation = self.queue.get(block=False)
             while self.queue.qsize() >= 2:
@@ -54,12 +52,14 @@ class Worker(QtCore.QObject):
                     self.queue.get(block=False)
                 except Empty:
                     continue
+            width = int(self.settings.value('outputWidth'))
+            height = int(self.settings.value('outputHeight'))
             if self.background.width != width \
                     or self.background.height != height:
                 self.background = Checkerboard(width, height)
 
             frame = self.background.copy()
-            log.debug('Creating new preview frame')
+            log.info('Creating new preview frame')
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
