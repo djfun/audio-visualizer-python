@@ -77,7 +77,8 @@ class Core:
         if type(component) is int:
             # create component using module index in self.modules
             moduleIndex = int(component)
-            log.debug('Creating new component from module #%s' % moduleIndex)
+            log.debug(
+                'Creating new component from module #%s', str(moduleIndex))
             component = self.modules[moduleIndex].Component(
                 moduleIndex, compPos, self
             )
@@ -85,7 +86,7 @@ class Core:
         else:
             moduleIndex = -1
             log.debug(
-                'Inserting previously-created %s component' % component.name)
+                'Inserting previously-created %s component', component.name)
 
         component._error.connect(
             loader.videoThreadError
@@ -117,8 +118,9 @@ class Core:
         self.componentListChanged()
 
     def updateComponent(self, i):
-        log.debug('Auto-updating %s #%s' % (
-            self.selectedComponents[i], str(i)))
+        log.debug(
+            'Auto-updating %s #%s',
+            self.selectedComponents[i], str(i))
         self.selectedComponents[i].update(auto=True)
 
     def moduleIndexFor(self, compName):
@@ -146,9 +148,8 @@ class Core:
             )
         except KeyError as e:
             log.warning(
-                '%s #%s\'s preset is missing value: %s' % (
-                    comp.name, str(compIndex), str(e)
-                )
+                '%s #%s\'s preset is missing value: %s',
+                comp.name, str(compIndex), str(e)
             )
 
         self.savedPresets[presetName] = dict(saveValueStore)
@@ -266,7 +267,7 @@ class Core:
             Returns dictionary with section names as the keys, each one
             contains a list of tuples: (compName, version, compPresetDict)
         '''
-        log.debug('Parsing av file: %s' % filepath)
+        log.debug('Parsing av file: %s', filepath)
         validSections = (
                     'Components',
                     'Settings',
@@ -385,7 +386,7 @@ class Core:
 
     def createProjectFile(self, filepath, window=None):
         '''Create a project file (.avp) using the current program state'''
-        log.info('Creating %s' % filepath)
+        log.info('Creating %s', filepath)
         settingsKeys = [
             'componentDir',
             'inputDir',

@@ -210,7 +210,7 @@ class PresetManager(QtWidgets.QDialog):
     def _openPreset(self, presetName, index):
         selectedComponents = self.core.selectedComponents
 
-        componentName = str(selectedComponents[index]).strip()
+        componentName = selectedComponents[index].name.strip()
         version = selectedComponents[index].version
         dirname = os.path.join(self.presetDir, componentName, str(version))
         filepath = os.path.join(dirname, presetName)

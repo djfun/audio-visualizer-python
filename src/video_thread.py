@@ -179,7 +179,7 @@ class Worker(QtCore.QObject):
             for num, component in enumerate(reversed(self.components))
         ])
         print('Loaded Components:', initText)
-        log.info('Calling preFrameRender for %s' % initText)
+        log.info('Calling preFrameRender for %s', initText)
         self.staticComponents = {}
         for compNo, comp in enumerate(reversed(self.components)):
             try:
@@ -221,12 +221,13 @@ class Worker(QtCore.QObject):
 
         if self.canceled:
             if canceledByComponent:
-                log.error('Export cancelled by component #%s (%s): %s' % (
+                log.error(
+                    'Export cancelled by component #%s (%s): %s',
                     compNo,
                     comp.name,
                     'No message.' if comp.error() is None else (
                         comp.error() if type(comp.error()) is str
-                        else comp.error()[0])
+                        else comp.error()[0]
                     )
                 )
             self.cancelExport()

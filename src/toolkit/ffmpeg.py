@@ -93,7 +93,7 @@ class FfmpegVideo:
         from component import ComponentError
         logFilename = os.path.join(
             core.Core.logDir, 'render_%s.log' % str(self.component.compPos))
-        log.debug('Creating ffmpeg process (log at %s)' % logFilename)
+        log.debug('Creating ffmpeg process (log at %s)', logFilename)
         with open(logFilename, 'w') as logf:
             logf.write(" ".join(self.command) + '\n\n')
         with open(logFilename, 'a') as logf:

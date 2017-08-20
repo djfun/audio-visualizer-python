@@ -3,6 +3,7 @@
 '''
 from PyQt5.QtWidgets import QUndoCommand
 import os
+from copy import copy
 
 from core import Core
 
@@ -132,7 +133,7 @@ class OpenPreset(QUndoCommand):
 
         comp = self.parent.core.selectedComponents[compI]
         self.store = comp.savePreset()
-        self.store['preset'] = str(comp.currentPreset)
+        self.store['preset'] = copy(comp.currentPreset)
 
     def redo(self):
         self.parent._openPreset(self.presetName, self.compI)

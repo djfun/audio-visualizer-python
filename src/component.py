@@ -40,11 +40,11 @@ class ComponentMetaclass(type(QtCore.QObject)):
     def renderWrapper(func):
         def renderWrapper(self, *args, **kwargs):
             try:
-                log.verbose('### %s #%s renders%s frame %s###' % (
+                log.verbose('### %s #%s renders%s frame %s###',
                     self.__class__.name, str(self.compPos),
                     '' if args else ' a preview',
                     '' if not args else '%s ' % args[0],
-                ))
+                )
                 return func(self, *args, **kwargs)
             except Exception as e:
                 try:
@@ -170,7 +170,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
             def __exit__(self, *args):
                 for widgetList in self.comp._allWidgets.values():
                     for widget in widgetList:
-                        log.verbose('Connecting %s' % str(
+                        log.verbose('Connecting %s', str(
                             widget.__class__.__name__))
                         connectWidget(widget, self.comp.update)
 
@@ -230,16 +230,18 @@ class ComponentMetaclass(type(QtCore.QObject)):
         try:
             if 'version' not in attrs:
                 log.error(
-                    'No version attribute in %s. Defaulting to 1' %
+                    'No version attribute in %s. Defaulting to 1',
                     attrs['name'])
                 attrs['version'] = 1
             else:
                 attrs['version'] = int(attrs['version'].split('.')[0])
         except ValueError:
-            log.critical('%s component has an invalid version string:\n%s' % (
-                    attrs['name'], str(attrs['version'])))
+            log.critical(
+                '%s component has an invalid version string:\n%s',
+                attrs['name'], str(attrs['version'])
+            )
         except KeyError:
-            log.critical('%s component has no version string.' % attrs['name'])
+            log.critical('%s component has no version string.', attrs['name'])
         else:
             return super().__new__(cls, name, parents, attrs)
         quit(1)
@@ -384,9 +386,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         '''
         self.parent = parent
         self.settings = parent.settings
-        log.verbose('Creating UI for %s #%s\'s widget' % (
+        log.verbose('Creating UI for %s #%s\'s widget',
             self.name, self.compPos
-        ))
+        )
         self.page = self.loadUi(self.__class__.ui)
 
         # Find all normal widgets which will be connected after subclass method
@@ -702,7 +704,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             can make determining the 'previous' value tricky.
         '''
         if self.oldAttrs is not None:
-            log.verbose('Using nonstandard oldAttr for %s' % attr)
+            log.verbose('Using nonstandard oldAttr for %s', attr)
             return self.oldAttrs[attr]
         else:
             return getattr(self, attr)
@@ -723,8 +725,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                     and oldRelativeVal != newRelativeVal:
                 # Float changed without pixel value changing, which
                 # means the pixel value needs to be updated
-                log.debug('Updating %s #%s\'s relative widget: %s' % (
-                    self.name, self.compPos, attr))
+                log.debug(
+                    'Updating %s #%s\'s relative widget: %s',
+                    self.name, self.compPos, attr)
                 with blockSignals(self._trackedWidgets[attr]):
                     self.updateRelativeWidgetMaximum(attr)
                     pixelVal = self.pixelValForAttr(attr, oldRelativeVal)
@@ -828,9 +831,8 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
             self.modifiedVals[attr] = val
         else:
             log.warning(
-                '%s component settings changed at once. (%s)' % (
-                    len(self.modifiedVals), repr(self.modifiedVals)
-                )
+                '%s component settings changed at once. (%s)',
+                len(self.modifiedVals), repr(self.modifiedVals)
             )
 
     def id(self):

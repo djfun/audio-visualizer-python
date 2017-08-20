@@ -29,15 +29,19 @@ class blockSignals:
             )
 
     def __enter__(self):
-        log.verbose('Blocking signals for %s' % ", ".join([
-            str(w.__class__.__name__) for w in self.widgets
-        ]))
+        log.verbose(
+            'Blocking signals for %s',
+            ", ".join([
+                str(w.__class__.__name__) for w in self.widgets
+            ])
+        )
         self.oldStates = [w.signalsBlocked() for w in self.widgets]
         for w in self.widgets:
             w.blockSignals(True)
 
     def __exit__(self, *args):
-        log.verbose('Resetting blockSignals to %s' % sum(self.oldStates))
+        log.verbose(
+            'Resetting blockSignals to %s', str(bool(sum(self.oldStates))))
         for w, state in zip(self.widgets, self.oldStates):
             w.blockSignals(state)
 
@@ -153,7 +157,7 @@ def connectWidget(widget, func):
     elif type(widget) == QtWidgets.QComboBox:
         widget.currentIndexChanged.connect(func)
     else:
-        log.warning('Failed to connect %s ' % str(widget.__class__.__name__))
+        log.warning('Failed to connect %s ', str(widget.__class__.__name__))
         return False
     return True
 
@@ -171,7 +175,7 @@ def setWidgetValue(widget, val):
     elif type(widget) == QtWidgets.QComboBox:
         widget.setCurrentIndex(val)
     else:
-        log.warning('Failed to set %s ' % str(widget.__class__.__name__))
+        log.warning('Failed to set %s ', str(widget.__class__.__name__))
         return False
     return True
 

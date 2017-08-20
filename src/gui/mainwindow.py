@@ -387,30 +387,46 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(int, dict)
     def updateComponentTitle(self, pos, presetStore=False):
+        '''
+            Sets component title to modified or unmodified when given boolean.
+            If given a preset dict, compares it against the component to
+            determine if it is modified.
+            A component with no preset is always unmodified.
+        '''
         if type(presetStore) is dict:
             name = presetStore['preset']
             if name is None or name not in self.core.savedPresets:
                 modified = False
             else:
                 modified = (presetStore != self.core.savedPresets[name])
+                if modified:
+                    log.verbose(
+                        'Differing values between presets: %s',
+                        ", ".join([
+                            '%s: %s' % item for item in presetStore.items()
+                            if val != self.core.savedPresets[name][key]
+                        ])
+                    )
         else:
             modified = bool(presetStore)
         if pos < 0:
             pos = len(self.core.selectedComponents)-1
-        name = str(self.core.selectedComponents[pos])
+        name = self.core.selectedComponents[pos].name
         title = str(name)
         if self.core.selectedComponents[pos].currentPreset:
             title += ' - %s' % self.core.selectedComponents[pos].currentPreset
             if modified:
                 title += '*'
         if type(presetStore) is bool:
-            log.debug('Forcing %s #%s\'s modified status to %s: %s' % (
+            log.debug(
+                'Forcing %s #%s\'s modified status to %s: %s',
                 name, pos, modified, title
-            ))
+            )
         else:
-            log.debug('Setting %s #%s\'s title: %s' % (
+            log.debug(
+                'Setting %s #%s\'s title: %s',
                 name, pos, title
-            ))
+            )
         self.window.listWidget_componentList.item(pos).setText(title)
 
     def updateCodecs(self):
