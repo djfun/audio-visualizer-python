@@ -823,7 +823,7 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
     '''Command object for making a component action undoable'''
     def __init__(self, parent, oldWidgetVals, modifiedVals):
         super().__init__(
-            'Changed %s component #%s' % (
+            'change %s component #%s' % (
                 parent.name, parent.compPos
             )
         )

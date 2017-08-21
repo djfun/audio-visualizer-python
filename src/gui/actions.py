@@ -15,7 +15,7 @@ from core import Core
 class AddComponent(QUndoCommand):
     def __init__(self, parent, compI, moduleI):
         super().__init__(
-            "New %s component" %
+            "create new %s component" %
             parent.core.modules[moduleI].Component.name
         )
         self.parent = parent
@@ -39,7 +39,7 @@ class AddComponent(QUndoCommand):
 
 class RemoveComponent(QUndoCommand):
     def __init__(self, parent, selectedRows):
-        super().__init__('Remove component')
+        super().__init__('remove component')
         self.parent = parent
         componentList = self.parent.window.listWidget_componentList
         self.selectedRows = [
@@ -63,7 +63,7 @@ class RemoveComponent(QUndoCommand):
 
 class MoveComponent(QUndoCommand):
     def __init__(self, parent, row, newRow, tag):
-        super().__init__("Move component %s" % tag)
+        super().__init__("move component %s" % tag)
         self.parent = parent
         self.row = row
         self.newRow = newRow
@@ -107,7 +107,7 @@ class MoveComponent(QUndoCommand):
 
 class ClearPreset(QUndoCommand):
     def __init__(self, parent, compI):
-        super().__init__("Clear preset")
+        super().__init__("clear preset")
         self.parent = parent
         self.compI = compI
         self.component = self.parent.core.selectedComponents[compI]
@@ -125,7 +125,7 @@ class ClearPreset(QUndoCommand):
 
 class OpenPreset(QUndoCommand):
     def __init__(self, parent, presetName, compI):
-        super().__init__("Open %s preset" % presetName)
+        super().__init__("open %s preset" % presetName)
         self.parent = parent
         self.presetName = presetName
         self.compI = compI
@@ -145,7 +145,7 @@ class OpenPreset(QUndoCommand):
 
 class RenamePreset(QUndoCommand):
     def __init__(self, parent, path, oldName, newName):
-        super().__init__('Rename preset')
+        super().__init__('rename preset')
         self.parent = parent
         self.path = path
         self.oldName = oldName
@@ -167,7 +167,7 @@ class DeletePreset(QUndoCommand):
         )
         self.store = self.parent.core.getPreset(self.path)
         self.presetName = self.store['preset']
-        super().__init__('Delete %s preset (%s)' % (self.presetName, compName))
+        super().__init__('delete %s preset (%s)' % (self.presetName, compName))
         self.loadedPresets = [
             i for i, comp in enumerate(self.parent.core.selectedComponents)
             if self.presetName == str(comp.currentPreset)

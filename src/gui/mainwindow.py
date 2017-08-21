@@ -100,6 +100,42 @@ class MainWindow(QtWidgets.QMainWindow):
         self.window.installEventFilter(self)
         componentList = self.window.listWidget_componentList
 
+        style = window.pushButton_undo.style()
+        undoButton = window.pushButton_undo
+        undoButton.setIcon(
+            style.standardIcon(QtWidgets.QStyle.SP_FileDialogBack)
+        )
+        undoButton.clicked.connect(self.undoStack.undo)
+        undoButton.setEnabled(False)
+        self.undoStack.cleanChanged.connect(
+            lambda change: undoButton.setEnabled(self.undoStack.count())
+        )
+        self.undoMenu = QMenu()
+        self.undoMenu.addAction(
+            self.undoStack.createUndoAction(self)
+        )
+        self.undoMenu.addAction(
+            self.undoStack.createRedoAction(self)
+        )
+        action = self.undoMenu.addAction('Show History...')
+        action.triggered.connect(
+            lambda _: self.showUndoStack()
+        )
+        undoButton.setMenu(self.undoMenu)
+
+        style = window.pushButton_listMoveUp.style()
+        window.pushButton_listMoveUp.setIcon(
+            style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
+        )
+        style = window.pushButton_listMoveDown.style()
+        window.pushButton_listMoveDown.setIcon(
+            style.standardIcon(QtWidgets.QStyle.SP_ArrowDown)
+        )
+        style = window.pushButton_removeComponent.style()
+        window.pushButton_removeComponent.setIcon(
+            style.standardIcon(QtWidgets.QStyle.SP_DialogDiscardButton)
+        )
+
         if sys.platform == 'darwin':
             log.debug(
                 'Darwin detected: showing progress label below progress bar')
