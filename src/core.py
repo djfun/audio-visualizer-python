@@ -14,7 +14,7 @@ import toolkit
 
 log = logging.getLogger('AVP.Core')
 STDOUT_LOGLVL = logging.VERBOSE
-FILE_LOGLVL = logging.DEBUG
+FILE_LOGLVL = logging.VERBOSE
 
 
 class Core:
@@ -460,6 +460,9 @@ class Core:
         dataDir = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.AppConfigLocation
         )
+        # Windows: C:/Users/<USER>/AppData/Local/audio-visualizer
+        # macOS: ~/Library/Preferences/audio-visualizer
+        # Linux: ~/.config/audio-visualizer
         with open(os.path.join(wd, 'encoder-options.json')) as json_file:
             encoderOptions = json.load(json_file)
 
