@@ -390,7 +390,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.settings = parent.settings
         log.verbose(
             'Creating UI for %s #%s\'s widget',
-            self.name, self.compPos
+            self.__class__.name, self.compPos
         )
         self.page = self.loadUi(self.__class__.ui)
 
@@ -533,7 +533,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             else:
                 # Normal tracked widget
                 setattr(self, attr, val)
-            log.verbose('Setting %s self.%s to %s' % (self.name, attr, val))
+            log.verbose('Setting %s self.%s to %s' % (
+                self.__class__.name, attr, val))
 
     def setWidgetValues(self, attrDict):
         '''
@@ -698,6 +699,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def pixelValForAttr(self, attr, val=None, **kwargs):
         if val is None:
             val = self._relativeValues[attr]
+        if val > 50.0:
+            log.warning(
+                '%s #%s attempted to set %s to dangerously high number %s',
+                self.__class__.name, self.compPos, attr, val
+            )
+            val = 50.0
         result = math.ceil(kwargs['axis'] * val)
         log.verbose(
             'Converting %s: f%s to px%s using axis %s',
@@ -748,7 +755,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 # means the pixel value needs to be updated
                 log.debug(
                     'Updating %s #%s\'s relative widget: %s',
-                    self.name, self.compPos, attr)
+                    self.__class__.name, self.compPos, attr)
                 with blockSignals(self._trackedWidgets[attr]):
                     self.updateRelativeWidgetMaximum(attr)
                     pixelVal = self.pixelValForAttr(attr, oldRelativeVal)
