@@ -13,8 +13,8 @@ import toolkit
 
 
 log = logging.getLogger('AVP.Core')
-STDOUT_LOGLVL = logging.VERBOSE
-FILE_LOGLVL = logging.DEBUG
+STDOUT_LOGLVL = logging.INFO
+FILE_LOGLVL = logging.VERBOSE
 
 
 class Core:
@@ -145,17 +145,11 @@ class Core:
         saveValueStore = self.getPreset(filepath)
         if not saveValueStore:
             return False
-        try:
-            comp = self.selectedComponents[compIndex]
-            comp.loadPreset(
-                saveValueStore,
-                presetName
-            )
-        except KeyError as e:
-            log.warning(
-                '%s #%s\'s preset is missing value: %s',
-                comp.name, str(compIndex), str(e)
-            )
+        comp = self.selectedComponents[compIndex]
+        comp.loadPreset(
+            saveValueStore,
+            presetName
+        )
 
         self.savedPresets[presetName] = dict(saveValueStore)
         return True
@@ -472,11 +466,12 @@ class Core:
             encoderOptions = json.load(json_file)
 
         settings = {
+            'canceled': False,
+            'FFMPEG_BIN': findFfmpeg(),
             'dataDir': dataDir,
             'settings': QtCore.QSettings(
                             os.path.join(dataDir, 'settings.ini'),
                             QtCore.QSettings.IniFormat),
-            'logDir': os.path.join(dataDir, 'log'),
             'presetDir': os.path.join(dataDir, 'presets'),
             'componentsPath': os.path.join(wd, 'components'),
             'junkStream': os.path.join(wd, 'gui', 'background.png'),
@@ -486,8 +481,8 @@ class Core:
                 '1280x720',
                 '854x480',
             ],
-            'FFMPEG_BIN': findFfmpeg(),
-            'canceled': False,
+            'logDir': os.path.join(dataDir, 'log'),
+            'logEnabled': False,
         }
 
         settings['videoFormats'] = toolkit.appendUppercase([
@@ -572,42 +567,42 @@ class Core:
 
     @staticmethod
     def makeLogger():
-        logFilename = os.path.join(Core.logDir, 'avp_debug.log')
-        libLogFilename = os.path.join(Core.logDir, 'global_debug.log')
-        # delete old logs
-        for log in (logFilename, libLogFilename):
-            if os.path.exists(log):
-                os.remove(log)
-
-        # create file handlers to capture every log message somewhere
-        logFile = logging.FileHandler(logFilename)
-        logFile.setLevel(FILE_LOGLVL)
-        libLogFile = logging.FileHandler(libLogFilename)
-        libLogFile.setLevel(FILE_LOGLVL)
-
-        # send some critical log messages to stdout as well
+        # send critical log messages to stdout
         logStream = logging.StreamHandler()
         logStream.setLevel(STDOUT_LOGLVL)
-
-        # create formatters for each stream
-        fileFormatter = logging.Formatter(
-            '[%(asctime)s] %(threadName)-10.10s %(name)-23.23s %(levelname)s: '
-            '%(message)s'
-        )
         streamFormatter = logging.Formatter(
-            '<%(name)s> %(message)s'
+            '<%(name)s> %(levelname)s: %(message)s'
         )
-        logFile.setFormatter(fileFormatter)
-        libLogFile.setFormatter(fileFormatter)
         logStream.setFormatter(streamFormatter)
-
         log = logging.getLogger('AVP')
-        log.addHandler(logFile)
         log.addHandler(logStream)
-        libLog = logging.getLogger()
-        libLog.addHandler(libLogFile)
-        # lowest level must be explicitly set on the root Logger
-        libLog.setLevel(0)
+
+        if FILE_LOGLVL is not None:
+            # write log files as well!
+            Core.logEnabled = True
+            logFilename = os.path.join(Core.logDir, 'avp_debug.log')
+            libLogFilename = os.path.join(Core.logDir, 'global_debug.log')
+            # delete old logs
+            for log_ in (logFilename, libLogFilename):
+                if os.path.exists(log_):
+                    os.remove(log_)
+
+            logFile = logging.FileHandler(logFilename)
+            logFile.setLevel(FILE_LOGLVL)
+            libLogFile = logging.FileHandler(libLogFilename)
+            libLogFile.setLevel(FILE_LOGLVL)
+            fileFormatter = logging.Formatter(
+                '[%(asctime)s] %(threadName)-10.10s %(name)-23.23s %(levelname)s: '
+                '%(message)s'
+            )
+            logFile.setFormatter(fileFormatter)
+            libLogFile.setFormatter(fileFormatter)
+
+            libLog = logging.getLogger()
+            log.addHandler(logFile)
+            libLog.addHandler(libLogFile)
+            # lowest level must be explicitly set on the root Logger
+            libLog.setLevel(0)
 
 # always store settings in class variables even if a Core object is not created
 Core.storeSettings()

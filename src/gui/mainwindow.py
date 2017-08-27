@@ -92,6 +92,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.previewWorker.moveToThread(self.previewThread)
         self.previewWorker.imageCreated.connect(self.showPreviewImage)
         self.previewThread.start()
+        self.previewThread.finished.connect(
+            lambda:
+                log.critical('PREVIEW THREAD DIED! This should never happen.')
+        )
 
         timeout = 500
         log.debug(
@@ -442,7 +446,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 appName += '*'
         except AttributeError:
             pass
-        log.debug('Setting window title to %s' % appName)
+        log.verbose('Setting window title to %s' % appName)
         self.window.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
@@ -459,16 +463,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 modified = False
             else:
                 modified = (presetStore != self.core.savedPresets[name])
-                if modified:
-                    log.verbose(
-                        'Differing values between presets: %s',
-                        ", ".join([
-                            '%s: %s' % item for item in presetStore.items()
-                            if val != self.core.savedPresets[name][key]
-                        ])
-                    )
-        else:
-            modified = bool(presetStore)
+
+        modified = bool(presetStore)
         if pos < 0:
             pos = len(self.core.selectedComponents)-1
         name = self.core.selectedComponents[pos].name

@@ -423,7 +423,14 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         for attr, widget in self._trackedWidgets.items():
             key = attr if attr not in self._presetNames \
                 else self._presetNames[attr]
-            val = presetDict[key]
+            try:
+                val = presetDict[key]
+            except KeyError as e:
+                log.info(
+                    '%s missing value %s. Outdated preset?',
+                    self.currentPreset, str(e)
+                )
+                val = getattr(self, key)
 
             if attr in self._colorWidgets:
                 widget.setText('%s,%s,%s' % val)
@@ -580,7 +587,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                         'colorWidgets',
                         'relativeWidgets',
                         ):
-                    setattr(self, '_%s' % kwarg, kwargs[kwarg])
+                    setattr(self, '_{}'.format(kwarg), kwargs[kwarg])
                 else:
                     raise ComponentError(
                         self, 'Nonsensical keywords to trackWidgets.')
@@ -613,6 +620,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                     self._relativeMaximums[attr] = \
                             self._trackedWidgets[attr].maximum()
                     self.updateRelativeWidgetMaximum(attr)
+                    setattr(
+                        self, attr, getWidgetValue(self._trackedWidgets[attr])
+                    )
+
         self._preUpdate()
         self._autoUpdate()
 
@@ -732,13 +743,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             can make determining the 'previous' value tricky.
         '''
         if self.oldAttrs is not None:
-            log.verbose('Using nonstandard oldAttr for %s', attr)
             return self.oldAttrs[attr]
         else:
             try:
                 return getattr(self, attr)
             except AttributeError:
-                log.info('Using visible values instead of attrs')
+                log.error('Using visible values instead of oldAttrs')
                 return self._trackedWidgets[attr].value()
 
     def updateRelativeWidget(self, attr):
@@ -893,7 +903,7 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
 
     def redo(self):
         if self.undone:
-            log.debug('Redoing component update')
+            log.info('Redoing component update')
         self.parent.oldAttrs = self.relativeWidgetValsAfterUndo
         self.setWidgetValues(self.modifiedVals)
         self.parent.update(auto=True)
@@ -906,7 +916,7 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
             self.parent._sendUpdateSignal()
 
     def undo(self):
-        log.debug('Undoing component update')
+        log.info('Undoing component update')
         self.undone = True
         self.parent.oldAttrs = self.relativeWidgetValsAfterRedo
         self.setWidgetValues(self.oldWidgetVals)

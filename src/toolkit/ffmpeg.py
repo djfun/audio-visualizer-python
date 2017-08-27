@@ -91,16 +91,24 @@ class FfmpegVideo:
 
     def fillBuffer(self):
         from component import ComponentError
-        logFilename = os.path.join(
-            core.Core.logDir, 'render_%s.log' % str(self.component.compPos))
-        log.debug('Creating ffmpeg process (log at %s)', logFilename)
-        with open(logFilename, 'w') as logf:
-            logf.write(" ".join(self.command) + '\n\n')
-        with open(logFilename, 'a') as logf:
+        if core.Core.logEnabled:
+            logFilename = os.path.join(
+                core.Core.logDir, 'render_%s.log' % str(self.component.compPos)
+            )
+            log.debug('Creating ffmpeg process (log at %s)', logFilename)
+            with open(logFilename, 'w') as logf:
+                logf.write(" ".join(self.command) + '\n\n')
+            with open(logFilename, 'a') as logf:
+                self.pipe = openPipe(
+                    self.command, stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=logf, bufsize=10**8
+                )
+        else:
             self.pipe = openPipe(
                 self.command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=logf, bufsize=10**8
+                stderr=subprocess.DEVNULL, bufsize=10**8
             )
+
         while True:
             if self.parent.canceled:
                 break
