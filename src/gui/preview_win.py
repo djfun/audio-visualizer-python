@@ -60,3 +60,4 @@ class PreviewWindow(QtWidgets.QLabel):
             icon='Critical',
             parent=self
         )
+        log.info('%', repr(self.parent))

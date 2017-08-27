@@ -41,10 +41,8 @@ class ComponentMetaclass(type(QtCore.QObject)):
         def renderWrapper(self, *args, **kwargs):
             try:
                 log.verbose(
-                    '### %s #%s renders%s frame %s###',
+                    '### %s #%s renders a preview frame ###',
                     self.__class__.name, str(self.compPos),
-                    '' if args else ' a preview',
-                    '' if not args else '%s ' % args[0],
                 )
                 return func(self, *args, **kwargs)
             except Exception as e:
@@ -198,8 +196,8 @@ class ComponentMetaclass(type(QtCore.QObject)):
             'names',                            # Class methods
             'error', 'audio', 'properties',     # Properties
             'preFrameRender', 'previewRender',
-            'frameRender', 'command',
-            'loadPreset', 'update', 'widget',
+            'loadPreset', 'command',
+            'update', 'widget',
         )
 
         # Auto-decorate methods
@@ -212,7 +210,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 attrs[key] = property(attrs[key])
             elif key == 'command':
                 attrs[key] = cls.commandWrapper(attrs[key])
-            elif key in ('previewRender', 'frameRender'):
+            elif key == 'previewRender':
                 attrs[key] = cls.renderWrapper(attrs[key])
             elif key == 'preFrameRender':
                 attrs[key] = cls.initializationWrapper(attrs[key])
@@ -298,16 +296,19 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         return self.__class__.name
 
     def __repr__(self):
+        import pprint
         try:
             preset = self.savePreset()
         except Exception as e:
             preset = '%s occurred while saving preset' % str(e)
 
         return (
-            'Component(%s, %s, Core)\n'
-            'Name: %s v%s\n Preset: %s' % (
+            'Component(module %s, pos %s) (%s)\n'
+            'Name: %s v%s\nPreset: %s' % (
                 self.moduleIndex, self.compPos,
-                self.__class__.name, str(self.__class__.version), preset
+                object.__repr__(self),
+                self.__class__.name, str(self.__class__.version),
+                pprint.pformat(preset)
             )
         )
 
@@ -886,12 +887,11 @@ class ComponentUpdate(QtWidgets.QUndoCommand):
     def redo(self):
         if self.undone:
             log.debug('Redoing component update')
-            self.parent.oldAttrs = self.relativeWidgetValsAfterUndo
-            self.setWidgetValues(self.modifiedVals)
-            self.parent.update(auto=True)
-            self.parent.oldAttrs = None
-        else:
-            self.parent.setAttrs(self.modifiedVals)
+        self.parent.oldAttrs = self.relativeWidgetValsAfterUndo
+        self.setWidgetValues(self.modifiedVals)
+        self.parent.update(auto=True)
+        self.parent.oldAttrs = None
+        if not self.undone:
             self.relativeWidgetValsAfterRedo = {
                 attr: copy(getattr(self.parent, attr))
                 for attr in self.parent._relativeWidgets

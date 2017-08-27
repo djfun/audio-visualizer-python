@@ -36,8 +36,6 @@ def main():
 
     elif mode == 'GUI':
         from gui.mainwindow import MainWindow
-        import atexit
-        import signal
 
         window = uic.loadUi(os.path.join(wd, "gui", "mainwindow.ui"))
         # window.adjustSize()
@@ -55,9 +53,6 @@ def main():
         main = MainWindow(window, proj)
         log.debug("Finished creating main window")
         window.raise_()
-
-        signal.signal(signal.SIGINT, main.cleanUp)
-        atexit.register(main.cleanUp)
 
     sys.exit(app.exec_())
 

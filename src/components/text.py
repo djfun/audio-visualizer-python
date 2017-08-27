@@ -2,9 +2,12 @@ from PIL import ImageEnhance, ImageFilter, ImageChops
 from PyQt5.QtGui import QColor, QFont
 from PyQt5 import QtGui, QtCore, QtWidgets
 import os
+import logging
 
 from component import Component
 from toolkit.frame import FramePainter, PaintColor
+
+log = logging.getLogger('AVP.Components.Text')
 
 
 class Component(Component):
@@ -76,16 +79,15 @@ class Component(Component):
     def getXY(self):
         '''Returns true x, y after considering alignment settings'''
         fm = QtGui.QFontMetrics(self.titleFont)
-        if self.alignment == 0:             # Left
-            x = int(self.xPosition)
+        x = self.pixelValForAttr('xPosition')
 
         if self.alignment == 1:             # Middle
             offset = int(fm.width(self.title)/2)
-            x = self.xPosition - offset
-
+            x -= offset
         if self.alignment == 2:             # Right
             offset = fm.width(self.title)
-            x = self.xPosition - offset
+            x -= offset
+
         return x, self.yPosition
 
     def loadPreset(self, pr, *args):
@@ -137,6 +139,7 @@ class Component(Component):
 
         image = FramePainter(width, height)
         x, y = self.getXY()
+        log.debug('Text position translates to %s, %s', x, y)
         if self.stroke > 0:
             outliner = QtGui.QPainterPathStroker()
             outliner.setWidth(self.stroke)

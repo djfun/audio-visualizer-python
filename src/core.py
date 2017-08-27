@@ -14,7 +14,7 @@ import toolkit
 
 log = logging.getLogger('AVP.Core')
 STDOUT_LOGLVL = logging.VERBOSE
-FILE_LOGLVL = logging.VERBOSE
+FILE_LOGLVL = logging.DEBUG
 
 
 class Core:
@@ -31,6 +31,11 @@ class Core:
         self.selectedComponents = []
         self.savedPresets = {}  # copies of presets to detect modification
         self.openingProject = False
+
+    def __repr__(self):
+        return "\n=~=~=~=\n".join(
+            [repr(comp) for comp in self.selectedComponents]
+        )
 
     def importComponents(self):
         def findComponents():
@@ -482,7 +487,6 @@ class Core:
                 '854x480',
             ],
             'FFMPEG_BIN': findFfmpeg(),
-            'windowHasFocus': False,
             'canceled': False,
         }
 

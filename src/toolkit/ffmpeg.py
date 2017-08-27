@@ -157,7 +157,7 @@ def findFfmpeg():
                         ['ffmpeg', '-version'], stderr=f
                     )
                 return "ffmpeg"
-            except subprocess.CalledProcessError:
+            except (subprocess.CalledProcessError, FileNotFoundError):
                 return "avconv"
 
 

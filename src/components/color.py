@@ -102,7 +102,7 @@ class Component(Component):
         # Return a solid image at x, y
         if self.fillType == 0:
             frame = BlankFrame(width, height)
-            image = Image.new("RGBA", shapeSize, (r, g, b, 255))
+            image = FloodFrame(self.sizeWidth, self.sizeHeight, (r, g, b, 255))
             frame.paste(image, box=(self.x, self.y))
             return frame
 

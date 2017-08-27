@@ -11,6 +11,7 @@ from queue import Queue
 import sys
 import os
 import signal
+import atexit
 import filecmp
 import time
 import logging
@@ -49,18 +50,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.window = window
         self.core = Core()
         Core.mode = 'GUI'
-
-        # Find settings created by Core object
-        self.dataDir = Core.dataDir
-        self.presetDir = Core.presetDir
-        self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
-        self.settings = Core.settings
-
-        # Create stack of undoable user actions
-        self.undoStack = QtWidgets.QUndoStack(self)
-        undoLimit = self.settings.value("pref_undoLimit")
-        self.undoStack.setUndoLimit(undoLimit)
-
         # widgets of component settings
         self.pages = []
         self.lastAutosave = time.time()
@@ -69,6 +58,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autosaveCooldown = 0.2
         self.encoding = False
 
+        # Find settings created by Core object
+        self.dataDir = Core.dataDir
+        self.presetDir = Core.presetDir
+        self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
+        self.settings = Core.settings
+
+        # Register clean-up functions
+        signal.signal(signal.SIGINT, self.terminate)
+        atexit.register(self.cleanUp)
+
+        # Create stack of undoable user actions
+        self.undoStack = QtWidgets.QUndoStack(self)
+        undoLimit = self.settings.value("pref_undoLimit")
+        self.undoStack.setUndoLimit(undoLimit)
+
+        # Create Preset Manager
         self.presetManager = PresetManager(
             uic.loadUi(
                 os.path.join(Core.wd, 'gui', 'presetmanager.ui')), self)
@@ -97,7 +102,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.start(timeout)
 
         # Begin decorating the window and connecting events
-        self.window.installEventFilter(self)
         componentList = self.window.listWidget_componentList
 
         style = window.pushButton_undo.style()
@@ -391,23 +395,40 @@ class MainWindow(QtWidgets.QMainWindow):
             activated=lambda: self.moveComponent('bottom')
         )
 
-        # Debug Hotkeys
         QtWidgets.QShortcut(
-            "Ctrl+Alt+Shift+R", self.window, self.drawPreview
+            "Ctrl+Shift+F", self.window, self.showFfmpegCommand
         )
         QtWidgets.QShortcut(
-            "Ctrl+Alt+Shift+F", self.window, self.showFfmpegCommand
-        )
-        QtWidgets.QShortcut(
-            "Ctrl+Alt+Shift+U", self.window, self.showUndoStack
+            "Ctrl+Shift+U", self.window, self.showUndoStack
         )
 
-    @QtCore.pyqtSlot()
+        if log.isEnabledFor(logging.DEBUG):
+            QtWidgets.QShortcut(
+                "Ctrl+Alt+Shift+R", self.window, self.drawPreview
+            )
+            QtWidgets.QShortcut(
+                "Ctrl+Alt+Shift+A", self.window, lambda: log.debug(repr(self))
+            )
+
+    def __repr__(self):
+        return (
+            '\n%s\n'
+            '#####\n'
+            'Preview thread is %s\n' % (
+                repr(self.core),
+                'live' if self.previewThread.isRunning() else 'dead',
+            )
+        )
+
     def cleanUp(self, *args):
         log.info('Ending the preview thread')
         self.timer.stop()
         self.previewThread.quit()
         self.previewThread.wait()
+
+    def terminate(self, *args):
+        self.cleanUp()
+        sys.exit(0)
 
     @disableWhenOpeningProject
     def updateWindowTitle(self):
@@ -542,7 +563,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 return True
         except FileNotFoundError:
             log.error(
-                'Project file couldn\'t be located:', self.currentProject)
+                'Project file couldn\'t be located: %s', self.currentProject)
             return identical
         return False
 
@@ -639,6 +660,7 @@ class MainWindow(QtWidgets.QMainWindow):
             detail=detail,
             icon='Critical',
         )
+        log.info('%s', repr(self))
 
     def changeEncodingStatus(self, status):
         self.encoding = status
@@ -1017,12 +1039,3 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.menu.move(parentPosition + QPos)
         self.menu.show()
-
-    def eventFilter(self, object, event):
-        if event.type() == QtCore.QEvent.WindowActivate \
-                or event.type() == QtCore.QEvent.FocusIn:
-            Core.windowHasFocus = True
-        elif event.type() == QtCore.QEvent.WindowDeactivate \
-                or event.type() == QtCore.QEvent.FocusOut:
-                    Core.windowHasFocus = False
-        return False
