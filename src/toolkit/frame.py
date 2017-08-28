@@ -32,6 +32,7 @@ class FramePainter(QtGui.QPainter):
             super().setPen(penStyle)
 
     def finalize(self):
+        log.verbose("Finalizing FramePainter")
         imBytes = self.image.bits().asstring(self.image.byteCount())
         frame =  Image.frombytes(
             'RGBA', (self.image.width(), self.image.height()), imBytes

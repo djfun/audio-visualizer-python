@@ -252,9 +252,14 @@ class Worker(QtCore.QObject):
         print('############################')
         log.info('Opening pipe to ffmpeg')
         log.info(cmd)
-        self.out_pipe = openPipe(
-            ffmpegCommand, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
-        )
+        try:
+            self.out_pipe = openPipe(
+                ffmpegCommand,
+                stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
+            )
+        except sp.CalledProcessError:
+            log.critical('Ffmpeg pipe couldn\'t be created!')
+            raise
 
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO

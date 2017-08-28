@@ -98,7 +98,8 @@ class Component(Component):
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
-        self.previewPipe.wait()
+        if self.previewPipe is not None:
+            self.previewPipe.wait()
         self.updateChunksize()
         w, h = scale(self.scale, self.width, self.height, str)
         self.video = FfmpegVideo(

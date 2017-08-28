@@ -13,8 +13,8 @@ import toolkit
 
 
 log = logging.getLogger('AVP.Core')
-STDOUT_LOGLVL = logging.INFO
-FILE_LOGLVL = logging.VERBOSE
+STDOUT_LOGLVL = logging.WARNING
+FILE_LOGLVL = None
 
 
 class Core:
@@ -77,8 +77,7 @@ class Core:
         if compPos < 0 or compPos > len(self.selectedComponents):
             compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
-            return None
-
+            return -1
         if type(component) is int:
             # create component using module index in self.modules
             moduleIndex = int(component)
@@ -188,7 +187,6 @@ class Core:
 
                 for key, value in data['Settings']:
                     Core.settings.setValue(key, value)
-
                 for tup in data['Components']:
                     name, vers, preset = tup
                     clearThis = False
@@ -213,7 +211,7 @@ class Core:
                         self.moduleIndexFor(name),
                         loader
                     )
-                    if i is None:
+                    if i == -1:
                         loader.showMessage(msg="Too many components!")
                         break
 

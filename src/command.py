@@ -8,6 +8,7 @@ import argparse
 import os
 import sys
 import time
+import signal
 
 from core import Core
 
@@ -91,6 +92,9 @@ class Command(QtCore.QObject):
                 for arg in args:
                     self.core.selectedComponents[i].command(arg)
 
+        # ctrl-c stops the export thread
+        signal.signal(signal.SIGINT, self.stopVideo)
+
         if self.args.export and self.args.projpath:
             errcode, data = self.core.parseAvFile(projPath)
             for key, value in data['WindowFields']:
@@ -123,6 +127,11 @@ class Command(QtCore.QObject):
         self.lastProgressUpdate = time.time()
         self.worker.progressBarSetText.connect(self.progressBarSetText)
         self.createVideo.emit()
+
+    def stopVideo(self, *args):
+        self.worker.error = True
+        self.worker.cancelExport()
+        self.worker.cancel()
 
     @QtCore.pyqtSlot(str)
     def progressBarSetText(self, value):
