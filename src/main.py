@@ -6,7 +6,7 @@ import logging
 from __init__ import wd
 
 
-log = logging.getLogger('AVP.Entrypoint')
+log = logging.getLogger('AVP.Main')
 
 
 def main():
@@ -35,11 +35,9 @@ def main():
         log.debug("Finished creating command object")
 
     elif mode == 'GUI':
-        from mainwindow import MainWindow
-        import atexit
-        import signal
+        from gui.mainwindow import MainWindow
 
-        window = uic.loadUi(os.path.join(wd, "mainwindow.ui"))
+        window = uic.loadUi(os.path.join(wd, "gui", "mainwindow.ui"))
         # window.adjustSize()
         desc = QtWidgets.QDesktopWidget()
         dpi = desc.physicalDpiX()
@@ -55,9 +53,6 @@ def main():
         main = MainWindow(window, proj)
         log.debug("Finished creating main window")
         window.raise_()
-
-        signal.signal(signal.SIGINT, main.cleanUp)
-        atexit.register(main.cleanUp)
 
     sys.exit(app.exec_())
 

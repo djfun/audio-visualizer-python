@@ -52,7 +52,6 @@ class Component(Component):
         else:
             self.page.label_volume.setEnabled(False)
             self.page.spinBox_volume.setEnabled(False)
-        super().update()
 
     def previewRender(self):
         self.updateChunksize()
@@ -118,8 +117,9 @@ class Component(Component):
         )
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.mergeUndo = False
             self.page.lineEdit_video.setText(filename)
-            self.update()
+            self.mergeUndo = True
 
     def getPreviewFrame(self, width, height):
         if not self.videoPath or not os.path.exists(self.videoPath):
@@ -139,16 +139,23 @@ class Component(Component):
             '-frames:v', '1',
         ])
 
-        logFilename = os.path.join(
-            self.core.logDir, 'preview_%s.log' % str(self.compPos))
-        log.debug('Creating ffmpeg process (log at %s)' % logFilename)
-        with open(logFilename, 'w') as logf:
-            logf.write(" ".join(command) + '\n\n')
-        with open(logFilename, 'a') as logf:
+        if self.core.logEnabled:
+            logFilename = os.path.join(
+                self.core.logDir, 'preview_%s.log' % str(self.compPos))
+            log.debug('Creating ffmpeg process (log at %s)' % logFilename)
+            with open(logFilename, 'w') as logf:
+                logf.write(" ".join(command) + '\n\n')
+            with open(logFilename, 'a') as logf:
+                pipe = openPipe(
+                    command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                    stderr=logf, bufsize=10**8
+                )
+        else:
             pipe = openPipe(
                 command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=logf, bufsize=10**8
+                stderr=subprocess.DEVNULL, bufsize=10**8
             )
+
         byteFrame = pipe.stdout.read(self.chunkSize)
         closePipe(pipe)
 

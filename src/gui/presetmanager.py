@@ -5,9 +5,14 @@
 from PyQt5 import QtCore, QtWidgets
 import string
 import os
+import logging
 
 from toolkit import badName
 from core import Core
+from gui.actions import *
+
+
+log = logging.getLogger('AVP.Gui.PresetManager')
 
 
 class PresetManager(QtWidgets.QDialog):
@@ -130,8 +135,8 @@ class PresetManager(QtWidgets.QDialog):
     def clearPreset(self, compI=None):
         '''Functions on mainwindow level from the context menu'''
         compI = self.parent.window.listWidget_componentList.currentRow()
-        self.core.clearPreset(compI)
-        self.parent.updateComponentTitle(compI, False)
+        action = ClearPreset(self.parent, compI)
+        self.parent.undoStack.push(action)
 
     def openSavePresetDialog(self):
         '''Functions on mainwindow level from the context menu'''
@@ -196,12 +201,16 @@ class PresetManager(QtWidgets.QDialog):
 
     def openPreset(self, presetName, compPos=None):
         componentList = self.parent.window.listWidget_componentList
-        selectedComponents = self.core.selectedComponents
-
         index = compPos if compPos is not None else componentList.currentRow()
         if index == -1:
             return
-        componentName = str(selectedComponents[index]).strip()
+        action = OpenPreset(self, presetName, index)
+        self.parent.undoStack.push(action)
+
+    def _openPreset(self, presetName, index):
+        selectedComponents = self.core.selectedComponents
+
+        componentName = selectedComponents[index].name.strip()
         version = selectedComponents[index].version
         dirname = os.path.join(self.presetDir, componentName, str(version))
         filepath = os.path.join(dirname, presetName)
@@ -224,16 +233,10 @@ class PresetManager(QtWidgets.QDialog):
         if not ch:
             return
         self.deletePreset(comp, vers, name)
-        self.findPresets()
-        self.drawPresetList()
-
-        for i, comp in enumerate(self.core.selectedComponents):
-            if comp.currentPreset == name:
-                self.clearPreset(i)
 
     def deletePreset(self, comp, vers, name):
-        filepath = os.path.join(self.presetDir, comp, str(vers), name)
-        os.remove(filepath)
+        action = DeletePreset(self, comp, vers, name)
+        self.parent.undoStack.push(action)
 
     def warnMessage(self, window=None):
         self.parent.showMessage(
@@ -270,7 +273,6 @@ class PresetManager(QtWidgets.QDialog):
         return index
 
     def openRenamePresetDialog(self):
-        # TODO: maintain consistency by changing this to call createNewPreset()
         presetList = self.window.listWidget_presets
         index = self.getPresetRow()
         if index == -1:
@@ -293,21 +295,27 @@ class PresetManager(QtWidgets.QDialog):
                     path = os.path.join(
                         self.presetDir, comp, str(vers))
                     newPath = os.path.join(path, newName)
-                    oldPath = os.path.join(path, oldName)
                     if self.presetExists(newPath):
                         return
-                    if os.path.exists(newPath):
-                        os.remove(newPath)
-                    os.rename(oldPath, newPath)
-                    self.findPresets()
-                    self.drawPresetList()
-                    for i, comp in enumerate(self.core.selectedComponents):
-                        if getPresetDir(comp) == path \
-                                and comp.currentPreset == oldName:
-                            self.core.openPreset(newPath, i, newName)
-                            self.parent.updateComponentTitle(i, False)
-                            self.parent.drawPreview()
+                    action = RenamePreset(self, path, oldName, newName)
+                    self.parent.undoStack.push(action)
             break
+
+    def renamePreset(self, path, oldName, newName):
+        oldPath = os.path.join(path, oldName)
+        newPath = os.path.join(path, newName)
+        if os.path.exists(newPath):
+            os.remove(newPath)
+        os.rename(oldPath, newPath)
+        self.findPresets()
+        self.drawPresetList()
+        path = os.path.dirname(newPath)
+        for i, comp in enumerate(self.core.selectedComponents):
+            if self.core.getPresetDir(comp) == path \
+                    and comp.currentPreset == oldName:
+                self.core.openPreset(newPath, i, newName)
+                self.parent.updateComponentTitle(i, False)
+                self.parent.drawPreview()
 
     def openImportDialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -351,8 +359,3 @@ class PresetManager(QtWidgets.QDialog):
 
     def clearPresetListSelection(self):
         self.window.listWidget_presets.setCurrentRow(-1)
-
-
-def getPresetDir(comp):
-    '''Get the preset subdir for a particular version of a component'''
-    return os.path.join(Core.presetDir, str(comp), str(comp.version))

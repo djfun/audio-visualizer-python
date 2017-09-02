@@ -11,18 +11,22 @@ from queue import Queue
 import sys
 import os
 import signal
+import atexit
 import filecmp
 import time
 import logging
 
 from core import Core
-import preview_thread
-from preview_win import PreviewWindow
-from presetmanager import PresetManager
-from toolkit import disableWhenEncoding, disableWhenOpeningProject, checkOutput
+import gui.preview_thread as preview_thread
+from gui.preview_win import PreviewWindow
+from gui.presetmanager import PresetManager
+from gui.actions import *
+from toolkit import (
+    disableWhenEncoding, disableWhenOpeningProject, checkOutput, blockSignals
+)
 
 
-log = logging.getLogger('AVP.MainWindow')
+log = logging.getLogger('AVP.Gui.MainWindow')
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -41,11 +45,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, window, project):
         QtWidgets.QMainWindow.__init__(self)
-        self.window = window
-        self.core = Core()
         log.debug(
             'Main thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
-
+        self.window = window
+        self.core = Core()
+        Core.mode = 'GUI'
         # widgets of component settings
         self.pages = []
         self.lastAutosave = time.time()
@@ -60,14 +64,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
         self.settings = Core.settings
 
+        # Register clean-up functions
+        signal.signal(signal.SIGINT, self.terminate)
+        atexit.register(self.cleanUp)
+
+        # Create stack of undoable user actions
+        self.undoStack = QtWidgets.QUndoStack(self)
+        undoLimit = self.settings.value("pref_undoLimit")
+        self.undoStack.setUndoLimit(undoLimit)
+
+        # Create Preset Manager
         self.presetManager = PresetManager(
             uic.loadUi(
-                os.path.join(Core.wd, 'presetmanager.ui')), self)
+                os.path.join(Core.wd, 'gui', 'presetmanager.ui')), self)
 
         # Create the preview window and its thread, queues, and timers
         log.debug('Creating preview window')
         self.previewWindow = PreviewWindow(self, os.path.join(
-            Core.wd, "background.png"))
+            Core.wd, 'gui', "background.png"))
         window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
         log.debug('Starting preview thread')
@@ -78,15 +92,57 @@ class MainWindow(QtWidgets.QMainWindow):
         self.previewWorker.moveToThread(self.previewThread)
         self.previewWorker.imageCreated.connect(self.showPreviewImage)
         self.previewThread.start()
+        self.previewThread.finished.connect(
+            lambda:
+                log.critical('PREVIEW THREAD DIED! This should never happen.')
+        )
 
-        log.debug('Starting preview timer')
+        timeout = 500
+        log.debug(
+            'Preview timer set to trigger when idle for %sms' % str(timeout)
+        )
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.processTask.emit)
-        self.timer.start(500)
+        self.timer.start(timeout)
 
         # Begin decorating the window and connecting events
-        self.window.installEventFilter(self)
         componentList = self.window.listWidget_componentList
+
+        style = window.pushButton_undo.style()
+        undoButton = window.pushButton_undo
+        undoButton.setIcon(
+            style.standardIcon(QtWidgets.QStyle.SP_FileDialogBack)
+        )
+        undoButton.clicked.connect(self.undoStack.undo)
+        undoButton.setEnabled(False)
+        self.undoStack.cleanChanged.connect(
+            lambda change: undoButton.setEnabled(self.undoStack.count())
+        )
+        self.undoMenu = QMenu()
+        self.undoMenu.addAction(
+            self.undoStack.createUndoAction(self)
+        )
+        self.undoMenu.addAction(
+            self.undoStack.createRedoAction(self)
+        )
+        action = self.undoMenu.addAction('Show History...')
+        action.triggered.connect(
+            lambda _: self.showUndoStack()
+        )
+        undoButton.setMenu(self.undoMenu)
+
+        style = window.pushButton_listMoveUp.style()
+        window.pushButton_listMoveUp.setIcon(
+            style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
+        )
+        style = window.pushButton_listMoveDown.style()
+        window.pushButton_listMoveDown.setIcon(
+            style.standardIcon(QtWidgets.QStyle.SP_ArrowDown)
+        )
+        style = window.pushButton_removeComponent.style()
+        window.pushButton_removeComponent.setIcon(
+            style.standardIcon(QtWidgets.QStyle.SP_DialogDiscardButton)
+        )
 
         if sys.platform == 'darwin':
             log.debug(
@@ -158,7 +214,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.name)
             action.triggered.connect(
-                lambda _, item=i: self.core.insertComponent(0, item, self)
+                lambda _, item=i: self.addComponent(0, item)
             )
 
         self.window.pushButton_addComponent.setMenu(self.compMenu)
@@ -299,6 +355,10 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
         QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
 
+        QtWidgets.QShortcut("Ctrl+Z", self.window, self.undoStack.undo)
+        QtWidgets.QShortcut("Ctrl+Y", self.window, self.undoStack.redo)
+        QtWidgets.QShortcut("Ctrl+Shift+Z", self.window, self.undoStack.redo)
+
         # Hotkeys for component list
         for inskey in ("Ctrl+T", QtCore.Qt.Key_Insert):
             QtWidgets.QShortcut(
@@ -339,20 +399,40 @@ class MainWindow(QtWidgets.QMainWindow):
             activated=lambda: self.moveComponent('bottom')
         )
 
-        # Debug Hotkeys
         QtWidgets.QShortcut(
-            "Ctrl+Alt+Shift+R", self.window, self.drawPreview
+            "Ctrl+Shift+F", self.window, self.showFfmpegCommand
         )
         QtWidgets.QShortcut(
-            "Ctrl+Alt+Shift+F", self.window, self.showFfmpegCommand
+            "Ctrl+Shift+U", self.window, self.showUndoStack
         )
 
-    @QtCore.pyqtSlot()
+        if log.isEnabledFor(logging.DEBUG):
+            QtWidgets.QShortcut(
+                "Ctrl+Alt+Shift+R", self.window, self.drawPreview
+            )
+            QtWidgets.QShortcut(
+                "Ctrl+Alt+Shift+A", self.window, lambda: log.debug(repr(self))
+            )
+
+    def __repr__(self):
+        return (
+            '\n%s\n'
+            '#####\n'
+            'Preview thread is %s\n' % (
+                repr(self.core),
+                'live' if self.previewThread.isRunning() else 'dead',
+            )
+        )
+
     def cleanUp(self, *args):
         log.info('Ending the preview thread')
         self.timer.stop()
         self.previewThread.quit()
         self.previewThread.wait()
+
+    def terminate(self, *args):
+        self.cleanUp()
+        sys.exit(0)
 
     @disableWhenOpeningProject
     def updateWindowTitle(self):
@@ -366,35 +446,43 @@ class MainWindow(QtWidgets.QMainWindow):
                 appName += '*'
         except AttributeError:
             pass
-        log.debug('Setting window title to %s' % appName)
+        log.verbose('Setting window title to %s' % appName)
         self.window.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
     def updateComponentTitle(self, pos, presetStore=False):
+        '''
+            Sets component title to modified or unmodified when given boolean.
+            If given a preset dict, compares it against the component to
+            determine if it is modified.
+            A component with no preset is always unmodified.
+        '''
         if type(presetStore) is dict:
             name = presetStore['preset']
             if name is None or name not in self.core.savedPresets:
                 modified = False
             else:
                 modified = (presetStore != self.core.savedPresets[name])
-        else:
-            modified = bool(presetStore)
+
+        modified = bool(presetStore)
         if pos < 0:
             pos = len(self.core.selectedComponents)-1
-        name = str(self.core.selectedComponents[pos])
+        name = self.core.selectedComponents[pos].name
         title = str(name)
         if self.core.selectedComponents[pos].currentPreset:
             title += ' - %s' % self.core.selectedComponents[pos].currentPreset
             if modified:
                 title += '*'
         if type(presetStore) is bool:
-            log.debug('Forcing %s #%s\'s modified status to %s: %s' % (
+            log.debug(
+                'Forcing %s #%s\'s modified status to %s: %s',
                 name, pos, modified, title
-            ))
+            )
         else:
-            log.debug('Setting %s #%s\'s title: %s' % (
+            log.debug(
+                'Setting %s #%s\'s title: %s',
                 name, pos, title
-            ))
+            )
         self.window.listWidget_componentList.item(pos).setText(title)
 
     def updateCodecs(self):
@@ -471,7 +559,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 return True
         except FileNotFoundError:
             log.error(
-                'Project file couldn\'t be located:', self.currentProject)
+                'Project file couldn\'t be located: %s', self.currentProject)
             return identical
         return False
 
@@ -568,6 +656,7 @@ class MainWindow(QtWidgets.QMainWindow):
             detail=detail,
             icon='Critical',
         )
+        log.info('%s', repr(self))
 
     def changeEncodingStatus(self, status):
         self.encoding = status
@@ -651,6 +740,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
 
+    def showUndoStack(self):
+        dialog = QtWidgets.QDialog(self.window)
+        undoView = QtWidgets.QUndoView(self.undoStack)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(undoView)
+        dialog.setLayout(layout)
+        dialog.show()
+
     def showFfmpegCommand(self):
         from textwrap import wrap
         from toolkit.ffmpeg import createFfmpegCommand
@@ -664,7 +761,13 @@ class MainWindow(QtWidgets.QMainWindow):
             msg="Current FFmpeg command:\n\n %s" % " ".join(lines)
         )
 
+    def addComponent(self, compPos, moduleIndex):
+        '''Creates an undoable action that adds a new component.'''
+        action = AddComponent(self, compPos, moduleIndex)
+        self.undoStack.push(action)
+
     def insertComponent(self, index):
+        '''Triggered by Core to finish initializing a new component.'''
         componentList = self.window.listWidget_componentList
         stackedWidget = self.window.stackedWidget
 
@@ -685,41 +788,38 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def removeComponent(self):
         componentList = self.window.listWidget_componentList
+        selected = componentList.selectedItems()
+        if selected:
+            action = RemoveComponent(self, selected)
+            self.undoStack.push(action)
 
-        for selected in componentList.selectedItems():
-            index = componentList.row(selected)
-            self.window.stackedWidget.removeWidget(self.pages[index])
-            componentList.takeItem(index)
-            self.core.removeComponent(index)
-            self.pages.pop(index)
-            self.changeComponentWidget()
+    def _removeComponent(self, index):
+        stackedWidget = self.window.stackedWidget
+        componentList = self.window.listWidget_componentList
+        stackedWidget.removeWidget(self.pages[index])
+        componentList.takeItem(index)
+        self.core.removeComponent(index)
+        self.pages.pop(index)
+        self.changeComponentWidget()
         self.drawPreview()
 
     @disableWhenEncoding
     def moveComponent(self, change):
         '''Moves a component relatively from its current position'''
         componentList = self.window.listWidget_componentList
+        tag = change
         if change == 'top':
             change = -componentList.currentRow()
         elif change == 'bottom':
             change = len(componentList)-componentList.currentRow()-1
-        stackedWidget = self.window.stackedWidget
+        else:
+            tag = 'down' if change == 1 else 'up'
 
         row = componentList.currentRow()
         newRow = row + change
         if newRow > -1 and newRow < componentList.count():
-            self.core.moveComponent(row, newRow)
-
-            # update widgets
-            page = self.pages.pop(row)
-            self.pages.insert(newRow, page)
-            item = componentList.takeItem(row)
-            newItem = componentList.insertItem(newRow, item)
-            widget = stackedWidget.removeWidget(page)
-            stackedWidget.insertWidget(newRow, page)
-            componentList.setCurrentRow(newRow)
-            stackedWidget.setCurrentIndex(newRow)
-            self.drawPreview(True)
+            action = MoveComponent(self, row, newRow, tag)
+            self.undoStack.push(action)
 
     def getComponentListMousePos(self, position):
         '''
@@ -777,11 +877,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.window.lineEdit_audioFile,
                 self.window.lineEdit_outputFile
                 ):
-            field.blockSignals(True)
-            field.setText('')
-            field.blockSignals(False)
+            with blockSignals(field):
+                field.setText('')
         self.progressBarUpdated(0)
         self.progressBarSetText('')
+        self.undoStack.clear()
 
     @disableWhenEncoding
     def createNewProject(self, prompt=True):
@@ -845,7 +945,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def openProject(self, filepath, prompt=True):
         if not filepath or not os.path.exists(filepath) \
-          or not filepath.endswith('.avp'):
+                or not filepath.endswith('.avp'):
             return
 
         self.clear()
@@ -928,19 +1028,10 @@ class MainWindow(QtWidgets.QMainWindow):
         for i, comp in enumerate(self.core.modules):
             menuItem = self.submenu.addAction(comp.Component.name)
             menuItem.triggered.connect(
-                lambda _, item=i: self.core.insertComponent(
-                    0 if insertCompAtTop else index, item, self
+                lambda _, item=i: self.addComponent(
+                    0 if insertCompAtTop else index, item
                 )
             )
 
         self.menu.move(parentPosition + QPos)
         self.menu.show()
-
-    def eventFilter(self, object, event):
-        if event.type() == QtCore.QEvent.WindowActivate \
-                or event.type() == QtCore.QEvent.FocusIn:
-            Core.windowHasFocus = True
-        elif event.type() == QtCore.QEvent.WindowDeactivate \
-                or event.type() == QtCore.QEvent.FocusOut:
-                    Core.windowHasFocus = False
-        return False

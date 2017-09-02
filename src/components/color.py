@@ -17,9 +17,6 @@ class Component(Component):
         self.y = 0
         super().widget(*args)
 
-        self.page.lineEdit_color1.setText('0,0,0')
-        self.page.lineEdit_color2.setText('133,133,133')
-
         # disable color #2 until non-default 'fill' option gets changed
         self.page.lineEdit_color2.setDisabled(True)
         self.page.pushButton_color2.setDisabled(True)
@@ -85,8 +82,6 @@ class Component(Component):
             self.page.pushButton_color2.setEnabled(False)
         self.page.fillWidget.setCurrentIndex(fillType)
 
-        super().update()
-
     def previewRender(self):
         return self.drawFrame(self.width, self.height)
 
@@ -107,7 +102,7 @@ class Component(Component):
         # Return a solid image at x, y
         if self.fillType == 0:
             frame = BlankFrame(width, height)
-            image = Image.new("RGBA", shapeSize, (r, g, b, 255))
+            image = FloodFrame(self.sizeWidth, self.sizeHeight, (r, g, b, 255))
             frame.paste(image, box=(self.x, self.y))
             return frame
 

@@ -21,7 +21,6 @@ class FramePainter(QtGui.QPainter):
         Pillow image with finalize()
     '''
     def __init__(self, width, height):
-        log.verbose('Creating new FramePainter')
         image = BlankFrame(width, height)
         self.image = QtGui.QImage(ImageQt(image))
         super().__init__(self.image)
@@ -33,6 +32,7 @@ class FramePainter(QtGui.QPainter):
             super().setPen(penStyle)
 
     def finalize(self):
+        log.verbose("Finalizing FramePainter")
         imBytes = self.image.bits().asstring(self.image.byteCount())
         frame =  Image.frombytes(
             'RGBA', (self.image.width(), self.image.height()), imBytes
@@ -78,8 +78,6 @@ def defaultSize(framefunc):
 
 
 def FloodFrame(width, height, RgbaTuple):
-    log.verbose('Creating new %s*%s %s flood frame' % (
-        width, height, RgbaTuple))
     return Image.new("RGBA", (width, height), RgbaTuple)
 
 
@@ -98,7 +96,7 @@ def Checkerboard(width, height):
     log.debug('Creating new %s*%s checkerboard' % (width, height))
     image = FloodFrame(1920, 1080, (0, 0, 0, 0))
     image.paste(Image.open(
-        os.path.join(core.Core.wd, "background.png")),
+        os.path.join(core.Core.wd, 'gui', "background.png")),
         (0, 0)
     )
     image = image.resize((width, height))

@@ -1,4 +1,5 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt5.QtWidgets import QUndoCommand
 from PIL import Image, ImageDraw, ImageEnhance, ImageChops, ImageFilter
 import os
 import math
@@ -35,6 +36,7 @@ class Component(Component):
             self.page.toolButton_left,
             self.page.toolButton_right,
         )
+
         def shiftFunc(i):
             def shift():
                 self.shiftGrid(i)
@@ -52,26 +54,13 @@ class Component(Component):
             "Image Files (%s)" % " ".join(self.core.imageFormats))
         if filename:
             self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.mergeUndo = False
             self.page.lineEdit_image.setText(filename)
-            self.update()
+            self.mergeUndo = True
 
     def shiftGrid(self, d):
-        def newGrid(Xchange, Ychange):
-            return {
-                (x + Xchange, y + Ychange)
-                for x, y in self.startingGrid
-            }
-
-        if d == 0:
-            newGrid = newGrid(0, -1)
-        elif d == 1:
-            newGrid = newGrid(0, 1)
-        elif d == 2:
-            newGrid = newGrid(-1, 0)
-        elif d == 3:
-            newGrid = newGrid(1, 0)
-        self.startingGrid = newGrid
-        self.sendUpdateSignal()
+        action = ShiftGrid(self, d)
+        self.parent.undoStack.push(action)
 
     def update(self):
         self.updateGridSize()
@@ -96,17 +85,14 @@ class Component(Component):
         enabled = (len(self.startingGrid) > 0)
         for widget in self.shiftButtons:
             widget.setEnabled(enabled)
-        super().update()
 
     def previewClickEvent(self, pos, size, button):
         pos = (
             math.ceil((pos[0] / size[0]) * self.gridWidth) - 1,
             math.ceil((pos[1] / size[1]) * self.gridHeight) - 1
         )
-        if button == 1:
-            self.startingGrid.add(pos)
-        elif button == 2:
-            self.startingGrid.discard(pos)
+        action = ClickGrid(self, pos, button)
+        self.parent.undoStack.push(action)
 
     def updateGridSize(self):
         w, h = self.core.resolutions[-1].split('x')
@@ -198,7 +184,7 @@ class Component(Component):
             # Circle
             if shape == 'circle':
                 drawer.ellipse(outlineShape, fill=self.color)
-                drawer.ellipse(smallerShape, fill=(0,0,0,0))
+                drawer.ellipse(smallerShape, fill=(0, 0, 0, 0))
 
             # Lilypad
             elif shape == 'lilypad':
@@ -208,9 +194,9 @@ class Component(Component):
             elif shape == 'pac-man':
                 drawer.pieslice(outlineShape, 35, 320, fill=self.color)
 
-            hX, hY = scale(50, self.pxWidth, self.pxHeight, int) # halfline
-            tX, tY = scale(33, self.pxWidth, self.pxHeight, int) # thirdline
-            qX, qY = scale(20, self.pxWidth, self.pxHeight, int) # quarterline
+            hX, hY = scale(50, self.pxWidth, self.pxHeight, int)  # halfline
+            tX, tY = scale(33, self.pxWidth, self.pxHeight, int)  # thirdline
+            qX, qY = scale(20, self.pxWidth, self.pxHeight, int)  # quarterline
 
             # Path
             if shape == 'path':
@@ -221,7 +207,7 @@ class Component(Component):
                         'up', 'down', 'left', 'right',
                     )
                 }
-                for cell in nearbyCoords(x, y):
+                for cell in self.nearbyCoords(x, y):
                     if cell not in grid:
                         continue
                     if cell[0] == x:
@@ -246,19 +232,19 @@ class Component(Component):
                             sect = (
                                 (drawPtX, drawPtY + hY),
                                 (drawPtX + self.pxWidth,
-                                drawPtY + self.pxHeight)
+                                    drawPtY + self.pxHeight)
                             )
                         elif direction == 'left':
                             sect = (
                                 (drawPtX, drawPtY),
                                 (drawPtX + hX,
-                                drawPtY + self.pxHeight)
+                                    drawPtY + self.pxHeight)
                             )
                         elif direction == 'right':
                             sect = (
                                 (drawPtX + hX, drawPtY),
                                 (drawPtX + self.pxWidth,
-                                drawPtY + self.pxHeight)
+                                    drawPtY + self.pxHeight)
                             )
                         drawer.rectangle(sect, fill=self.color)
 
@@ -288,20 +274,25 @@ class Component(Component):
 
             # Peace
             elif shape == 'peace':
-                line = (
-                    (drawPtX + hX - int(tenthX / 2), drawPtY + int(tenthY / 2)),
+                line = ((
+                    drawPtX + hX - int(tenthX / 2), drawPtY + int(tenthY / 2)),
                     (drawPtX + hX + int(tenthX / 2),
-                    drawPtY + self.pxHeight - int(tenthY / 2))
+                        drawPtY + self.pxHeight - int(tenthY / 2))
                 )
                 drawer.ellipse(outlineShape, fill=self.color)
-                drawer.ellipse(smallerShape, fill=(0,0,0,0))
+                drawer.ellipse(smallerShape, fill=(0, 0, 0, 0))
                 drawer.rectangle(line, fill=self.color)
-                slantLine = lambda difference: (
-                    ((drawPtX + difference),
-                        (drawPtY + self.pxHeight - qY)),
-                    ((drawPtX + hX),
-                        (drawPtY + hY)),
-                )
+
+                def slantLine(difference):
+                    return (
+                        (drawPtX + difference),
+                        (drawPtY + self.pxHeight - qY)
+                    ),
+                    (
+                        (drawPtX + hX),
+                        (drawPtY + hY)
+                    )
+
                 drawer.line(
                     slantLine(qX),
                     fill=self.color,
@@ -338,13 +329,13 @@ class Component(Component):
             for x in range(self.pxWidth, self.width, self.pxWidth):
                 drawer.rectangle(
                     ((x, 0),
-                    (x + w, self.height)),
+                        (x + w, self.height)),
                     fill=self.color,
                 )
             for y in range(self.pxHeight, self.height, self.pxHeight):
                 drawer.rectangle(
                     ((0, y),
-                    (self.width, y + h)),
+                        (self.width, y + h)),
                     fill=self.color,
                 )
 
@@ -356,7 +347,7 @@ class Component(Component):
 
         def neighbours(x, y):
             return {
-                cell for cell in nearbyCoords(x, y)
+                cell for cell in self.nearbyCoords(x, y)
                 if cell in lastGrid
             }
 
@@ -367,7 +358,7 @@ class Component(Component):
                 newGrid.add((x, y))
         potentialNewCells = {
             coordTup for origin in lastGrid
-            for coordTup in list(nearbyCoords(*origin))
+            for coordTup in list(self.nearbyCoords(*origin))
         }
         for x, y in potentialNewCells:
             if (x, y) in newGrid:
@@ -390,13 +381,95 @@ class Component(Component):
                 widget.setEnabled(True)
         super().loadPreset(pr, *args)
 
+    def nearbyCoords(self, x, y):
+        yield x + 1, y + 1
+        yield x + 1, y - 1
+        yield x - 1, y + 1
+        yield x - 1, y - 1
+        yield x, y + 1
+        yield x, y - 1
+        yield x + 1, y
+        yield x - 1, y
 
-def nearbyCoords(x, y):
-    yield x + 1, y + 1
-    yield x + 1, y - 1
-    yield x - 1, y + 1
-    yield x - 1, y - 1
-    yield x, y + 1
-    yield x, y - 1
-    yield x + 1, y
-    yield x - 1, y
+
+class ClickGrid(QUndoCommand):
+    def __init__(self, comp, pos, id_):
+        super().__init__(
+            "click %s component #%s" % (comp.name, comp.compPos))
+        self.comp = comp
+        self.pos = [pos]
+        self.id_ = id_
+
+    def id(self):
+        return self.id_
+
+    def mergeWith(self, other):
+        self.pos.extend(other.pos)
+        return True
+
+    def add(self):
+        for pos in self.pos[:]:
+            self.comp.startingGrid.add(pos)
+        self.comp.update(auto=True)
+
+    def remove(self):
+        for pos in self.pos[:]:
+            self.comp.startingGrid.discard(pos)
+        self.comp.update(auto=True)
+
+    def redo(self):
+        if self.id_ == 1:  # Left-click
+            self.add()
+        elif self.id_ == 2:  # Right-click
+            self.remove()
+
+    def undo(self):
+        if self.id_ == 1:  # Left-click
+            self.remove()
+        elif self.id_ == 2:  # Right-click
+            self.add()
+
+class ShiftGrid(QUndoCommand):
+    def __init__(self, comp, direction):
+        super().__init__(
+            "change %s component #%s" % (comp.name, comp.compPos))
+        self.comp = comp
+        self.direction = direction
+        self.distance = 1
+
+    def id(self):
+        return self.direction
+
+    def mergeWith(self, other):
+        self.distance += other.distance
+        return True
+
+    def newGrid(self, Xchange, Ychange):
+        return {
+            (x + Xchange, y + Ychange)
+            for x, y in self.comp.startingGrid
+        }
+
+    def redo(self):
+        if self.direction == 0:
+            newGrid = self.newGrid(0, -self.distance)
+        elif self.direction == 1:
+            newGrid = self.newGrid(0, self.distance)
+        elif self.direction == 2:
+            newGrid = self.newGrid(-self.distance, 0)
+        elif self.direction == 3:
+            newGrid = self.newGrid(self.distance, 0)
+        self.comp.startingGrid = newGrid
+        self.comp._sendUpdateSignal()
+
+    def undo(self):
+        if self.direction == 0:
+            newGrid = self.newGrid(0, self.distance)
+        elif self.direction == 1:
+            newGrid = self.newGrid(0, -self.distance)
+        elif self.direction == 2:
+            newGrid = self.newGrid(self.distance, 0)
+        elif self.direction == 3:
+            newGrid = self.newGrid(-self.distance, 0)
+        self.comp.startingGrid = newGrid
+        self.comp._sendUpdateSignal()

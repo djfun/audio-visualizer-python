@@ -1,14 +1,14 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import logging
 
+log = logging.getLogger('AVP.Gui.PreviewWindow')
+
 
 class PreviewWindow(QtWidgets.QLabel):
     '''
         Paints the preview QLabel in MainWindow and maintains the aspect ratio
         when the window is resized.
     '''
-    log = logging.getLogger('AVP.PreviewWindow')
-
     def __init__(self, parent, img):
         super(PreviewWindow, self).__init__()
         self.parent = parent
@@ -41,17 +41,15 @@ class PreviewWindow(QtWidgets.QLabel):
         if i >= 0:
             component = self.parent.core.selectedComponents[i]
             if not hasattr(component, 'previewClickEvent'):
-                self.log.info('Ignored click event')
                 return
             pos = (event.x(), event.y())
             size = (self.width(), self.height())
             butt = event.button()
-            self.log.info('Click event for #%s: %s button %s' % (
+            log.info('Click event for #%s: %s button %s' % (
                 i, pos, butt))
             component.previewClickEvent(
                 pos, size, butt
             )
-            self.parent.core.updateComponent(i)
 
     @QtCore.pyqtSlot(str)
     def threadError(self, msg):
@@ -60,3 +58,4 @@ class PreviewWindow(QtWidgets.QLabel):
             icon='Critical',
             parent=self
         )
+        log.info('%', repr(self.parent))

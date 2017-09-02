@@ -76,8 +76,6 @@ class Component(Component):
         else:
             self.page.checkBox_mono.setEnabled(True)
 
-        super().update()
-
     def previewRender(self):
         changedSize = self.updateChunksize()
         if not changedSize \
@@ -100,7 +98,8 @@ class Component(Component):
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
-        self.previewPipe.wait()
+        if self.previewPipe is not None:
+            self.previewPipe.wait()
         self.updateChunksize()
         w, h = scale(self.scale, self.width, self.height, str)
         self.video = FfmpegVideo(
@@ -138,7 +137,7 @@ class Component(Component):
             '-r', self.settings.value("outputFrameRate"),
             '-ss', "{0:.3f}".format(startPt),
             '-i',
-            os.path.join(self.core.wd, 'background.png')
+            self.core.junkStream
             if genericPreview else inputFile,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
@@ -150,15 +149,22 @@ class Component(Component):
             '-codec:v', 'rawvideo', '-',
             '-frames:v', '1',
         ])
-        logFilename = os.path.join(
-            self.core.logDir, 'preview_%s.log' % str(self.compPos))
-        log.debug('Creating ffmpeg process (log at %s)' % logFilename)
-        with open(logFilename, 'w') as logf:
-            logf.write(" ".join(command) + '\n\n')
-        with open(logFilename, 'a') as logf:
+
+        if self.core.logEnabled:
+            logFilename = os.path.join(
+                self.core.logDir, 'preview_%s.log' % str(self.compPos))
+            log.debug('Creating ffmpeg process (log at %s)' % logFilename)
+            with open(logFilename, 'w') as logf:
+                logf.write(" ".join(command) + '\n\n')
+            with open(logFilename, 'a') as logf:
+                self.previewPipe = openPipe(
+                    command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                    stderr=logf, bufsize=10**8
+                )
+        else:
             self.previewPipe = openPipe(
                 command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=logf, bufsize=10**8
+                stderr=subprocess.DEVNULL, bufsize=10**8
             )
         byteFrame = self.previewPipe.stdout.read(self.chunkSize)
         closePipe(self.previewPipe)

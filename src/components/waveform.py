@@ -98,7 +98,7 @@ class Component(Component):
             '-r', self.settings.value("outputFrameRate"),
             '-ss', "{0:.3f}".format(startPt),
             '-i',
-            os.path.join(self.core.wd, 'background.png')
+            self.core.junkStream
             if genericPreview else inputFile,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
@@ -110,15 +110,21 @@ class Component(Component):
             '-codec:v', 'rawvideo', '-',
             '-frames:v', '1',
         ])
-        logFilename = os.path.join(
-            self.core.logDir, 'preview_%s.log' % str(self.compPos))
-        log.debug('Creating ffmpeg process (log at %s)' % logFilename)
-        with open(logFilename, 'w') as logf:
-            logf.write(" ".join(command) + '\n\n')
-        with open(logFilename, 'a') as logf:
+        if self.core.logEnabled:
+            logFilename = os.path.join(
+                self.core.logDir, 'preview_%s.log' % str(self.compPos))
+            log.debug('Creating ffmpeg log at %s', logFilename)
+            with open(logFilename, 'w') as logf:
+                logf.write(" ".join(command) + '\n\n')
+            with open(logFilename, 'a') as logf:
+                pipe = openPipe(
+                    command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                    stderr=logf, bufsize=10**8
+                )
+        else:
             pipe = openPipe(
                 command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=logf, bufsize=10**8
+                stderr=subprocess.DEVNULL, bufsize=10**8
             )
         byteFrame = pipe.stdout.read(self.chunkSize)
         closePipe(pipe)

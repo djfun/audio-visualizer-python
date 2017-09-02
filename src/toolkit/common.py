@@ -6,7 +6,57 @@ import string
 import os
 import sys
 import subprocess
+import logging
+from copy import copy
 from collections import OrderedDict
+
+
+log = logging.getLogger('AVP.Toolkit.Common')
+
+
+class blockSignals:
+    '''
+        Context manager to temporarily block list of QtWidgets from updating,
+        and guarantee restoring the previous state afterwards.
+    '''
+    def __init__(self, widgets):
+        if type(widgets) is dict:
+            self.widgets = concatDictVals(widgets)
+        else:
+            self.widgets = (
+                widgets if hasattr(widgets, '__iter__')
+                else [widgets]
+            )
+
+    def __enter__(self):
+        log.verbose(
+            'Blocking signals for %s',
+            ", ".join([
+                str(w.__class__.__name__) for w in self.widgets
+            ])
+        )
+        self.oldStates = [w.signalsBlocked() for w in self.widgets]
+        for w in self.widgets:
+            w.blockSignals(True)
+
+    def __exit__(self, *args):
+        log.verbose(
+            'Resetting blockSignals to %s', str(bool(sum(self.oldStates))))
+        for w, state in zip(self.widgets, self.oldStates):
+            w.blockSignals(state)
+
+
+def concatDictVals(d):
+    '''Concatenates all values in given dict into one list.'''
+    key, value = d.popitem()
+    d[key] = value
+    final = copy(value)
+    if type(final) is not list:
+        final = [final]
+        final.extend([val for val in d.values()])
+    else:
+        value.extend([item for val in d.values() for item in val])
+    return final
 
 
 def badName(name):
@@ -33,6 +83,7 @@ def appendUppercase(lst):
     for form, i in zip(lst, range(len(lst))):
         lst.append(form.upper())
     return lst
+
 
 def pipeWrapper(func):
     '''A decorator to insert proper kwargs into Popen objects.'''
@@ -107,12 +158,14 @@ def connectWidget(widget, func):
     elif type(widget) == QtWidgets.QComboBox:
         widget.currentIndexChanged.connect(func)
     else:
+        log.warning('Failed to connect %s ', str(widget.__class__.__name__))
         return False
     return True
 
 
 def setWidgetValue(widget, val):
     '''Generic setValue method for use with any typical QtWidget'''
+    log.verbose('Setting %s to %s' % (str(widget.__class__.__name__), val))
     if type(widget) == QtWidgets.QLineEdit:
         widget.setText(val)
     elif type(widget) == QtWidgets.QSpinBox \
@@ -123,6 +176,7 @@ def setWidgetValue(widget, val):
     elif type(widget) == QtWidgets.QComboBox:
         widget.setCurrentIndex(val)
     else:
+        log.warning('Failed to set %s ', str(widget.__class__.__name__))
         return False
     return True
 
