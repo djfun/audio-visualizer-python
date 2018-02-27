@@ -317,14 +317,13 @@ class Main(QtCore.QObject):
 
 if len(sys.argv) > 1:
   # command line mode
-  app = QtGui.QApplication(sys.argv, False)
+  app = QtWidgets.QApplication(sys.argv, False)
   command = Command()
   signal.signal(signal.SIGINT, command.cleanUp)
   sys.exit(app.exec_())
 else:
   # gui mode
   if __name__ == "__main__":
-    #app = QtGui.QApplication(sys.argv)
     app = QtWidgets.QApplication(sys.argv)
     window = uic.loadUi("main.ui")
     # window.adjustSize()
@@ -339,5 +338,3 @@ else:
 
     signal.signal(signal.SIGINT, main.cleanUp)
     atexit.register(main.cleanUp)
-
-    sys.exit(app.exec_())
