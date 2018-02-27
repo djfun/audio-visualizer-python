@@ -1,6 +1,6 @@
 import sys, io, os
-from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtGui import QPainter, QColor, QFont
+from PyQt5 import QtCore, QtGui, uic, QtWidgets
+from PyQt5.QtGui import QPainter, QColor, QFont
 from os.path import expanduser
 import subprocess as sp
 import numpy
@@ -8,15 +8,15 @@ from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
 import atexit
 from queue import Queue
-from PyQt4.QtCore import QSettings
+from PyQt5.QtCore import QSettings
 import signal
 
 import preview_thread, core, video_thread
 
 class Command(QtCore.QObject):
-  
+
   videoTask = QtCore.pyqtSignal(str, str, QFont, int, int, int, int, tuple, tuple, str, str)
-  
+
   def __init__(self):
     QtCore.QObject.__init__(self)
 
@@ -36,7 +36,7 @@ class Command(QtCore.QObject):
     self.args = self.parser.parse_args()
 
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
-    
+
     # load colours as tuples from comma-separated strings
     self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
     self.visColor = core.Core.RGBFromString(self.settings.value("visColor", '255, 255, 255'))
@@ -44,13 +44,13 @@ class Command(QtCore.QObject):
       self.textColor = core.Core.RGBFromString(self.args.textcolor)
     if self.args.viscolor:
       self.visColor = core.Core.RGBFromString(self.args.viscolor)
-    
+
     # font settings
     if self.args.font:
       self.font = QFont(self.args.font)
     else:
       self.font = QFont(self.settings.value("titleFont", QFont()))
-    
+
     if self.args.fontsize:
       self.fontsize = int(self.args.fontsize)
     else:
@@ -77,7 +77,7 @@ class Command(QtCore.QObject):
 
     self.videoWorker.moveToThread(self.videoThread)
     self.videoWorker.videoCreated.connect(self.videoCreated)
-    
+
     self.videoThread.start()
     self.videoTask.emit(self.args.bgimage,
       self.args.text,
@@ -119,7 +119,7 @@ class Main(QtCore.QObject):
     self.window = window
     self.core = core.Core()
     self.settings = QSettings('settings.ini', QSettings.IniFormat)
-    
+
     # load colors as tuples from a comma-separated string
     self.textColor = core.Core.RGBFromString(self.settings.value("textColor", '255, 255, 255'))
     self.visColor = core.Core.RGBFromString(self.settings.value("visColor", '255, 255, 255'))
@@ -131,13 +131,13 @@ class Main(QtCore.QObject):
 
     self.previewWorker.moveToThread(self.previewThread)
     self.previewWorker.imageCreated.connect(self.showPreviewImage)
-    
+
     self.previewThread.start()
 
     self.timer = QtCore.QTimer(self)
     self.timer.timeout.connect(self.processTask.emit)
     self.timer.start(500)
-    
+
     window.pushButton_selectInput.clicked.connect(self.openInputFileDialog)
     window.pushButton_selectOutput.clicked.connect(self.openOutputFileDialog)
     window.pushButton_createVideo.clicked.connect(self.createAudioVisualisation)
@@ -176,7 +176,7 @@ class Main(QtCore.QObject):
     window.pushButton_visColor.setStyleSheet(btnStyle)
 
     titleFont = self.settings.value("titleFont")
-    if not titleFont == None: 
+    if not titleFont == None:
       window.fontComboBox.setCurrentFont(QFont(titleFont))
 
     alignment = self.settings.value("alignment")
@@ -209,7 +209,7 @@ class Main(QtCore.QObject):
     self.timer.stop()
     self.previewThread.quit()
     self.previewThread.wait()
-       
+
     self.settings.setValue("titleFont", self.window.fontComboBox.currentFont().toString())
     self.settings.setValue("alignment", str(self.window.alignmentComboBox.currentIndex()))
     self.settings.setValue("fontSize", str(self.window.fontsizeSpinBox.value()))
@@ -221,32 +221,33 @@ class Main(QtCore.QObject):
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
 
-    fileName = QtGui.QFileDialog.getOpenFileName(self.window,
+    fileName = QtWidgets.QFileDialog.getOpenFileName(self.window,
        "Open Music File", inputDir, "Music Files (*.mp3 *.wav *.ogg *.flac)");
 
-    if not fileName == "": 
-      self.settings.setValue("inputDir", os.path.dirname(fileName))
-      self.window.label_input.setText(fileName)
+    if not fileName == "":
+      print( 'filename :{} type:{}'.format(fileName, type(fileName)) )
+      self.settings.setValue("inputDir", os.path.dirname(fileName[0]))
+      self.window.label_input.setText(fileName[0])
 
   def openOutputFileDialog(self):
     outputDir = self.settings.value("outputDir", expanduser("~"))
 
-    fileName = QtGui.QFileDialog.getSaveFileName(self.window,
+    fileName = QtWidgets.QFileDialog.getSaveFileName(self.window,
        "Set Output Video File", outputDir, "Video Files (*.mkv)");
 
-    if not fileName == "": 
-      self.settings.setValue("outputDir", os.path.dirname(fileName))
-      self.window.label_output.setText(fileName)
+    if not fileName == "":
+      self.settings.setValue("outputDir", os.path.dirname(fileName[0]))
+      self.window.label_output.setText(fileName[0])
 
   def openBackgroundFileDialog(self):
     backgroundDir = self.settings.value("backgroundDir", expanduser("~"))
 
-    fileName = QtGui.QFileDialog.getOpenFileName(self.window,
+    fileName = QtWidgets.QFileDialog.getOpenFileName(self.window,
        "Open Background Image", backgroundDir, "Image Files (*.jpg *.png);; Video Files (*.mp4)");
 
-    if not fileName == "": 
-      self.settings.setValue("backgroundDir", os.path.dirname(fileName))
-      self.window.label_background.setText(fileName)
+    if not fileName == "":
+      self.settings.setValue("backgroundDir", os.path.dirname(fileName[0]))
+      self.window.label_background.setText(fileName[0])
     self.drawPreview()
 
   def createAudioVisualisation(self):
@@ -259,7 +260,7 @@ class Main(QtCore.QObject):
     self.videoWorker.videoCreated.connect(self.videoCreated)
     self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
     self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
-    
+
     self.videoThread.start()
     self.videoTask.emit(self.window.label_background.text(),
       self.window.lineEdit_title.text(),
@@ -272,7 +273,7 @@ class Main(QtCore.QObject):
       core.Core.RGBFromString(self.window.lineEdit_visColor.text()),
       self.window.label_input.text(),
       self.window.label_output.text())
-    
+
 
   def progressBarUpdated(self, value):
     self.window.progressBar_create.setValue(value)
@@ -323,16 +324,17 @@ if len(sys.argv) > 1:
 else:
   # gui mode
   if __name__ == "__main__":
-    app = QtGui.QApplication(sys.argv)
+    #app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     window = uic.loadUi("main.ui")
     # window.adjustSize()
-    desc = QtGui.QDesktopWidget()
+    desc = QtWidgets.QDesktopWidget()
     dpi = desc.physicalDpiX()
     topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
 
     window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
     window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
-  
+
     main = Main(window)
 
     signal.signal(signal.SIGINT, main.cleanUp)
