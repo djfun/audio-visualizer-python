@@ -338,3 +338,5 @@ else:
 
     signal.signal(signal.SIGINT, main.cleanUp)
     atexit.register(main.cleanUp)
+
+    sys.exit(app.exec_())

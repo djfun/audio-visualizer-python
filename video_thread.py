@@ -25,7 +25,7 @@ class Worker(QtCore.QObject):
     # print('worker thread id: {}'.format(QtCore.QThread.currentThreadId()))
     def getBackgroundAtIndex(i):
         return self.core.drawBaseImage(
-            backgroundFrames[i],
+            backgroundFrames[i] if len(backgroundFrames)>0 else '',
             titleText,
             titleFont,
             fontSize,

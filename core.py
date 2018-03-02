@@ -34,6 +34,7 @@ class Core():
   def parseBaseImage(self, backgroundImage, preview=False):
       ''' determines if the base image is a single frame or list of frames '''
       if backgroundImage == "":
+         print("background image is null")
          return []
       else:
          _, bgExt = os.path.splitext(backgroundImage)
@@ -44,7 +45,7 @@ class Core():
 
   def drawBaseImage(self, backgroundFile, titleText, titleFont, fontSize, alignment,\
                      xOffset, yOffset, textColor, visColor):
-    if backgroundFile == '':
+    if backgroundFile == '' :
        im = Image.new("RGB", (1280, 720), "black")
     else:
        im = Image.open(backgroundFile)
