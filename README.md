@@ -19,13 +19,15 @@ Python 3.4, FFmpeg 3.3, PyQt5, Pillow-SIMD, NumPy
 
 Installation
 ------------
-### Manual installation on Ubuntu 16.04
-* Install pip: `sudo apt-get install python3-pip`
-* If Pillow is installed, it must be removed. Nothing should break because Pillow-SIMD is simply a drop-in replacement with better performance.
-* Download audio-visualizer-python from this repository and run `sudo pip3 install .` in this directory
-* Install `ffmpeg` from the [website](http://ffmpeg.org/) or from a PPA (e.g. [https://launchpad.net/~jonathonf/+archive/ubuntu/ffmpeg-3](https://launchpad.net/~jonathonf/+archive/ubuntu/ffmpeg-3)). NOTE: `ffmpeg` in the standard repos is too old (v2.8). Old versions and `avconv` may be used but full functionality is only guaranteed with `ffmpeg` 3.3 or higher.
+### Manual installation on Ubuntu 20.04
+* Install ffmpeg: `sudo apt install ffmpeg`
+* Install pip: `sudo apt install python3-pip`
+* Install PyQt5: `sudo apt install python3-pyqt5`
+* Install dependencies to compile Pillow-SIMD: `sudo apt install python3-dev libtiff5-dev libjpeg8-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python-tk`
+* Download audio-visualizer-python from this repository and run `pip3 install .` in this directory
+* Run the program with `avp` or `python3 -m avpython`
+* (Optional Note) If using a virtual environmennt, PyQt5 doesn't seem to work when installed from the setup.py. You can use `--system-site-packages --copies` to copy the system site-packages into your venv
 
-Run the program with `avp` or `python3 -m avpython`
 
 ### Manual installation on Windows
 * **Warning:** [Compiling Pillow is difficult on Windows](http://pillow.readthedocs.io/en/3.1.x/installation.html#building-on-windows) and required for the best experience.
