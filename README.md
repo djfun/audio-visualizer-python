@@ -13,13 +13,13 @@ The program works on Linux, macOS, and Windows. If you encounter problems runnin
 
 Dependencies
 ------------
-Python 3.4, FFmpeg 3.3, PyQt5, Pillow-SIMD, NumPy
+Python 3.10, FFmpeg 4.4.1, PyQt5 (Qt v5.15.3), Pillow-SIMD, NumPy
 
 **Note:** Pillow may be used as a drop-in replacement for Pillow-SIMD if problems are encountered installing. However this will result in much slower video export times. For help installing Pillow-SIMD, see the [Pillow installation guide](http://pillow.readthedocs.io/en/3.1.x/installation.html).
 
 Installation
 ------------
-### Manual installation on Ubuntu 20.04
+### Manual installation on Ubuntu 22.04
 * Install ffmpeg: `sudo apt install ffmpeg`
 * Install pip: `sudo apt install python3-pip`
 * Install PyQt5: `sudo apt install python3-pyqt5`
@@ -41,8 +41,9 @@ Installation
 
 Download audio-visualizer-python from this repository and run it from the command line with `python main.py`.
 
-### Manual installation on macOS **[Outdated]**
+### Manual installation on macOS
 
+* **[Outdated]**: No one has updated these instructions for a while.
 * Install [Homebrew](http://brew.sh/)
 * Use the following commands to install the needed dependencies:
 
