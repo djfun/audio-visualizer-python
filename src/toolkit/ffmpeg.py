@@ -227,8 +227,8 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
         '-pix_fmt', 'rgba',
         '-r', Core.settings.value('outputFrameRate'),
         '-t', duration,
-        '-i', '-',  # the video input comes from a pipe
         '-an',  # the video input has no sound
+        '-i', '-',  # the video input comes from a pipe
 
         # INPUT SOUND
         '-t', duration,
@@ -241,12 +241,11 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
     ]
     segment = createAudioFilterCommand(extraAudio, safeDuration)
     ffmpegCommand.extend(segment)
-    if segment:
-        # Only map audio from the filters, and video from the pipe
-        ffmpegCommand.extend([
-            '-map', '0:v',
-            '-map', '[a]',
-        ])
+    # Map audio from the filters or the single audio input, and map video from the pipe
+    ffmpegCommand.extend([
+        '-map', '0:v',
+        '-map', '[a]' if segment else '1:a',
+    ])
 
     ffmpegCommand.extend([
         # OUTPUT
