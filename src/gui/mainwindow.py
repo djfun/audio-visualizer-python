@@ -108,6 +108,15 @@ class MainWindow(QtWidgets.QMainWindow):
         # Begin decorating the window and connecting events
         componentList = self.window.listWidget_componentList
 
+        # Undo Feature
+        def toggleUndoButtonEnabled(*_):
+            """ Enable/disable undo button depending on whether UndoStack contains Actions """
+            try:
+                undoButton.setEnabled(self.undoStack.count())
+            except RuntimeError:
+                # program is probably in midst of exiting
+                pass
+
         style = window.pushButton_undo.style()
         undoButton = window.pushButton_undo
         undoButton.setIcon(
@@ -115,9 +124,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         undoButton.clicked.connect(self.undoStack.undo)
         undoButton.setEnabled(False)
-        self.undoStack.cleanChanged.connect(
-            lambda change: undoButton.setEnabled(self.undoStack.count())
-        )
+        self.undoStack.cleanChanged.connect(toggleUndoButtonEnabled)
         self.undoMenu = QMenu()
         self.undoMenu.addAction(
             self.undoStack.createUndoAction(self)
@@ -130,6 +137,7 @@ class MainWindow(QtWidgets.QMainWindow):
             lambda _: self.showUndoStack()
         )
         undoButton.setMenu(self.undoMenu)
+        # end of Undo Feature
 
         style = window.pushButton_listMoveUp.style()
         window.pushButton_listMoveUp.setIcon(
