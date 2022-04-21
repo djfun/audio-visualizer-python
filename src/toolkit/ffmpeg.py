@@ -383,6 +383,9 @@ def getAudioDuration(filename):
         fileInfo = checkOutput(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as ex:
         fileInfo = ex.output
+    except FileNotFoundError:
+        # ffmpeg is possibly not installed
+        return False
 
     try:
         info = fileInfo.decode("utf-8").split('\n')

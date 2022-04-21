@@ -244,9 +244,15 @@ class Worker(QtCore.QObject):
             )
             self.staticComponents[compNo] = None
 
-        ffmpegCommand = createFfmpegCommand(
-            self.inputFile, self.outputFile, self.components, duration
-        )
+        try:
+            ffmpegCommand = createFfmpegCommand(
+                self.inputFile, self.outputFile, self.components, duration
+            )
+        except sp.CalledProcessError as e:
+            self.components[0]._error.emit("Ffmpeg could not be found. Is it installed?", str(e))
+            self.cancelExport()
+            return
+
         cmd = " ".join(ffmpegCommand)
         print('###### FFMPEG COMMAND ######\n%s' % cmd)
         print('############################')
