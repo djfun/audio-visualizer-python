@@ -202,15 +202,24 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
     vencoders = options['video-codecs'][vcodec]
     aencoders = options['audio-codecs'][acodec]
 
+    def error():
+        nonlocal encoders, encoder
+        log.critical("Selected encoder (%s) is not supported by Ffmpeg. The supported encoders are: %s", encoder, encoders)
+        return []
+
     for encoder in vencoders:
         if encoder in encoders:
             vencoder = encoder
             break
+    else:
+        return error()
 
     for encoder in aencoders:
         if encoder in encoders:
             aencoder = encoder
             break
+    else:
+        return error()
 
     ffmpegCommand = [
         Core.FFMPEG_BIN,
