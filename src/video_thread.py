@@ -249,13 +249,21 @@ class Worker(QtCore.QObject):
                 self.inputFile, self.outputFile, self.components, duration
             )
         except sp.CalledProcessError as e:
+            #FIXME video_thread should own this error signal, not components
             self.components[0]._error.emit("Ffmpeg could not be found. Is it installed?", str(e))
-            self.cancelExport()
+            self.error = True
             return
 
         cmd = " ".join(ffmpegCommand)
         print('###### FFMPEG COMMAND ######\n%s' % cmd)
         print('############################')
+        if not cmd:
+            #FIXME video_thread should own this error signal, not components
+            self.components[0]._error.emit("The ffmpeg command could not be generated.", "")
+            log.critical("Cancelling render process due to failure while generating the ffmpeg command.")
+            self.failExport()
+            return
+
         log.info('Opening pipe to ffmpeg')
         log.info(cmd)
         try:
@@ -264,7 +272,7 @@ class Worker(QtCore.QObject):
                 stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
             )
         except sp.CalledProcessError:
-            log.critical('Ffmpeg pipe couldn\'t be created!')
+            log.critical('Ffmpeg pipe couldn\'t be created!', exc_info=True)
             raise
 
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -347,9 +355,7 @@ class Worker(QtCore.QObject):
             self.progressBarSetText.emit('Export Canceled')
         else:
             if self.error:
-                print("Export Failed")
-                self.progressBarUpdate.emit(0)
-                self.progressBarSetText.emit('Export Failed')
+                self.failExport()
             else:
                 print("Export Complete")
                 self.progressBarUpdate.emit(100)
@@ -372,11 +378,14 @@ class Worker(QtCore.QObject):
             self.error = True
         self.out_pipe.wait()
 
-    def cancelExport(self):
+    def cancelExport(self, message='Export Canceled'):
         self.progressBarUpdate.emit(0)
-        self.progressBarSetText.emit('Export Canceled')
+        self.progressBarSetText.emit(message)
         self.encoding.emit(False)
         self.videoCreated.emit()
+
+    def failExport(self):
+        self.cancelExport('Export Failed')
 
     def updateProgress(self, pStr, pVal):
         self.progressBarValue.emit(pVal)
