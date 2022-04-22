@@ -5,10 +5,10 @@ import math
 import subprocess
 import logging
 
-from component import Component
-from toolkit.frame import BlankFrame, scale
-from toolkit.ffmpeg import openPipe, closePipe, testAudioStream, FfmpegVideo
-from toolkit import checkOutput
+from ..component import Component
+from ..toolkit.frame import BlankFrame, scale
+from ..toolkit.ffmpeg import openPipe, closePipe, testAudioStream, FfmpegVideo
+from ..toolkit import checkOutput
 
 
 log = logging.getLogger('AVP.Components.Video')

@@ -7,9 +7,9 @@ import string
 import os
 import logging
 
-from toolkit import badName
-from core import Core
-from gui.actions import *
+from ..toolkit import badName
+from ..core import Core
+from .actions import *
 
 
 log = logging.getLogger('AVP.Gui.PresetManager')

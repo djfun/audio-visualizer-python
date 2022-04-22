@@ -10,8 +10,8 @@ import signal
 from queue import PriorityQueue
 import logging
 
-import core
-from toolkit.common import checkOutput, pipeWrapper
+from .. import core
+from .common import checkOutput, pipeWrapper
 
 
 log = logging.getLogger('AVP.Toolkit.Ffmpeg')
@@ -90,7 +90,7 @@ class FfmpegVideo:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
-        from component import ComponentError
+        from ..component import ComponentError
         if core.Core.logEnabled:
             logFilename = os.path.join(
                 core.Core.logDir, 'render_%s.log' % str(self.component.compPos)
@@ -144,7 +144,7 @@ def openPipe(commandList, **kwargs):
 
 def closePipe(pipe):
     pipe.stdout.close()
-    pipe.send_signal(signal.SIGINT)
+    pipe.send_signal(signal.SIGTERM)
 
 
 def findFfmpeg():

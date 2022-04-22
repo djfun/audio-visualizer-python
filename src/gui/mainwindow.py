@@ -16,12 +16,12 @@ import filecmp
 import time
 import logging
 
-from core import Core
-import gui.preview_thread as preview_thread
-from gui.preview_win import PreviewWindow
-from gui.presetmanager import PresetManager
-from gui.actions import *
-from toolkit import (
+from ..core import Core
+from . import preview_thread
+from .preview_win import PreviewWindow
+from .presetmanager import PresetManager
+from .actions import *
+from ..toolkit import (
     disableWhenEncoding, disableWhenOpeningProject, checkOutput, blockSignals
 )
 
@@ -65,7 +65,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings = Core.settings
 
         # Register clean-up functions
-        signal.signal(signal.SIGINT, self.terminate)
         atexit.register(self.cleanUp)
 
         # Create stack of undoable user actions

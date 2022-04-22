@@ -3,7 +3,7 @@ import sys
 import os
 import logging
 
-from __init__ import wd
+from .__init__ import wd
 
 
 log = logging.getLogger('AVP.Main')
@@ -12,6 +12,7 @@ log = logging.getLogger('AVP.Main')
 def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("audio-visualizer")
+    proj = None
 
     # Determine mode
     mode = 'GUI'
@@ -23,19 +24,17 @@ def main():
         else:
             # opening a project file with gui
             proj = sys.argv[1]
-    else:
-        # normal gui launch
-        proj = None
 
     # Launch program
     if mode == 'commandline':
-        from command import Command
+        from .command import Command
 
         main = Command()
+        main.parseArgs()
         log.debug("Finished creating command object")
 
     elif mode == 'GUI':
-        from gui.mainwindow import MainWindow
+        from .gui.mainwindow import MainWindow
 
         window = uic.loadUi(os.path.join(wd, "gui", "mainwindow.ui"))
         # window.adjustSize()

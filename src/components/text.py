@@ -4,8 +4,8 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 import os
 import logging
 
-from component import Component
-from toolkit.frame import FramePainter, PaintColor
+from ..component import Component
+from ..toolkit.frame import FramePainter, PaintColor
 
 log = logging.getLogger('AVP.Components.Text')
 

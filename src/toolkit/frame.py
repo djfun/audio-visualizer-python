@@ -9,7 +9,7 @@ import os
 import math
 import logging
 
-import core
+from .. import core
 
 
 log = logging.getLogger('AVP.Toolkit.Frame')

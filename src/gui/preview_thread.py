@@ -10,8 +10,8 @@ from queue import Queue, Empty
 import os
 import logging
 
-from toolkit.frame import Checkerboard
-from toolkit import disableWhenOpeningProject
+from ..toolkit.frame import Checkerboard
+from ..toolkit import disableWhenOpeningProject
 
 
 log = logging.getLogger("AVP.Gui.PreviewThread")

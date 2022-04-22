@@ -19,9 +19,9 @@ import time
 import signal
 import logging
 
-from component import ComponentError
-from toolkit.frame import Checkerboard
-from toolkit.ffmpeg import (
+from .component import ComponentError
+from .toolkit.frame import Checkerboard
+from .toolkit.ffmpeg import (
     openPipe, readAudioFile,
     getAudioDuration, createFfmpegCommand
 )
@@ -400,7 +400,7 @@ class Worker(QtCore.QObject):
             comp.cancel()
 
         try:
-            self.out_pipe.send_signal(signal.SIGINT)
+            self.out_pipe.send_signal(signal.SIGTERM)
         except Exception:
             pass
 

@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QUndoCommand
 import os
 from copy import copy
 
-from core import Core
+from ..core import Core
 
 
 # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~

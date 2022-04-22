@@ -1,5 +1,5 @@
-# Allows for launching with python3 -m avpython
+# Allows for launching with python3 -m avp
 
-from avpython.main import main
+from .main import main
 
 main()

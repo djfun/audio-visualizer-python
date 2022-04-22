@@ -4,8 +4,8 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageChops, ImageFilter
 import os
 import math
 
-from component import Component
-from toolkit.frame import BlankFrame, scale
+from ..component import Component
+from ..toolkit.frame import BlankFrame, scale
 
 
 class Component(Component):

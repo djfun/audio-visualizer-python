@@ -11,8 +11,8 @@ import time
 import logging
 from copy import copy
 
-from toolkit.frame import BlankFrame
-from toolkit import (
+from .toolkit.frame import BlankFrame
+from .toolkit import (
     getWidgetValue, setWidgetValue, connectWidget, rgbFromString, blockSignals
 )
 

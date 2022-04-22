@@ -9,12 +9,12 @@ import json
 from importlib import import_module
 import logging
 
-import toolkit
+from . import toolkit
 
 
 log = logging.getLogger('AVP.Core')
 STDOUT_LOGLVL = logging.WARNING
-FILE_LOGLVL = None
+FILE_LOGLVL = logging.ERROR
 
 
 class Core:
@@ -47,7 +47,7 @@ class Core:
                     yield name
         log.debug('Importing component modules')
         self.modules = [
-            import_module('components.%s' % name)
+            import_module('.components.%s' % name, __package__)
             for name in findComponents()
         ]
         # store canonical module names and indexes
@@ -426,7 +426,7 @@ class Core:
 
     def newVideoWorker(self, loader, audioFile, outputPath):
         '''loader is MainWindow or Command object which must own the thread'''
-        import video_thread
+        from . import video_thread
         self.videoThread = QtCore.QThread(loader)
         videoWorker = video_thread.Worker(
             loader, audioFile, outputPath, self.selectedComponents
@@ -450,8 +450,8 @@ class Core:
     @classmethod
     def storeSettings(cls):
         '''Store settings/paths to directories as class variables'''
-        from __init__ import wd
-        from toolkit.ffmpeg import findFfmpeg
+        from .__init__ import wd
+        from .toolkit.ffmpeg import findFfmpeg
 
         cls.wd = wd
         dataDir = QtCore.QStandardPaths.writableLocation(

@@ -4,8 +4,8 @@ from PyQt5.QtGui import QColor
 from PIL.ImageQt import ImageQt
 import os
 
-from component import Component
-from toolkit.frame import BlankFrame, FloodFrame, FramePainter, PaintColor
+from ..component import Component
+from ..toolkit.frame import BlankFrame, FloodFrame, FramePainter, PaintColor
 
 
 class Component(Component):

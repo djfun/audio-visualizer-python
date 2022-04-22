@@ -1,29 +1,39 @@
-from setuptools import setup
-import os
+from setuptools import setup, find_packages
+from importlib import import_module
+from os import path
+import re
 
 
-__version__ = '2.0.0rc5'
+def getTextFromFile(filename, fallback):
+    try:
+        with open(
+            path.join(path.abspath(path.dirname(__file__)), filename), encoding="utf-8"
+        ) as f:
+            output = f.read()
+    except Exception:
+        output = fallback
+    return output
 
 
-def package_files(directory):
-    paths = []
-    for (path, directories, filenames) in os.walk(directory):
-        for filename in filenames:
-            paths.append(os.path.join('..', path, filename))
-    return paths
+PACKAGE_NAME = 'avp'
+SOURCE_DIRECTORY = 'src'
+SOURCE_PACKAGE_REGEX = re.compile(rf'^{SOURCE_DIRECTORY}')
+PACKAGE_DESCRIPTION = 'Create audio visualization videos from a GUI or commandline'
+
+
+avp = import_module(SOURCE_DIRECTORY)
+source_packages = find_packages(include=[SOURCE_DIRECTORY, f'{SOURCE_DIRECTORY}.*'])
+proj_packages = [SOURCE_PACKAGE_REGEX.sub(PACKAGE_NAME, name) for name in source_packages]
 
 
 setup(
     name='audio_visualizer_python',
-    version=__version__,
+    version=avp.__version__,
     url='https://github.com/djfun/audio-visualizer-python/tree/feature-newgui',
     license='MIT',
-    description='Create audio visualization videos from a GUI or commandline',
-    long_description="Create customized audio visualization videos and save "
-        "them as Projects to continue editing later. Different components can "
-        "be added and layered to add visualizers, images, videos, gradients, "
-        "text, etc. Use Projects created in the GUI with commandline mode to "
-        "automate your video production workflow without any complex syntax.",
+    description=PACKAGE_DESCRIPTION,
+    author=getTextFromFile('AUTHORS', 'djfun, tassaron'),
+    long_description=getTextFromFile('README.md', PACKAGE_DESCRIPTION),
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
@@ -35,19 +45,18 @@ setup(
         'visualizer', 'visualization', 'commandline video',
         'video editor', 'ffmpeg', 'podcast'
     ],
-    packages=[
-        'avpython',
-        'avpython.toolkit',
-        'avpython.components'
+    packages=proj_packages,
+    package_dir={PACKAGE_NAME: SOURCE_DIRECTORY},
+    include_package_data=True,
+    install_requires=[
+        'Pillow-SIMD',
+        'PyQt5',
+        'numpy',
+        'pytest'
     ],
-    package_dir={'avpython': 'src'},
-    package_data={
-        'avpython': package_files('src'),
-    },
-    install_requires=['Pillow-SIMD', 'PyQt5', 'numpy'],
     entry_points={
         'gui_scripts': [
-            'avp = avpython.main:main'
+            f'avp = {PACKAGE_NAME}.main:main'
         ],
     }
 )

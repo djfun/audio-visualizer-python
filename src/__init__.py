@@ -3,6 +3,9 @@ import os
 import logging
 
 
+__version__ = '2.0.0rc6'
+
+
 class Logger(logging.getLoggerClass()):
     '''
         Custom Logger class to handle custom VERBOSE log level.
@@ -31,6 +34,3 @@ if getattr(sys, 'frozen', False):
 else:
     # unfrozen
     wd = os.path.dirname(os.path.realpath(__file__))
-
-# make relative imports work when using /src as a package
-sys.path.insert(0, wd)

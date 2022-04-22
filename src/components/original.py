@@ -6,8 +6,8 @@ import os
 import time
 from copy import copy
 
-from component import Component
-from toolkit.frame import BlankFrame
+from ..component import Component
+from ..toolkit.frame import BlankFrame
 
 
 class Component(Component):

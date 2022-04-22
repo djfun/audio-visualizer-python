@@ -6,10 +6,10 @@ import subprocess
 import time
 import logging
 
-from component import Component
-from toolkit.frame import BlankFrame, scale
-from toolkit import checkOutput, connectWidget
-from toolkit.ffmpeg import (
+from ..component import Component
+from ..toolkit.frame import BlankFrame, scale
+from ..toolkit import checkOutput, connectWidget
+from ..toolkit.ffmpeg import (
     openPipe, closePipe, getAudioDuration, FfmpegVideo, exampleSound
 )
 
