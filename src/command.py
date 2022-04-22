@@ -9,27 +9,43 @@ import os
 import sys
 import time
 import signal
+import logging
 
-from core import Core
+from . import core
+
+
+log = logging.getLogger('AVP.Commandline')
 
 
 class Command(QtCore.QObject):
+    """
+        This replaces the GUI MainWindow when in commandline mode.
+    """
 
     createVideo = QtCore.pyqtSignal()
 
     def __init__(self):
         QtCore.QObject.__init__(self)
-        self.core = Core()
-        Core.mode = 'commandline'
+        self.core = core.Core()
+        core.Core.mode = 'commandline'
         self.dataDir = self.core.dataDir
         self.canceled = False
+        self.settings = core.Core.settings
 
+        # ctrl-c stops the export thread
+        signal.signal(signal.SIGINT, self.stopVideo)
+
+    def parseArgs(self):
         self.parser = argparse.ArgumentParser(
             description='Create a visualization for an audio file',
             epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
                         '-i ~/Music/song.mp3 -o ~/video.mp4 '
                         '-c 0 image path=~/Pictures/thisWeeksPicture.jpg '
                         '-c 1 video "preset=My Logo" -c 2 vis layout=classic'
+        )
+        self.parser.add_argument(
+            '-t', '--test', action='store_true',
+            help='run tests and generate a logfile to report a bug'
         )
         self.parser.add_argument(
             '-i', '--input', metavar='SOUND',
@@ -55,7 +71,10 @@ class Command(QtCore.QObject):
             nargs='*', action='append')
 
         self.args = self.parser.parse_args()
-        self.settings = Core.settings
+
+        if self.args.test:
+            self.runTests()
+            quit(0)
 
         if self.args.projpath:
             projPath = self.args.projpath
@@ -91,9 +110,6 @@ class Command(QtCore.QObject):
                 i = self.core.insertComponent(pos, modI, self)
                 for arg in args:
                     self.core.selectedComponents[i].command(arg)
-
-        # ctrl-c stops the export thread
-        signal.signal(signal.SIGINT, self.stopVideo)
 
         if self.args.export and self.args.projpath:
             errcode, data = self.core.parseAvFile(projPath)
@@ -188,3 +204,12 @@ class Command(QtCore.QObject):
             return
 
         return None
+
+    def runTests(self):
+        core.FILE_LOGLVL = logging.DEBUG
+        from . import tests
+        test_report = os.path.join(core.Core.logDir, "test_report.log")
+        tests.run(test_report)
+        with open(test_report, "r") as f:
+            output = f.readlines()
+        print("".join(output))
