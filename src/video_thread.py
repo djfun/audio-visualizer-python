@@ -132,6 +132,7 @@ class Worker(QtCore.QObject):
 
     @pyqtSlot()
     def createVideo(self):
+        log.debug("Video worker received signal to createVideo")
         numpy.seterr(divide='ignore')
         self.encoding.emit(True)
         self.extraAudio = []
@@ -151,6 +152,7 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # READ AUDIO, INITIALIZE COMPONENTS, OPEN A PIPE TO FFMPEG
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        log.debug("Determining length of audio...")
         if any([
                 True if 'pcm' in comp.properties() else False
                 for comp in self.components
@@ -192,7 +194,11 @@ class Worker(QtCore.QObject):
                     progressBarSetText=self.progressBarSetText
                 )
             except ComponentError:
-                pass
+                log.warning(
+                    '#%s %s encountered an error in its preFrameRender method',
+                    compNo,
+                    comp
+                )
 
             compProps = comp.properties()
             if 'error' in compProps or comp._lockedError is not None:
@@ -216,9 +222,11 @@ class Worker(QtCore.QObject):
                 comp._error.emit(errMsg, compError[1])
                 break
             if 'static' in compProps:
+                log.info('Saving static frame from #%s %s', compNo, comp)
                 self.staticComponents[compNo] = \
                     comp.frameRender(0).copy()
 
+        log.debug("Checking if a component wishes to cancel the export...")
         if self.canceled:
             if canceledByComponent:
                 log.error(
@@ -233,7 +241,7 @@ class Worker(QtCore.QObject):
             self.cancelExport()
             return
 
-        # Merge consecutive static component frames together
+        log.info("Merging consecutive static component frames")
         for compNo in range(len(self.components)):
             if compNo not in self.staticComponents \
                     or compNo + 1 not in self.staticComponents:
