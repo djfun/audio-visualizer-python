@@ -808,7 +808,7 @@ class ComponentError(RuntimeError):
             return
         ComponentError.lastTime = time.time()
 
-        from toolkit import formatTraceback
+        from .toolkit import formatTraceback
         if sys.exc_info()[0] is not None:
             string = (
                 "%s component (#%s): %s encountered %s %s: %s" % (
