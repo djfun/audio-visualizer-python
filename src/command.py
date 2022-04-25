@@ -44,10 +44,6 @@ class Command(QtCore.QObject):
                         '-c 1 video "preset=My Logo" -c 2 vis layout=classic'
         )
         self.parser.add_argument(
-            '-t', '--test', action='store_true',
-            help='run tests and generate a logfile to report a bug'
-        )
-        self.parser.add_argument(
             '-i', '--input', metavar='SOUND',
             help='input audio file'
         )
@@ -56,8 +52,16 @@ class Command(QtCore.QObject):
             help='output video file'
         )
         self.parser.add_argument(
-            '-e', '--export', action='store_true',
-            help='use input and output files from project file'
+            '--export-project', action='store_true',
+            help='ignore -i and -o, use input and output from project file'
+        )
+        self.parser.add_argument(
+            '--test', action='store_true',
+            help='run tests, generate logfiles, then exit'
+        )
+        self.parser.add_argument(
+            '--debug', action='store_true',
+            help='create bigger logfiles while program is running'
         )
 
         # optional arguments
@@ -71,6 +75,11 @@ class Command(QtCore.QObject):
             nargs='*', action='append')
 
         self.args = self.parser.parse_args()
+
+        if self.args.debug:
+            core.FILE_LOGLVL = logging.DEBUG
+            core.STDOUT_LOGLVL = logging.DEBUG
+            core.Core.makeLogger()
 
         if self.args.test:
             self.runTests()
@@ -111,7 +120,7 @@ class Command(QtCore.QObject):
                 for arg in args:
                     self.core.selectedComponents[i].command(arg)
 
-        if self.args.export and self.args.projpath:
+        if self.args.export_project and self.args.projpath:
             errcode, data = self.core.parseAvFile(projPath)
             for key, value in data['WindowFields']:
                 if 'outputFile' in key:
@@ -139,6 +148,7 @@ class Command(QtCore.QObject):
         self.worker = self.core.newVideoWorker(
             self, input, output
         )
+        # quit(0) after video is created
         self.worker.videoCreated.connect(self.videoCreated)
         self.lastProgressUpdate = time.time()
         self.worker.progressBarSetText.connect(self.progressBarSetText)
@@ -207,6 +217,7 @@ class Command(QtCore.QObject):
 
     def runTests(self):
         core.FILE_LOGLVL = logging.DEBUG
+        core.Core.makeLogger()
         from . import tests
         test_report = os.path.join(core.Core.logDir, "test_report.log")
         tests.run(test_report)
