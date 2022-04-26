@@ -133,13 +133,17 @@ class Command(QtCore.QObject):
                 if 'audioFile' in key:
                     input = value
             self.createAudioVisualisation(input, output)
+            return "commandline"
 
         elif self.args.input and self.args.output:
             self.createAudioVisualisation(self.args.input, self.args.output)
+            return "commandline"
 
-        elif 'help' not in sys.argv:
+        elif 'help' not in sys.argv and self.args.projpath is None and '--debug' not in sys.argv:
             self.parser.print_help()
             quit(1)
+
+        return "GUI"
 
     def createAudioVisualisation(self, input, output):
         self.core.selectedComponents = list(

@@ -16,6 +16,10 @@ def command():
     return Command()
 
 
+def getTestData(filename):
+    return os.path.join(Core.wd, 'tests', 'data', filename)
+
+
 def run(logFile):
     """Run Pytest, which then imports and runs all tests in this module."""
     with open(logFile, "w") as f:

@@ -30,25 +30,25 @@ def main():
         from .command import Command
 
         main = Command()
-        main.parseArgs()
+        mode = main.parseArgs()
         log.debug("Finished creating command object")
 
-    elif mode == 'GUI':
+    # Both branches here may occur in one execution:
+    # Commandline parsing could change mode back to GUI
+    if mode == 'GUI':
         from .gui.mainwindow import MainWindow
 
         window = uic.loadUi(os.path.join(wd, "gui", "mainwindow.ui"))
-        # window.adjustSize()
         desc = QtWidgets.QDesktopWidget()
         dpi = desc.physicalDpiX()
-
-        topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
+        log.info("Detected screen DPI: %s", dpi)
+        
         window.resize(
             int(window.width() *
             (dpi / 96)),
             int(window.height() *
             (dpi / 96))
         )
-        # window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
 
         main = MainWindow(window, proj)
         log.debug("Finished creating main window")
