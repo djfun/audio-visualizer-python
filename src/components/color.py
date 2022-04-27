@@ -1,11 +1,11 @@
-from PIL import Image, ImageDraw
-from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.QtGui import QColor
-from PIL.ImageQt import ImageQt
-import os
+from PyQt5 import QtGui
+import logging
 
 from ..component import Component
 from ..toolkit.frame import BlankFrame, FloodFrame, FramePainter, PaintColor
+
+
+log = logging.getLogger('AVP.Components.Color')
 
 
 class Component(Component):
@@ -89,6 +89,7 @@ class Component(Component):
         return ['static']
 
     def frameRender(self, frameNo):
+        log.debug("Color component is drawing frame #%s", frameNo)
         return self.drawFrame(self.width, self.height)
 
     def drawFrame(self, width, height):
