@@ -22,7 +22,8 @@ class FramePainter(QtGui.QPainter):
     '''
     def __init__(self, width, height):
         image = BlankFrame(width, height)
-        self.image = QtGui.QImage(ImageQt(image))
+        log.debug("Creating QImage from PIL image object")
+        self.image = ImageQt(image)
         super().__init__(self.image)
 
     def setPen(self, penStyle):
