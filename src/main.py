@@ -2,6 +2,8 @@ from PyQt5 import uic, QtWidgets
 import sys
 import os
 import logging
+import re
+import string
 
 from .__init__ import wd
 
@@ -10,11 +12,8 @@ log = logging.getLogger('AVP.Main')
 
 
 def main():
-    app = QtWidgets.QApplication(sys.argv)
-    app.setApplicationName("audio-visualizer")
+    # Determine primary mode
     proj = None
-
-    # Determine mode
     mode = 'GUI'
     if len(sys.argv) > 2:
         mode = 'commandline'
@@ -22,9 +21,14 @@ def main():
         if sys.argv[1].startswith('-'):
             mode = 'commandline'
         else:
+            # remove unsafe punctuation characters such as \/?*&^%$#
+            sys.argv[1] = re.sub(f'[{re.escape(string.punctuation)}]', '', sys.argv[1])
             # opening a project file with gui
             proj = sys.argv[1]
 
+    # Create Qt Application
+    app = QtWidgets.QApplication(sys.argv)
+    app.setApplicationName("audio-visualizer")
     # Launch program
     if mode == 'commandline':
         from .command import Command
@@ -55,6 +59,7 @@ def main():
         window.raise_()
 
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()
