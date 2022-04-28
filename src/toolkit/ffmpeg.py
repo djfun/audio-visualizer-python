@@ -55,7 +55,7 @@ class FfmpegVideo:
             core.Core.FFMPEG_BIN,
             '-thread_queue_size', '512',
             '-r', str(self.frameRate),
-            '-stream_loop', self.loopValue,
+            '-stream_loop', str(self.loopValue),
             '-i', self.inputPath,
             '-f', 'image2pipe',
             '-pix_fmt', 'rgba',
@@ -229,12 +229,9 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
         # INPUT VIDEO
         '-f', 'rawvideo',
         '-vcodec', 'rawvideo',
-        '-s', '%sx%s' % (
-            Core.settings.value('outputWidth'),
-            Core.settings.value('outputHeight'),
-        ),
+        '-s', f'{Core.settings.value("outputWidth")}x{Core.settings.value("outputHeight")}',
         '-pix_fmt', 'rgba',
-        '-r', Core.settings.value('outputFrameRate'),
+        '-r', str(Core.settings.value('outputFrameRate')),
         '-t', duration,
         '-an',  # the video input has no sound
         '-i', '-',  # the video input comes from a pipe
