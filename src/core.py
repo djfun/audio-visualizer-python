@@ -585,9 +585,9 @@ class Core:
                 if os.path.exists(log_):
                     os.remove(log_)
 
-            logFile = logging.FileHandler(logFilename)
+            logFile = logging.FileHandler(logFilename, delay=True)
             logFile.setLevel(FILE_LOGLVL)
-            libLogFile = logging.FileHandler(libLogFilename)
+            libLogFile = logging.FileHandler(libLogFilename, delay=True)
             libLogFile.setLevel(FILE_LOGLVL)
             fileFormatter = logging.Formatter(
                 '[%(asctime)s] %(threadName)-10.10s %(name)-23.23s %(levelname)s: '
