@@ -10,7 +10,7 @@ class PreviewWindow(QtWidgets.QLabel):
         when the window is resized.
     '''
     def __init__(self, parent, img):
-        super(PreviewWindow, self).__init__()
+        super().__init__()
         self.parent = parent
         self.setFrameStyle(QtWidgets.QFrame.StyledPanel)
         self.pixmap = QtGui.QPixmap(img)

@@ -25,7 +25,7 @@ class Command(QtCore.QObject):
     createVideo = QtCore.pyqtSignal()
 
     def __init__(self):
-        super()
+        super().__init__()
         self.core = core.Core()
         core.Core.mode = 'commandline'
         self.dataDir = self.core.dataDir

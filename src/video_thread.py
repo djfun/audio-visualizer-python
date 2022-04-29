@@ -39,13 +39,13 @@ class Worker(QtCore.QObject):
     encoding = pyqtSignal(bool)
 
     def __init__(self, parent, inputFile, outputFile, components):
-        QtCore.QObject.__init__(self)
+        super().__init__()
         self.core = parent.core
         self.settings = parent.settings
         self.modules = parent.core.modules
         parent.createVideo.connect(self.createVideo)
 
-        self.parent = parent
+        #self.parent = parent
         self.components = components
         self.outputFile = outputFile
         self.inputFile = inputFile

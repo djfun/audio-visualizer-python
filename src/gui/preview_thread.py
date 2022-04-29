@@ -23,10 +23,10 @@ class Worker(QtCore.QObject):
     error = pyqtSignal(str)
 
     def __init__(self, parent=None, queue=None):
-        QtCore.QObject.__init__(self)
+        super().__init__()
         parent.newTask.connect(self.createPreviewImage)
         parent.processTask.connect(self.process)
-        self.parent = parent
+        #self.parent = parent
         self.core = parent.core
         self.settings = parent.settings
         self.queue = queue
