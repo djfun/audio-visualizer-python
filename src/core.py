@@ -432,12 +432,12 @@ class Core:
             loader, audioFile, outputPath, self.selectedComponents
         )
         videoWorker.moveToThread(self.videoThread)
-        videoWorker.videoCreated.connect(self.videoCreated)
+        videoWorker.videoCreated.connect(self.stopVideoThread)
 
         self.videoThread.start()
         return videoWorker
 
-    def videoCreated(self):
+    def stopVideoThread(self):
         self.videoThread.quit()
         self.videoThread.wait()
 
