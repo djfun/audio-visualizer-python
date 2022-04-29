@@ -444,6 +444,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @disableWhenOpeningProject
     def updateWindowTitle(self):
+        log.debug("Setting main window's title")
         appName = 'Audio Visualizer'
         try:
             if self.currentProject:
@@ -454,7 +455,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 appName += '*'
         except AttributeError:
             pass
-        log.verbose('Setting window title to %s' % appName)
+        log.verbose(f'Window title is "{appName}"')
         self.window.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
