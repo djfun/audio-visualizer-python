@@ -758,15 +758,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def showFfmpegCommand(self):
         from textwrap import wrap
-        from toolkit.ffmpeg import createFfmpegCommand
+        from ..toolkit.ffmpeg import createFfmpegCommand
         command = createFfmpegCommand(
             self.window.lineEdit_audioFile.text(),
             self.window.lineEdit_outputFile.text(),
             self.core.selectedComponents
         )
-        lines = wrap(" ".join(command), 49)
+        command = " ".join(command)
+        log.info(f"FFmpeg command: {command}")
+        lines = wrap(command, 49)
         self.showMessage(
-            msg="Current FFmpeg command:\n\n %s" % " ".join(lines)
+            msg=f"Current FFmpeg command:\n\n{' '.join(lines)}"
         )
 
     def addComponent(self, compPos, moduleIndex):

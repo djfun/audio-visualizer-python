@@ -71,5 +71,29 @@ Download audio-visualizer-python from this repository and run it with `python3 m
 * **Warning:** [Compiling from source is difficult on Windows](http://pillow.readthedocs.io/en/3.1.x/installation.html#building-on-windows).
 
 
+# Keyboard Shortcuts
+| Key Combo                 | Effect                                             |
+| ------------------------- | -------------------------------------------------- |
+| Ctrl+S                    | Save Current Project                               |
+| Ctrl+A                    | Save Project As...                                 |
+| Ctrl+O                    | Open Project                                       |
+| Ctrl+N                    | New Project (prompts to save current project)      |
+| Ctrl+Z                    | Undo                                               |
+| Ctrl+Shift+Z _or_ Ctrl+Y  | Redo                                               |
+| Ctrl+T _or_ Insert        | Add Component                                      |
+| Ctrl+R _or_ Delete        | Remove Component                                   |
+| Ctrl+Space                | Focus Component List                               |
+| Ctrl+Shift+S              | Save Component Preset                              |
+| Ctrl+Shift+C              | Remove Preset from Component                       |
+| Ctrl+Up                   | Move Selected Component Up                         |
+| Ctrl+Down                 | Move Selected Component Down                       |
+| Ctrl+Home                 | Move Selected Component to Top                     |
+| Ctrl+End                  | Move Selected Component to Bottom                  |
+| Ctrl+Shift+U              | Open Undo History                                  |
+| Ctrl+Shift+F              | Show FFmpeg Command                                |
+| Ctrl+Alt+Shift+R          | Force redraw preview (must use `--debug`)          |
+| Ctrl+Alt+Shift+A          | Dump MainWindow data into log (must use `--debug`) |
+
+
 # License
 audio-visualizer-python is licensed under the MIT license.
