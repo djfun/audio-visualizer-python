@@ -128,9 +128,13 @@ class FfmpegVideo:
 
             try:
                 self.currentFrame = self.pipe.stdout.read(self.chunkSize)
-            except ValueError:
-                FfmpegVideo.threadError = ComponentError(
-                    self.component, 'video')
+            except ValueError as e:
+                if str(e) == "PyMemoryView_FromBuffer(): info->buf must not be NULL":
+                    log.debug("Ignored 'info->buf must not be NULL' error from FFmpeg pipe")
+                    return
+                else:
+                    FfmpegVideo.threadError = ComponentError(
+                        self.component, 'video')
 
             if len(self.currentFrame) != 0:
                 self.frameBuffer.put((self.frameNo, self.currentFrame))
