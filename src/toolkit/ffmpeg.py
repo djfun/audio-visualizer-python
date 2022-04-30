@@ -152,25 +152,24 @@ def closePipe(pipe):
 
 
 def findFfmpeg():
+    if sys.platform == "win32":
+        bin = 'ffmpeg.exe'
+    else:
+        bin = 'ffmfpeg'
+
     if getattr(sys, 'frozen', False):
         # The application is frozen
-        if sys.platform == "win32":
-            return os.path.join(core.Core.wd, 'ffmpeg.exe')
-        else:
-            return os.path.join(core.Core.wd, 'ffmpeg')
+        bin = os.path.join(core.Core.wd, bin)
 
-    else:
-        if sys.platform == "win32":
-            return "ffmpeg"
-        else:
-            try:
-                with open(os.devnull, "w") as f:
-                    checkOutput(
-                        ['ffmpeg', '-version'], stderr=f
-                    )
-                return "ffmpeg"
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                return "avconv"
+    with open(os.devnull, "w") as f:
+        try:
+            checkOutput(
+                [bin, '-version'], stderr=f
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            bin = ""
+
+    return bin
 
 
 def createFfmpegCommand(inputFile, outputFile, components, duration=-1):

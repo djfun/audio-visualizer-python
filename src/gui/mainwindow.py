@@ -336,24 +336,32 @@ class MainWindow(QtWidgets.QMainWindow):
         log.info("Pillow version %s", Image.__version__)
 
         # verify Ffmpeg version
-        if not self.settings.value("ffmpegMsgShown"):
-            try:
-                with open(os.devnull, "w") as f:
-                    ffmpegVers = checkOutput(
-                        ['ffmpeg', '-version'], stderr=f
-                    )
-                goodVersion = str(ffmpegVers).split()[2].startswith('4')
-            except Exception:
-                goodVersion = False
-        else:
-            goodVersion = True
-
-        if not goodVersion:
+        if not self.core.FFMPEG_BIN:
             self.showMessage(
-                msg="You're using an old version of Ffmpeg. "
-                "Some features may not work as expected."
+                msg="FFmpeg could not be found. This is a critical error. "
+                "Install FFmpeg, or download it and place the program executable "
+                "in the same folder as this program.",
+                icon='Critical'
             )
-        self.settings.setValue("ffmpegMsgShown", True)
+        else:
+            if not self.settings.value("ffmpegMsgShown"):
+                try:
+                    with open(os.devnull, "w") as f:
+                        ffmpegVers = checkOutput(
+                            [self.core.FFMPEG_BIN, '-version'], stderr=f
+                        )
+                    goodVersion = str(ffmpegVers).split()[2].startswith('4')
+                except Exception:
+                    goodVersion = False
+            else:
+                goodVersion = True
+
+            if not goodVersion:
+                self.showMessage(
+                    msg="You're using an old version of Ffmpeg. "
+                    "Some features may not work as expected."
+                )
+            self.settings.setValue("ffmpegMsgShown", True)
 
         # Hotkeys for projects
         QtWidgets.QShortcut("Ctrl+S", self, self.saveCurrentProject)
