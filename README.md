@@ -96,4 +96,6 @@ Download audio-visualizer-python from this repository and run it with `python3 m
 
 
 # License
-audio-visualizer-python is licensed under the MIT license.
+Source code of audio-visualizer-python is licensed under the MIT license.
+
+Some dependencies of this application are under the GPL license. When packaged with these dependencies, audio-visualizer-python may also be under the terms of this GPL license.
