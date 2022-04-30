@@ -2,7 +2,7 @@
     Preset manager object handles all interactions with presets, including
     the context menu accessed from MainWindow.
 '''
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, uic
 import string
 import os
 import logging
@@ -16,8 +16,10 @@ log = logging.getLogger('AVP.Gui.PresetManager')
 
 
 class PresetManager(QtWidgets.QDialog):
-    def __init__(self, window, parent):
-        super().__init__(parent.window)
+    def __init__(self, parent):
+        super().__init__()
+        uic.loadUi(
+                os.path.join(Core.wd, 'gui', 'presetmanager.ui'), self)
         self.parent = parent
         self.core = parent.core
         self.settings = parent.settings
@@ -32,32 +34,31 @@ class PresetManager(QtWidgets.QDialog):
         # window
         self.lastFilter = '*'
         self.presetRows = []  # list of (comp, vers, name) tuples
-        self.window = window
-        self.window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
         # connect button signals
-        self.window.pushButton_delete.clicked.connect(
+        self.pushButton_delete.clicked.connect(
             self.openDeletePresetDialog
         )
-        self.window.pushButton_rename.clicked.connect(
+        self.pushButton_rename.clicked.connect(
             self.openRenamePresetDialog
         )
-        self.window.pushButton_import.clicked.connect(
+        self.pushButton_import.clicked.connect(
             self.openImportDialog
         )
-        self.window.pushButton_export.clicked.connect(
+        self.pushButton_export.clicked.connect(
             self.openExportDialog
         )
-        self.window.pushButton_close.clicked.connect(
-            self.window.close
+        self.pushButton_close.clicked.connect(
+            self.close
         )
 
         # create filter box and preset list
         self.drawFilterList()
-        self.window.comboBox_filter.currentIndexChanged.connect(
+        self.comboBox_filter.currentIndexChanged.connect(
             lambda: self.drawPresetList(
-                self.window.comboBox_filter.currentText(),
-                self.window.lineEdit_search.text()
+                self.comboBox_filter.currentText(),
+                self.lineEdit_search.text()
             )
         )
 
@@ -65,23 +66,24 @@ class PresetManager(QtWidgets.QDialog):
         self.autocomplete = QtCore.QStringListModel()
         completer = QtWidgets.QCompleter()
         completer.setModel(self.autocomplete)
-        self.window.lineEdit_search.setCompleter(completer)
-        self.window.lineEdit_search.textChanged.connect(
+        self.lineEdit_search.setCompleter(completer)
+        self.lineEdit_search.textChanged.connect(
             lambda: self.drawPresetList(
-                self.window.comboBox_filter.currentText(),
-                self.window.lineEdit_search.text()
+                self.comboBox_filter.currentText(),
+                self.lineEdit_search.text()
             )
         )
         self.drawPresetList('*')
 
-    def show(self):
+    def show_(self):
         '''Open a new preset manager window from the mainwindow'''
         self.findPresets()
         self.drawFilterList()
         self.drawPresetList('*')
-        self.window.show()
+        self.show()
 
     def findPresets(self):
+        log.debug("Searching %s for presets", self.presetDir)
         parseList = []
         for dirpath, dirnames, filenames in os.walk(self.presetDir):
             # anything without a subdirectory must be a preset folder
@@ -106,7 +108,7 @@ class PresetManager(QtWidgets.QDialog):
         }
 
     def drawPresetList(self, compFilter=None, presetFilter=''):
-        self.window.listWidget_presets.clear()
+        self.listWidget_presets.clear()
         if compFilter:
             self.lastFilter = str(compFilter)
         else:
@@ -118,7 +120,7 @@ class PresetManager(QtWidgets.QDialog):
                 continue
             for vers, preset in presets:
                 if not presetFilter or presetFilter in preset:
-                    self.window.listWidget_presets.addItem(
+                    self.listWidget_presets.addItem(
                         '%s: %s' % (component, preset)
                     )
                     self.presetRows.append((component, vers, preset))
@@ -127,22 +129,21 @@ class PresetManager(QtWidgets.QDialog):
         self.autocomplete.setStringList(presetNames)
 
     def drawFilterList(self):
-        self.window.comboBox_filter.clear()
-        self.window.comboBox_filter.addItem('*')
+        self.comboBox_filter.clear()
+        self.comboBox_filter.addItem('*')
         for component in self.presets:
-            self.window.comboBox_filter.addItem(component)
+            self.comboBox_filter.addItem(component)
 
     def clearPreset(self, compI=None):
         '''Functions on mainwindow level from the context menu'''
-        compI = self.parent.window.listWidget_componentList.currentRow()
+        compI = self.parent.listWidget_componentList.currentRow()
         action = ClearPreset(self.parent, compI)
         self.parent.undoStack.push(action)
 
     def openSavePresetDialog(self):
         '''Functions on mainwindow level from the context menu'''
-        window = self.parent.window
         selectedComponents = self.core.selectedComponents
-        componentList = self.parent.window.listWidget_componentList
+        componentList = self.parent.listWidget_componentList
 
         if componentList.currentRow() == -1:
             return
@@ -150,7 +151,7 @@ class PresetManager(QtWidgets.QDialog):
             index = componentList.currentRow()
             currentPreset = selectedComponents[index].currentPreset
             newName, OK = QtWidgets.QInputDialog.getText(
-                self.parent.window,
+                self.parent,
                 'Audio Visualizer',
                 'New Preset Name:',
                 QtWidgets.QLineEdit.Normal,
@@ -158,7 +159,7 @@ class PresetManager(QtWidgets.QDialog):
             )
             if OK:
                 if badName(newName):
-                    self.warnMessage(self.parent.window)
+                    self.warnMessage(self.parent)
                     continue
                 if newName:
                     if index != -1:
@@ -170,7 +171,7 @@ class PresetManager(QtWidgets.QDialog):
                         vers = selectedComponents[index].version
                         self.createNewPreset(
                             componentName, vers, newName,
-                            saveValueStore, window=self.parent.window)
+                            saveValueStore, window=self.parent)
                         self.findPresets()
                         self.drawPresetList()
                         self.openPreset(newName, index)
@@ -185,8 +186,7 @@ class PresetManager(QtWidgets.QDialog):
 
     def presetExists(self, path, **kwargs):
         if os.path.exists(path):
-            window = self.window \
-                if 'window' not in kwargs else kwargs['window']
+            window = kwargs.get("window", self)
             ch = self.parent.showMessage(
                 msg="%s already exists! Overwrite it?" %
                     os.path.basename(path),
@@ -200,7 +200,7 @@ class PresetManager(QtWidgets.QDialog):
         return False
 
     def openPreset(self, presetName, compPos=None):
-        componentList = self.parent.window.listWidget_componentList
+        componentList = self.parent.listWidget_componentList
         index = compPos if compPos is not None else componentList.currentRow()
         if index == -1:
             return
@@ -228,7 +228,7 @@ class PresetManager(QtWidgets.QDialog):
             msg='Really delete %s?' % name,
             showCancel=True,
             icon='Warning',
-            parent=self.window
+            parent=self
         )
         if not ch:
             return
@@ -242,15 +242,15 @@ class PresetManager(QtWidgets.QDialog):
         self.parent.showMessage(
             msg='Preset names must contain only letters, '
             'numbers, and spaces.',
-            parent=window if window else self.window)
+            parent=window if window else self)
 
     def getPresetRow(self):
-        row = self.window.listWidget_presets.currentRow()
+        row = self.listWidget_presets.currentRow()
         if row > -1:
             return row
 
         # check if component selected in MainWindow has preset loaded
-        componentList = self.parent.window.listWidget_componentList
+        componentList = self.parent.listWidget_componentList
         compIndex = componentList.currentRow()
         if compIndex == -1:
             return compIndex
@@ -273,14 +273,14 @@ class PresetManager(QtWidgets.QDialog):
         return index
 
     def openRenamePresetDialog(self):
-        presetList = self.window.listWidget_presets
+        presetList = self.listWidget_presets
         index = self.getPresetRow()
         if index == -1:
             return
 
         while True:
             newName, OK = QtWidgets.QInputDialog.getText(
-                self.window,
+                self,
                 'Preset Manager',
                 'Rename Preset:',
                 QtWidgets.QLineEdit.Normal,
@@ -319,7 +319,7 @@ class PresetManager(QtWidgets.QDialog):
 
     def openImportDialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self.window, "Import Preset File",
+            self, "Import Preset File",
             self.settings.value("presetDir"),
             "Preset Files (*.avl)")
         if filename:
@@ -345,7 +345,7 @@ class PresetManager(QtWidgets.QDialog):
         if index == -1:
             return
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self.window, "Export Preset",
+            self, "Export Preset",
             self.settings.value("presetDir"),
             "Preset Files (*.avl)")
         if filename:
@@ -353,9 +353,9 @@ class PresetManager(QtWidgets.QDialog):
             if not self.core.exportPreset(filename, comp, vers, name):
                 self.parent.showMessage(
                     msg='Couldn\'t export %s.' % filename,
-                    parent=self.window
+                    parent=self
                 )
             self.settings.setValue("presetDir", os.path.dirname(filename))
 
     def clearPresetListSelection(self):
-        self.window.listWidget_presets.setCurrentRow(-1)
+        self.listWidget_presets.setCurrentRow(-1)

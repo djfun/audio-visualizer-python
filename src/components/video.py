@@ -63,8 +63,8 @@ class Component(Component):
 
     def properties(self):
         props = []
-        if hasattr(self.parent, 'window'):
-            outputFile = self.parent.window.lineEdit_outputFile.text()
+        if hasattr(self.parent, 'lineEdit_outputFile'):
+            outputFile = self.parent.lineEdit_outputFile.text()
         else:
             outputFile = str(self.parent.args.output)
 

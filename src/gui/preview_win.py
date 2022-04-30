@@ -37,7 +37,7 @@ class PreviewWindow(QtWidgets.QLabel):
         if self.parent.encoding:
             return
 
-        i = self.parent.window.listWidget_componentList.currentRow()
+        i = self.parent.listWidget_componentList.currentRow()
         if i >= 0:
             component = self.parent.core.selectedComponents[i]
             if not hasattr(component, 'previewClickEvent'):

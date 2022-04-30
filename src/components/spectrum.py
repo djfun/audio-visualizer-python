@@ -30,9 +30,9 @@ class Component(Component):
         self.previewSize = (214, 120)
         self.previewPipe = None
 
-        if hasattr(self.parent, 'window'):
+        if hasattr(self.parent, 'lineEdit_audioFile'):
             # update preview when audio file changes (if genericPreview is off)
-            self.parent.window.lineEdit_audioFile.textChanged.connect(
+            self.parent.lineEdit_audioFile.textChanged.connect(
                 self.update
             )
 
@@ -123,7 +123,7 @@ class Component(Component):
         genericPreview = self.settings.value("pref_genericPreview")
         startPt = 0
         if not genericPreview:
-            inputFile = self.parent.window.lineEdit_audioFile.text()
+            inputFile = self.parent.lineEdit_audioFile.text()
             if not inputFile or not os.path.exists(inputFile):
                 return
             duration = getAudioDuration(inputFile)

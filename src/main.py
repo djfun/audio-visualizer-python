@@ -42,21 +42,9 @@ def main():
     if mode == 'GUI':
         from .gui.mainwindow import MainWindow
 
-        window = uic.loadUi(os.path.join(wd, "gui", "mainwindow.ui"))
-        desc = QtWidgets.QDesktopWidget()
-        dpi = desc.physicalDpiX()
-        log.info("Detected screen DPI: %s", dpi)
-        
-        window.resize(
-            int(window.width() *
-            (dpi / 96)),
-            int(window.height() *
-            (dpi / 96))
-        )
-
-        main = MainWindow(window, proj)
-        log.debug("Finished creating main window")
-        window.raise_()
+        mainWindow = MainWindow(proj)
+        log.debug("Finished creating MainWindow")
+        mainWindow.raise_()
 
     sys.exit(app.exec_())
 

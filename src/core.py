@@ -181,7 +181,7 @@ class Core:
             try:
                 if hasattr(loader, 'window'):
                     for widget, value in data['WindowFields']:
-                        widget = eval('loader.window.%s' % widget)
+                        widget = eval('loader.%s' % widget)
                         with toolkit.blockSignals(widget):
                             toolkit.setWidgetValue(widget, value)
 

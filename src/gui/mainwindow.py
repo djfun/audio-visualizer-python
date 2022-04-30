@@ -4,13 +4,12 @@
     This shows a preview of the video being created and allows for saving
     projects and exporting the video at a later time.
 '''
-from PyQt5 import QtCore, QtGui, uic, QtWidgets
-from PyQt5.QtWidgets import QMenu, QShortcut
+from PyQt5 import QtCore, QtGui, QtWidgets, uic
+import PyQt5.QtWidgets as QtWidgets
 from PIL import Image
 from queue import Queue
 import sys
 import os
-import signal
 import atexit
 import filecmp
 import time
@@ -43,11 +42,22 @@ class MainWindow(QtWidgets.QMainWindow):
     newTask = QtCore.pyqtSignal(list)  # for the preview window
     processTask = QtCore.pyqtSignal()
 
-    def __init__(self, window, project):
-        QtWidgets.QMainWindow.__init__(self)
+    def __init__(self, project):
+        super().__init__()
         log.debug(
             'Main thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
-        self.window = window
+        uic.loadUi(os.path.join(Core.wd, "gui", "mainwindow.ui"), self)
+        desk = QtWidgets.QDesktopWidget()
+        dpi = desk.physicalDpiX()
+        log.info("Detected screen DPI: %s", dpi)
+        
+        self.resize(
+            int(self.width() *
+            (dpi / 96)),
+            int(self.height() *
+            (dpi / 96))
+        )
+
         self.core = Core()
         Core.mode = 'GUI'
         # widgets of component settings
@@ -73,15 +83,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.undoStack.setUndoLimit(undoLimit)
 
         # Create Preset Manager
-        self.presetManager = PresetManager(
-            uic.loadUi(
-                os.path.join(Core.wd, 'gui', 'presetmanager.ui')), self)
+        self.presetManager = PresetManager(self)
 
         # Create the preview window and its thread, queues, and timers
         log.debug('Creating preview window')
         self.previewWindow = PreviewWindow(self, os.path.join(
             Core.wd, 'gui', "background.png"))
-        window.verticalLayout_previewWrapper.addWidget(self.previewWindow)
+        self.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
         log.debug('Starting preview thread')
         self.previewQueue = Queue()
@@ -105,7 +113,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.start(timeout)
 
         # Begin decorating the window and connecting events
-        componentList = self.window.listWidget_componentList
+        componentList = self.listWidget_componentList
 
         # Undo Feature
         def toggleUndoButtonEnabled(*_):
@@ -116,15 +124,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 # program is probably in midst of exiting
                 pass
 
-        style = window.pushButton_undo.style()
-        undoButton = window.pushButton_undo
+        style = self.pushButton_undo.style()
+        undoButton = self.pushButton_undo
         undoButton.setIcon(
             style.standardIcon(QtWidgets.QStyle.SP_FileDialogBack)
         )
         undoButton.clicked.connect(self.undoStack.undo)
         undoButton.setEnabled(False)
         self.undoStack.cleanChanged.connect(toggleUndoButtonEnabled)
-        self.undoMenu = QMenu()
+        self.undoMenu = QtWidgets.QMenu()
         self.undoMenu.addAction(
             self.undoStack.createUndoAction(self)
         )
@@ -138,93 +146,93 @@ class MainWindow(QtWidgets.QMainWindow):
         undoButton.setMenu(self.undoMenu)
         # end of Undo Feature
 
-        style = window.pushButton_listMoveUp.style()
-        window.pushButton_listMoveUp.setIcon(
+        style = self.pushButton_listMoveUp.style()
+        self.pushButton_listMoveUp.setIcon(
             style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
         )
-        style = window.pushButton_listMoveDown.style()
-        window.pushButton_listMoveDown.setIcon(
+        style = self.pushButton_listMoveDown.style()
+        self.pushButton_listMoveDown.setIcon(
             style.standardIcon(QtWidgets.QStyle.SP_ArrowDown)
         )
-        style = window.pushButton_removeComponent.style()
-        window.pushButton_removeComponent.setIcon(
+        style = self.pushButton_removeComponent.style()
+        self.pushButton_removeComponent.setIcon(
             style.standardIcon(QtWidgets.QStyle.SP_DialogDiscardButton)
         )
 
         if sys.platform == 'darwin':
             log.debug(
                 'Darwin detected: showing progress label below progress bar')
-            window.progressBar_createVideo.setTextVisible(False)
+            self.progressBar_createVideo.setTextVisible(False)
         else:
-            window.progressLabel.setHidden(True)
+            self.progressLabel.setHidden(True)
 
-        window.toolButton_selectAudioFile.clicked.connect(
+        self.toolButton_selectAudioFile.clicked.connect(
             self.openInputFileDialog)
 
-        window.toolButton_selectOutputFile.clicked.connect(
+        self.toolButton_selectOutputFile.clicked.connect(
             self.openOutputFileDialog)
 
         def changedField():
             self.autosave()
             self.updateWindowTitle()
 
-        window.lineEdit_audioFile.textChanged.connect(changedField)
-        window.lineEdit_outputFile.textChanged.connect(changedField)
+        self.lineEdit_audioFile.textChanged.connect(changedField)
+        self.lineEdit_outputFile.textChanged.connect(changedField)
 
-        window.progressBar_createVideo.setValue(0)
+        self.progressBar_createVideo.setValue(0)
 
-        window.pushButton_createVideo.clicked.connect(
+        self.pushButton_createVideo.clicked.connect(
             self.createAudioVisualisation)
 
-        window.pushButton_Cancel.clicked.connect(self.stopVideo)
+        self.pushButton_Cancel.clicked.connect(self.stopVideo)
 
         for i, container in enumerate(Core.encoderOptions['containers']):
-            window.comboBox_videoContainer.addItem(container['name'])
+            self.comboBox_videoContainer.addItem(container['name'])
             if container['name'] == self.settings.value('outputContainer'):
                 selectedContainer = i
 
-        window.comboBox_videoContainer.setCurrentIndex(selectedContainer)
-        window.comboBox_videoContainer.currentIndexChanged.connect(
+        self.comboBox_videoContainer.setCurrentIndex(selectedContainer)
+        self.comboBox_videoContainer.currentIndexChanged.connect(
             self.updateCodecs
         )
 
         self.updateCodecs()
 
-        for i in range(window.comboBox_videoCodec.count()):
-            codec = window.comboBox_videoCodec.itemText(i)
+        for i in range(self.comboBox_videoCodec.count()):
+            codec = self.comboBox_videoCodec.itemText(i)
             if codec == self.settings.value('outputVideoCodec'):
-                window.comboBox_videoCodec.setCurrentIndex(i)
+                self.comboBox_videoCodec.setCurrentIndex(i)
 
-        for i in range(window.comboBox_audioCodec.count()):
-            codec = window.comboBox_audioCodec.itemText(i)
+        for i in range(self.comboBox_audioCodec.count()):
+            codec = self.comboBox_audioCodec.itemText(i)
             if codec == self.settings.value('outputAudioCodec'):
-                window.comboBox_audioCodec.setCurrentIndex(i)
+                self.comboBox_audioCodec.setCurrentIndex(i)
 
-        window.comboBox_videoCodec.currentIndexChanged.connect(
+        self.comboBox_videoCodec.currentIndexChanged.connect(
             self.updateCodecSettings
         )
 
-        window.comboBox_audioCodec.currentIndexChanged.connect(
+        self.comboBox_audioCodec.currentIndexChanged.connect(
             self.updateCodecSettings
         )
 
         vBitrate = int(self.settings.value('outputVideoBitrate'))
         aBitrate = int(self.settings.value('outputAudioBitrate'))
 
-        window.spinBox_vBitrate.setValue(vBitrate)
-        window.spinBox_aBitrate.setValue(aBitrate)
-        window.spinBox_vBitrate.valueChanged.connect(self.updateCodecSettings)
-        window.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
+        self.spinBox_vBitrate.setValue(vBitrate)
+        self.spinBox_aBitrate.setValue(aBitrate)
+        self.spinBox_vBitrate.valueChanged.connect(self.updateCodecSettings)
+        self.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
 
         # Make component buttons
-        self.compMenu = QMenu()
+        self.compMenu = QtWidgets.QMenu()
         for i, comp in enumerate(self.core.modules):
             action = self.compMenu.addAction(comp.Component.name)
             action.triggered.connect(
                 lambda _, item=i: self.addComponent(0, item)
             )
 
-        self.window.pushButton_addComponent.setMenu(self.compMenu)
+        self.pushButton_addComponent.setMenu(self.compMenu)
 
         componentList.dropEvent = self.dragComponent
         componentList.itemSelectionChanged.connect(
@@ -233,7 +241,7 @@ class MainWindow(QtWidgets.QMainWindow):
         componentList.itemSelectionChanged.connect(
             self.presetManager.clearPresetListSelection
         )
-        self.window.pushButton_removeComponent.clicked.connect(
+        self.pushButton_removeComponent.clicked.connect(
             lambda: self.removeComponent()
         )
 
@@ -245,33 +253,33 @@ class MainWindow(QtWidgets.QMainWindow):
         currentRes = str(self.settings.value('outputWidth'))+'x' + \
             str(self.settings.value('outputHeight'))
         for i, res in enumerate(Core.resolutions):
-            window.comboBox_resolution.addItem(res)
+            self.comboBox_resolution.addItem(res)
             if res == currentRes:
                 currentRes = i
-                window.comboBox_resolution.setCurrentIndex(currentRes)
-                window.comboBox_resolution.currentIndexChanged.connect(
+                self.comboBox_resolution.setCurrentIndex(currentRes)
+                self.comboBox_resolution.currentIndexChanged.connect(
                     self.updateResolution
                 )
 
-        self.window.pushButton_listMoveUp.clicked.connect(
+        self.pushButton_listMoveUp.clicked.connect(
             lambda: self.moveComponent(-1)
         )
-        self.window.pushButton_listMoveDown.clicked.connect(
+        self.pushButton_listMoveDown.clicked.connect(
             lambda: self.moveComponent(1)
         )
 
         # Configure the Projects Menu
-        self.projectMenu = QMenu()
-        self.window.menuButton_newProject = self.projectMenu.addAction(
+        self.projectMenu = QtWidgets.QMenu()
+        self.menuButton_newProject = self.projectMenu.addAction(
             "New Project"
         )
-        self.window.menuButton_newProject.triggered.connect(
+        self.menuButton_newProject.triggered.connect(
             lambda: self.createNewProject()
         )
-        self.window.menuButton_openProject = self.projectMenu.addAction(
+        self.menuButton_openProject = self.projectMenu.addAction(
             "Open Project"
         )
-        self.window.menuButton_openProject.triggered.connect(
+        self.menuButton_openProject.triggered.connect(
             lambda: self.openOpenProjectDialog()
         )
 
@@ -281,16 +289,16 @@ class MainWindow(QtWidgets.QMainWindow):
         action = self.projectMenu.addAction("Save Project As")
         action.triggered.connect(self.openSaveProjectDialog)
 
-        self.window.pushButton_projects.setMenu(self.projectMenu)
+        self.pushButton_projects.setMenu(self.projectMenu)
 
         # Configure the Presets Button
-        self.window.pushButton_presets.clicked.connect(
+        self.pushButton_presets.clicked.connect(
             self.openPresetManager
         )
 
         self.updateWindowTitle()
         log.debug('Showing main window')
-        window.show()
+        self.show()
 
         if project and project != self.autosavePath:
             if not project.endswith('.avp'):
@@ -358,77 +366,80 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings.setValue("ffmpegMsgShown", True)
 
         # Hotkeys for projects
-        QtWidgets.QShortcut("Ctrl+S", self.window, self.saveCurrentProject)
-        QtWidgets.QShortcut("Ctrl+A", self.window, self.openSaveProjectDialog)
-        QtWidgets.QShortcut("Ctrl+O", self.window, self.openOpenProjectDialog)
-        QtWidgets.QShortcut("Ctrl+N", self.window, self.createNewProject)
+        QtWidgets.QShortcut("Ctrl+S", self, self.saveCurrentProject)
+        QtWidgets.QShortcut("Ctrl+A", self, self.openSaveProjectDialog)
+        QtWidgets.QShortcut("Ctrl+O", self, self.openOpenProjectDialog)
+        QtWidgets.QShortcut("Ctrl+N", self, self.createNewProject)
 
-        QtWidgets.QShortcut("Ctrl+Z", self.window, self.undoStack.undo)
-        QtWidgets.QShortcut("Ctrl+Y", self.window, self.undoStack.redo)
-        QtWidgets.QShortcut("Ctrl+Shift+Z", self.window, self.undoStack.redo)
+        # Hotkeys for undo/redo
+        QtWidgets.QShortcut("Ctrl+Z", self, self.undoStack.undo)
+        QtWidgets.QShortcut("Ctrl+Y", self, self.undoStack.redo)
+        QtWidgets.QShortcut("Ctrl+Shift+Z", self, self.undoStack.redo)
 
         # Hotkeys for component list
         for inskey in ("Ctrl+T", QtCore.Qt.Key_Insert):
             QtWidgets.QShortcut(
-                inskey, self.window,
-                activated=lambda: self.window.pushButton_addComponent.click()
+                inskey, self,
+                activated=lambda: self.pushButton_addComponent.click()
             )
         for delkey in ("Ctrl+R", QtCore.Qt.Key_Delete):
             QtWidgets.QShortcut(
-                delkey, self.window.listWidget_componentList,
+                delkey, self.listWidget_componentList,
                 self.removeComponent
             )
         QtWidgets.QShortcut(
-            "Ctrl+Space", self.window,
-            activated=lambda: self.window.listWidget_componentList.setFocus()
+            "Ctrl+Space", self,
+            activated=lambda: self.listWidget_componentList.setFocus()
         )
         QtWidgets.QShortcut(
-            "Ctrl+Shift+S", self.window,
+            "Ctrl+Shift+S", self,
             self.presetManager.openSavePresetDialog
         )
         QtWidgets.QShortcut(
-            "Ctrl+Shift+C", self.window, self.presetManager.clearPreset
+            "Ctrl+Shift+C", self, self.presetManager.clearPreset
         )
 
         QtWidgets.QShortcut(
-            "Ctrl+Up", self.window.listWidget_componentList,
+            "Ctrl+Up", self.listWidget_componentList,
             activated=lambda: self.moveComponent(-1)
         )
         QtWidgets.QShortcut(
-            "Ctrl+Down", self.window.listWidget_componentList,
+            "Ctrl+Down", self.listWidget_componentList,
             activated=lambda: self.moveComponent(1)
         )
         QtWidgets.QShortcut(
-            "Ctrl+Home", self.window.listWidget_componentList,
+            "Ctrl+Home", self.listWidget_componentList,
             activated=lambda: self.moveComponent('top')
         )
         QtWidgets.QShortcut(
-            "Ctrl+End", self.window.listWidget_componentList,
+            "Ctrl+End", self.listWidget_componentList,
             activated=lambda: self.moveComponent('bottom')
         )
 
         QtWidgets.QShortcut(
-            "Ctrl+Shift+F", self.window, self.showFfmpegCommand
+            "Ctrl+Shift+F", self, self.showFfmpegCommand
         )
         QtWidgets.QShortcut(
-            "Ctrl+Shift+U", self.window, self.showUndoStack
+            "Ctrl+Shift+U", self, self.showUndoStack
         )
 
         if log.isEnabledFor(logging.DEBUG):
             QtWidgets.QShortcut(
-                "Ctrl+Alt+Shift+R", self.window, self.drawPreview
+                "Ctrl+Alt+Shift+R", self, self.drawPreview
             )
             QtWidgets.QShortcut(
-                "Ctrl+Alt+Shift+A", self.window, lambda: log.debug(repr(self))
+                "Ctrl+Alt+Shift+A", self, lambda: log.debug(repr(self))
             )
 
     def __repr__(self):
         return (
+            '%s\n'
             '\n%s\n'
             '#####\n'
             'Preview thread is %s\n' % (
-                repr(self.core),
-                'live' if self.previewThread.isRunning() else 'dead',
+                super().__repr__(),
+                "core not initialized" if not hasattr(self, "core") else repr(self.core),
+                'live' if hasattr(self, "previewThread") and self.previewThread.isRunning() else 'dead',
             )
         )
 
@@ -456,7 +467,7 @@ class MainWindow(QtWidgets.QMainWindow):
         except AttributeError:
             pass
         log.verbose(f'Window title is "{appName}"')
-        self.window.setWindowTitle(appName)
+        self.setWindowTitle(appName)
 
     @QtCore.pyqtSlot(int, dict)
     def updateComponentTitle(self, pos, presetStore=False):
@@ -492,12 +503,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 'Setting %s #%s\'s title: %s',
                 name, pos, title
             )
-        self.window.listWidget_componentList.item(pos).setText(title)
+        self.listWidget_componentList.item(pos).setText(title)
 
     def updateCodecs(self):
-        containerWidget = self.window.comboBox_videoContainer
-        vCodecWidget = self.window.comboBox_videoCodec
-        aCodecWidget = self.window.comboBox_audioCodec
+        containerWidget = self.comboBox_videoContainer
+        vCodecWidget = self.comboBox_videoCodec
+        aCodecWidget = self.comboBox_audioCodec
         index = containerWidget.currentIndex()
         name = containerWidget.itemText(index)
         self.settings.setValue('outputContainer', name)
@@ -514,10 +525,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateCodecSettings(self):
         '''Updates settings.ini to match encoder option widgets'''
-        vCodecWidget = self.window.comboBox_videoCodec
-        vBitrateWidget = self.window.spinBox_vBitrate
-        aBitrateWidget = self.window.spinBox_aBitrate
-        aCodecWidget = self.window.comboBox_audioCodec
+        vCodecWidget = self.comboBox_videoCodec
+        vBitrateWidget = self.spinBox_vBitrate
+        aBitrateWidget = self.spinBox_aBitrate
+        aCodecWidget = self.comboBox_audioCodec
         currentVideoCodec = vCodecWidget.currentIndex()
         currentVideoCodec = vCodecWidget.itemText(currentVideoCodec)
         currentVideoBitrate = vBitrateWidget.value()
@@ -535,7 +546,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if os.path.exists(self.autosavePath):
                 os.remove(self.autosavePath)
         elif force or time.time() - self.lastAutosave >= self.autosaveCooldown:
-            self.core.createProjectFile(self.autosavePath, self.window)
+            self.core.createProjectFile(self.autosavePath, self)
             self.lastAutosave = time.time()
             if len(self.autosaveTimes) >= 5:
                 # Do some math to reduce autosave spam. This gives a smooth
@@ -588,25 +599,25 @@ class MainWindow(QtWidgets.QMainWindow):
         inputDir = self.settings.value("inputDir", os.path.expanduser("~"))
 
         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self.window, "Open Audio File",
+            self, "Open Audio File",
             inputDir, "Audio Files (%s)" % " ".join(Core.audioFormats))
 
         if fileName:
             self.settings.setValue("inputDir", os.path.dirname(fileName))
-            self.window.lineEdit_audioFile.setText(fileName)
+            self.lineEdit_audioFile.setText(fileName)
 
     def openOutputFileDialog(self):
         outputDir = self.settings.value("outputDir", os.path.expanduser("~"))
 
         fileName, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self.window, "Set Output Video File",
+            self, "Set Output Video File",
             outputDir,
             "Video Files (%s);; All Files (*)" % " ".join(
                 Core.videoFormats))
 
         if fileName:
             self.settings.setValue("outputDir", os.path.dirname(fileName))
-            self.window.lineEdit_outputFile.setText(fileName)
+            self.lineEdit_outputFile.setText(fileName)
 
     def stopVideo(self):
         log.info('Export cancelled')
@@ -615,8 +626,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def createAudioVisualisation(self):
         # create output video if mandatory settings are filled in
-        audioFile = self.window.lineEdit_audioFile.text()
-        outputPath = self.window.lineEdit_outputFile.text()
+        audioFile = self.lineEdit_audioFile.text()
+        outputPath = self.lineEdit_outputFile.text()
 
         if audioFile and outputPath and self.core.selectedComponents:
             if not os.path.dirname(outputPath):
@@ -670,62 +681,62 @@ class MainWindow(QtWidgets.QMainWindow):
     def changeEncodingStatus(self, status):
         self.encoding = status
         if status:
-            self.window.pushButton_createVideo.setEnabled(False)
-            self.window.pushButton_Cancel.setEnabled(True)
-            self.window.comboBox_resolution.setEnabled(False)
-            self.window.stackedWidget.setEnabled(False)
-            self.window.tab_encoderSettings.setEnabled(False)
-            self.window.label_audioFile.setEnabled(False)
-            self.window.toolButton_selectAudioFile.setEnabled(False)
-            self.window.label_outputFile.setEnabled(False)
-            self.window.toolButton_selectOutputFile.setEnabled(False)
-            self.window.lineEdit_audioFile.setEnabled(False)
-            self.window.lineEdit_outputFile.setEnabled(False)
-            self.window.pushButton_addComponent.setEnabled(False)
-            self.window.pushButton_removeComponent.setEnabled(False)
-            self.window.pushButton_listMoveDown.setEnabled(False)
-            self.window.pushButton_listMoveUp.setEnabled(False)
-            self.window.menuButton_newProject.setEnabled(False)
-            self.window.menuButton_openProject.setEnabled(False)
+            self.pushButton_createVideo.setEnabled(False)
+            self.pushButton_Cancel.setEnabled(True)
+            self.comboBox_resolution.setEnabled(False)
+            self.stackedWidget.setEnabled(False)
+            self.tab_encoderSettings.setEnabled(False)
+            self.label_audioFile.setEnabled(False)
+            self.toolButton_selectAudioFile.setEnabled(False)
+            self.label_outputFile.setEnabled(False)
+            self.toolButton_selectOutputFile.setEnabled(False)
+            self.lineEdit_audioFile.setEnabled(False)
+            self.lineEdit_outputFile.setEnabled(False)
+            self.pushButton_addComponent.setEnabled(False)
+            self.pushButton_removeComponent.setEnabled(False)
+            self.pushButton_listMoveDown.setEnabled(False)
+            self.pushButton_listMoveUp.setEnabled(False)
+            self.menuButton_newProject.setEnabled(False)
+            self.menuButton_openProject.setEnabled(False)
             if sys.platform == 'darwin':
-                self.window.progressLabel.setHidden(False)
+                self.progressLabel.setHidden(False)
             else:
-                self.window.listWidget_componentList.setEnabled(False)
+                self.listWidget_componentList.setEnabled(False)
         else:
-            self.window.pushButton_createVideo.setEnabled(True)
-            self.window.pushButton_Cancel.setEnabled(False)
-            self.window.comboBox_resolution.setEnabled(True)
-            self.window.stackedWidget.setEnabled(True)
-            self.window.tab_encoderSettings.setEnabled(True)
-            self.window.label_audioFile.setEnabled(True)
-            self.window.toolButton_selectAudioFile.setEnabled(True)
-            self.window.lineEdit_audioFile.setEnabled(True)
-            self.window.label_outputFile.setEnabled(True)
-            self.window.toolButton_selectOutputFile.setEnabled(True)
-            self.window.lineEdit_outputFile.setEnabled(True)
-            self.window.pushButton_addComponent.setEnabled(True)
-            self.window.pushButton_removeComponent.setEnabled(True)
-            self.window.pushButton_listMoveDown.setEnabled(True)
-            self.window.pushButton_listMoveUp.setEnabled(True)
-            self.window.menuButton_newProject.setEnabled(True)
-            self.window.menuButton_openProject.setEnabled(True)
-            self.window.listWidget_componentList.setEnabled(True)
-            self.window.progressLabel.setHidden(True)
+            self.pushButton_createVideo.setEnabled(True)
+            self.pushButton_Cancel.setEnabled(False)
+            self.comboBox_resolution.setEnabled(True)
+            self.stackedWidget.setEnabled(True)
+            self.tab_encoderSettings.setEnabled(True)
+            self.label_audioFile.setEnabled(True)
+            self.toolButton_selectAudioFile.setEnabled(True)
+            self.lineEdit_audioFile.setEnabled(True)
+            self.label_outputFile.setEnabled(True)
+            self.toolButton_selectOutputFile.setEnabled(True)
+            self.lineEdit_outputFile.setEnabled(True)
+            self.pushButton_addComponent.setEnabled(True)
+            self.pushButton_removeComponent.setEnabled(True)
+            self.pushButton_listMoveDown.setEnabled(True)
+            self.pushButton_listMoveUp.setEnabled(True)
+            self.menuButton_newProject.setEnabled(True)
+            self.menuButton_openProject.setEnabled(True)
+            self.listWidget_componentList.setEnabled(True)
+            self.progressLabel.setHidden(True)
             self.drawPreview(True)
 
     @QtCore.pyqtSlot(int)
     def progressBarUpdated(self, value):
-        self.window.progressBar_createVideo.setValue(value)
+        self.progressBar_createVideo.setValue(value)
 
     @QtCore.pyqtSlot(str)
     def progressBarSetText(self, value):
         if sys.platform == 'darwin':
-            self.window.progressLabel.setText(value)
+            self.progressLabel.setText(value)
         else:
-            self.window.progressBar_createVideo.setFormat(value)
+            self.progressBar_createVideo.setFormat(value)
 
     def updateResolution(self):
-        resIndex = int(self.window.comboBox_resolution.currentIndex())
+        resIndex = int(self.comboBox_resolution.currentIndex())
         res = Core.resolutions[resIndex].split('x')
         changed = res[0] != self.settings.value("outputWidth")
         self.settings.setValue('outputWidth', res[0])
@@ -750,7 +761,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.previewWindow.changePixmap(image)
 
     def showUndoStack(self):
-        dialog = QtWidgets.QDialog(self.window)
+        dialog = QtWidgets.QDialog(self)
         undoView = QtWidgets.QUndoView(self.undoStack)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(undoView)
@@ -761,8 +772,8 @@ class MainWindow(QtWidgets.QMainWindow):
         from textwrap import wrap
         from ..toolkit.ffmpeg import createFfmpegCommand
         command = createFfmpegCommand(
-            self.window.lineEdit_audioFile.text(),
-            self.window.lineEdit_outputFile.text(),
+            self.lineEdit_audioFile.text(),
+            self.lineEdit_outputFile.text(),
             self.core.selectedComponents
         )
         command = " ".join(command)
@@ -779,8 +790,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def insertComponent(self, index):
         '''Triggered by Core to finish initializing a new component.'''
-        componentList = self.window.listWidget_componentList
-        stackedWidget = self.window.stackedWidget
+        componentList = self.listWidget_componentList
+        stackedWidget = self.stackedWidget
 
         componentList.insertItem(
             index,
@@ -798,15 +809,15 @@ class MainWindow(QtWidgets.QMainWindow):
         return index
 
     def removeComponent(self):
-        componentList = self.window.listWidget_componentList
+        componentList = self.listWidget_componentList
         selected = componentList.selectedItems()
         if selected:
             action = RemoveComponent(self, selected)
             self.undoStack.push(action)
 
     def _removeComponent(self, index):
-        stackedWidget = self.window.stackedWidget
-        componentList = self.window.listWidget_componentList
+        stackedWidget = self.stackedWidget
+        componentList = self.listWidget_componentList
         stackedWidget.removeWidget(self.pages[index])
         componentList.takeItem(index)
         self.core.removeComponent(index)
@@ -817,7 +828,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @disableWhenEncoding
     def moveComponent(self, change):
         '''Moves a component relatively from its current position'''
-        componentList = self.window.listWidget_componentList
+        componentList = self.listWidget_componentList
         tag = change
         if change == 'top':
             change = -componentList.currentRow()
@@ -837,7 +848,7 @@ class MainWindow(QtWidgets.QMainWindow):
         Given a QPos, returns the component index under the mouse cursor
         or -1 if no component is there.
         '''
-        componentList = self.window.listWidget_componentList
+        componentList = self.listWidget_componentList
 
         modelIndexes = [
             componentList.model().index(i)
@@ -859,7 +870,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @disableWhenEncoding
     def dragComponent(self, event):
         '''Used as Qt drop event for the component listwidget'''
-        componentList = self.window.listWidget_componentList
+        componentList = self.listWidget_componentList
         mousePos = self.getComponentListMousePos(event.pos())
         if mousePos > -1:
             change = (componentList.currentRow() - mousePos) * -1
@@ -868,25 +879,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.moveComponent(change)
 
     def changeComponentWidget(self):
-        selected = self.window.listWidget_componentList.selectedItems()
+        selected = self.listWidget_componentList.selectedItems()
         if selected:
-            index = self.window.listWidget_componentList.row(selected[0])
-            self.window.stackedWidget.setCurrentIndex(index)
+            index = self.listWidget_componentList.row(selected[0])
+            self.stackedWidget.setCurrentIndex(index)
 
     def openPresetManager(self):
         '''Preset manager for importing, exporting, renaming, deleting'''
-        self.presetManager.show()
+        self.presetManager.show_()
 
     def clear(self):
         '''Get a blank slate'''
         self.core.clearComponents()
-        self.window.listWidget_componentList.clear()
+        self.listWidget_componentList.clear()
         for widget in self.pages:
-            self.window.stackedWidget.removeWidget(widget)
+            self.stackedWidget.removeWidget(widget)
         self.pages = []
         for field in (
-                self.window.lineEdit_audioFile,
-                self.window.lineEdit_outputFile
+                self.lineEdit_audioFile,
+                self.lineEdit_outputFile
                 ):
             with blockSignals(field):
                 field.setText('')
@@ -906,7 +917,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def saveCurrentProject(self):
         if self.currentProject:
-            self.core.createProjectFile(self.currentProject, self.window)
+            self.core.createProjectFile(self.currentProject, self)
             try:
                 os.remove(self.autosavePath)
             except FileNotFoundError:
@@ -933,7 +944,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def openSaveProjectDialog(self):
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self.window, "Create Project File",
+            self, "Create Project File",
             self.settings.value("projectDir"),
             "Project Files (*.avp)")
         if not filename:
@@ -943,13 +954,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings.setValue("projectDir", os.path.dirname(filename))
         self.settings.setValue("currentProject", filename)
         self.currentProject = filename
-        self.core.createProjectFile(filename, self.window)
+        self.core.createProjectFile(filename, self)
         self.updateWindowTitle()
 
     @disableWhenEncoding
     def openOpenProjectDialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self.window, "Open Project File",
+            self, "Open Project File",
             self.settings.value("projectDir"),
             "Project Files (*.avp)")
         self.openProject(filename)
@@ -973,7 +984,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.updateWindowTitle()
 
     def showMessage(self, **kwargs):
-        parent = kwargs['parent'] if 'parent' in kwargs else self.window
+        parent = kwargs['parent'] if 'parent' in kwargs else self
         msg = QtWidgets.QMessageBox(parent)
         msg.setModal(True)
         msg.setText(kwargs['msg'])
@@ -995,8 +1006,8 @@ class MainWindow(QtWidgets.QMainWindow):
     @disableWhenEncoding
     def componentContextMenu(self, QPos):
         '''Appears when right-clicking the component list'''
-        componentList = self.window.listWidget_componentList
-        self.menu = QMenu()
+        componentList = self.listWidget_componentList
+        self.menu = QtWidgets.QMenu()
         parentPosition = componentList.mapToGlobal(QtCore.QPoint(0, 0))
 
         index = self.getComponentListMousePos(QPos)
@@ -1013,7 +1024,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 presets = self.presetManager.presets[
                     str(self.core.selectedComponents[index])
                 ]
-                self.presetSubmenu = QMenu("Open Preset")
+                self.presetSubmenu = QtWidgets.QMenu("Open Preset")
                 self.menu.addMenu(self.presetSubmenu)
 
                 for version, presetName in presets:
@@ -1033,7 +1044,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.menu.addSeparator()
 
         # "Add Component" submenu
-        self.submenu = QMenu("Add")
+        self.submenu = QtWidgets.QMenu("Add")
         self.menu.addMenu(self.submenu)
         insertCompAtTop = self.settings.value("pref_insertCompAtTop")
         for i, comp in enumerate(self.core.modules):

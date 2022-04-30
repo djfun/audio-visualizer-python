@@ -41,7 +41,7 @@ class RemoveComponent(QUndoCommand):
     def __init__(self, parent, selectedRows):
         super().__init__('remove component')
         self.parent = parent
-        componentList = self.parent.window.listWidget_componentList
+        componentList = self.parent.listWidget_componentList
         self.selectedRows = [
             componentList.row(selected) for selected in selectedRows
         ]
@@ -53,7 +53,7 @@ class RemoveComponent(QUndoCommand):
         self.parent._removeComponent(self.selectedRows[0])
 
     def undo(self):
-        componentList = self.parent.window.listWidget_componentList
+        componentList = self.parent.listWidget_componentList
         for index, comp in zip(self.selectedRows, self.components):
             self.parent.core.insertComponent(
                 index, comp, self.parent
@@ -78,7 +78,7 @@ class MoveComponent(QUndoCommand):
         return True
 
     def do(self, rowa, rowb):
-        componentList = self.parent.window.listWidget_componentList
+        componentList = self.parent.listWidget_componentList
 
         page = self.parent.pages.pop(rowa)
         self.parent.pages.insert(rowb, page)
@@ -86,7 +86,7 @@ class MoveComponent(QUndoCommand):
         item = componentList.takeItem(rowa)
         componentList.insertItem(rowb, item)
 
-        stackedWidget = self.parent.window.stackedWidget
+        stackedWidget = self.parent.stackedWidget
         widget = stackedWidget.removeWidget(page)
         stackedWidget.insertWidget(rowb, page)
         componentList.setCurrentRow(rowb)
