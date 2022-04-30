@@ -333,16 +333,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.openProject(self.currentProject, prompt=False)
         self.drawPreview(True)
 
-        # verify Pillow version
-        if not self.settings.value("pilMsgShown") \
-                and 'post' not in Image.__version__:
-            self.showMessage(
-                msg="You are using the standard version of the "
-                "Python imaging library (Pillow %s). Upgrade "
-                "to the Pillow-SIMD fork to enable hardware accelerations "
-                "and export videos faster." % Image.__version__
-            )
-            self.settings.setValue("pilMsgShown", True)
+        log.info("Pillow version %s", Image.__version__)
 
         # verify Ffmpeg version
         if not self.settings.value("ffmpegMsgShown"):
@@ -351,8 +342,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     ffmpegVers = checkOutput(
                         ['ffmpeg', '-version'], stderr=f
                     )
-                goodVersion = (str(ffmpegVers).split()[2].startswith('3') or
-                    str(ffmpegVers).split()[2].startswith('4'))
+                goodVersion = str(ffmpegVers).split()[2].startswith('4')
             except Exception:
                 goodVersion = False
         else:

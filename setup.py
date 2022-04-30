@@ -29,7 +29,7 @@ proj_packages = [SOURCE_PACKAGE_REGEX.sub(PACKAGE_NAME, name) for name in source
 setup(
     name='audio_visualizer_python',
     version=avp.__version__,
-    url='https://github.com/djfun/audio-visualizer-python/tree/feature-newgui',
+    url='https://github.com/djfun/audio-visualizer-python',
     license='MIT',
     description=PACKAGE_DESCRIPTION,
     author=getTextFromFile('AUTHORS', 'djfun, tassaron'),
@@ -49,7 +49,7 @@ setup(
     package_dir={PACKAGE_NAME: SOURCE_DIRECTORY},
     include_package_data=True,
     install_requires=[
-        'Pillow-SIMD',
+        'Pillow',
         'PyQt5',
         'numpy',
         'pytest'
