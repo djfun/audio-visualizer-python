@@ -463,9 +463,13 @@ class Core:
         with open(os.path.join(wd, 'encoder-options.json')) as json_file:
             encoderOptions = json.load(json_file)
 
+        # Locate FFmpeg
+        ffmpegBin = findFfmpeg()
+        log.info("Detected FFmpeg bin: %s", ffmpegBin)
+
         settings = {
             'canceled': False,
-            'FFMPEG_BIN': findFfmpeg(),
+            'FFMPEG_BIN': ffmpegBin,
             'dataDir': dataDir,
             'settings': QtCore.QSettings(
                             os.path.join(dataDir, 'settings.ini'),
@@ -522,7 +526,7 @@ class Core:
           cls.presetDir, cls.logDir, cls.settings.value("projectDir")):
             if not os.path.exists(neededDirectory):
                 os.mkdir(neededDirectory)
-        cls.makeLogger()
+        cls.makeLogger(deleteOldLogs=True)
 
     @classmethod
     def loadDefaultSettings(cls):
@@ -564,7 +568,7 @@ class Core:
             cls.settings.setValue(key, val)
 
     @staticmethod
-    def makeLogger():
+    def makeLogger(deleteOldLogs=False):
         # send critical log messages to stdout
         logStream = logging.StreamHandler()
         logStream.setLevel(STDOUT_LOGLVL)
@@ -580,10 +584,11 @@ class Core:
             Core.logEnabled = True
             logFilename = os.path.join(Core.logDir, 'avp_debug.log')
             libLogFilename = os.path.join(Core.logDir, 'global_debug.log')
-            # delete old logs
-            for log_ in (logFilename, libLogFilename):
-                if os.path.exists(log_):
-                    os.remove(log_)
+
+            if deleteOldLogs:
+                for log_ in (logFilename, libLogFilename):
+                    if os.path.exists(log_):
+                        os.remove(log_)
 
             logFile = logging.FileHandler(logFilename, delay=True)
             logFile.setLevel(FILE_LOGLVL)
