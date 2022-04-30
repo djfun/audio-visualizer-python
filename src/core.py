@@ -14,7 +14,8 @@ from . import toolkit
 
 log = logging.getLogger('AVP.Core')
 STDOUT_LOGLVL = logging.WARNING
-FILE_LOGLVL = logging.ERROR
+FILE_LIBLOGLVL = logging.WARNING
+FILE_LOGLVL = logging.INFO
 
 
 class Core:
@@ -465,7 +466,8 @@ class Core:
 
         # Locate FFmpeg
         ffmpegBin = findFfmpeg()
-        log.info("Detected FFmpeg bin: %s", ffmpegBin)
+        if not ffmpegBin:
+            print("Could not find FFmpeg")
 
         settings = {
             'canceled': False,
@@ -530,6 +532,7 @@ class Core:
 
     @classmethod
     def loadDefaultSettings(cls):
+        # settings that get saved into the ini file
         cls.defaultSettings = {
             "outputWidth": 1280,
             "outputHeight": 720,
@@ -593,7 +596,7 @@ class Core:
             logFile = logging.FileHandler(logFilename, delay=True)
             logFile.setLevel(FILE_LOGLVL)
             libLogFile = logging.FileHandler(libLogFilename, delay=True)
-            libLogFile.setLevel(FILE_LOGLVL)
+            libLogFile.setLevel(FILE_LIBLOGLVL)
             fileFormatter = logging.Formatter(
                 '[%(asctime)s] %(threadName)-10.10s %(name)-23.23s %(levelname)s: '
                 '%(message)s'
