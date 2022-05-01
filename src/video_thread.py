@@ -340,7 +340,7 @@ class Worker(QtCore.QObject):
                 # increase progress bar value
                 completion = (audioI / self.audioArrayLen) * 100
                 if progressBarValue + 1 <= completion:
-                    progressBarValue = numpy.floor(completion)
+                    progressBarValue = numpy.floor(completion).astype(int)
                     self.progressBarUpdate.emit(progressBarValue)
                     self.progressBarSetText.emit(
                         "Exporting video: %s%%" % str(int(progressBarValue))
