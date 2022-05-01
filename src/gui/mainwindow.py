@@ -10,7 +10,7 @@ from PIL import Image
 from queue import Queue
 import sys
 import os
-import atexit
+import signal
 import filecmp
 import time
 import logging
@@ -74,9 +74,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autosavePath = os.path.join(self.dataDir, 'autosave.avp')
         self.settings = Core.settings
 
-        # Register clean-up functions
-        atexit.register(self.cleanUp)
-
         # Create stack of undoable user actions
         self.undoStack = QtWidgets.QUndoStack(self)
         undoLimit = self.settings.value("pref_undoLimit")
@@ -94,15 +91,18 @@ class MainWindow(QtWidgets.QMainWindow):
         log.debug('Starting preview thread')
         self.previewQueue = Queue()
         self.previewThread = QtCore.QThread(self)
-        self.previewWorker = preview_thread.Worker(self, self.previewQueue)
-        self.previewWorker.error.connect(self.previewWindow.threadError)
+        self.previewWorker = preview_thread.Worker(
+            self.core,
+            self.settings,
+            self.previewQueue
+        )
         self.previewWorker.moveToThread(self.previewThread)
+        self.newTask.connect(self.previewWorker.createPreviewImage)
+        self.processTask.connect(self.previewWorker.process)
+        self.previewWorker.error.connect(self.previewWindow.threadError)
         self.previewWorker.imageCreated.connect(self.showPreviewImage)
         self.previewThread.start()
-        self.previewThread.finished.connect(
-            lambda:
-                log.critical('PREVIEW THREAD DIED! This should never happen.')
-        )
+        self.previewThread.finished.connect(lambda: log.info('Preview thread finished.'))
 
         timeout = 500
         log.debug(
@@ -429,6 +429,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Ctrl+Alt+Shift+A", self, lambda: log.debug(repr(self))
             )
 
+        # Close MainWindow when receiving Ctrl+C from terminal
+        signal.signal(signal.SIGINT, lambda *args: self.close())
+
     def __repr__(self):
         return (
             '%s\n'
@@ -441,15 +444,12 @@ class MainWindow(QtWidgets.QMainWindow):
             )
         )
 
-    def cleanUp(self, *args):
+    def closeEvent(self, event):
         log.info('Ending the preview thread')
         self.timer.stop()
         self.previewThread.quit()
         self.previewThread.wait()
-
-    def terminate(self, *args):
-        self.cleanUp()
-        sys.exit(0)
+        return super().closeEvent(event)
 
     @disableWhenOpeningProject
     def updateWindowTitle(self):

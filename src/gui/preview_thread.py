@@ -22,17 +22,13 @@ class Worker(QtCore.QObject):
     imageCreated = pyqtSignal(QtGui.QImage)
     error = pyqtSignal(str)
 
-    def __init__(self, parent=None, queue=None):
+    def __init__(self, core, settings, queue):
         super().__init__()
-        parent.newTask.connect(self.createPreviewImage)
-        parent.processTask.connect(self.process)
-        #self.parent = parent
-        self.core = parent.core
-        self.settings = parent.settings
-        self.queue = queue
-
+        self.core = core
+        self.settings = settings
         width = int(self.settings.value('outputWidth'))
         height = int(self.settings.value('outputHeight'))
+        self.queue = queue
         self.background = Checkerboard(width, height)
 
     @disableWhenOpeningProject
