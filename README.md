@@ -31,22 +31,22 @@ The program works on Linux, macOS, and Windows. If you encounter problems runnin
 
 
 # Installation
-## Manual installation on Linux (tested on Ubuntu 22.04)
+## Manual installation on Ubuntu 22.04
 * Install ffmpeg: `sudo apt install ffmpeg`
 * Install pip: `sudo apt install python3-pip`
-* Download this repo and run `pip3 install --user .` in this directory
-* Run the program with `avp` or `python3 -m avp`
-* **Sidenote:** If using a Python virtual environment, `pip3 install --system-site-packages --copies` may be useful to copy system packages when installing. This can be useful if you have difficulty installing PyQt5 using pip or wish to use the distro's package manager instead.
+* Install PyQt5: `sudo apt install python3-pyqt5`
+* Download this repo and run `pip install .` in this directory
+* Run the program with `python3 -m avp`
 
 
 ## Manual installation on Windows
 * Install Python from the Windows Store
 * Add Python to your system PATH (it should ask during the installation process)
 * Download this repo
-* Open command prompt, `cd` into the repo directory, and run: `pip install --user .`
+* Open command prompt, `cd` into the repo directory, and run: `pip install .`
 * Download and install ffmpeg from [https://www.ffmpeg.org/download.html](https://www.ffmpeg.org/download.html). You can use the static builds.
 * Add ffmpeg to the system PATH as well, or copy ffmpeg.exe into the directory with the rest of the app
-* Now run `avp` from a command prompt window to start the app
+* Now run `python3 -m avp` from a command prompt window to start the app
 
 
 ## Manual installation on macOS
