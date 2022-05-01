@@ -155,7 +155,7 @@ def findFfmpeg():
     if sys.platform == "win32":
         bin = 'ffmpeg.exe'
     else:
-        bin = 'ffmfpeg'
+        bin = 'ffmpeg'
 
     if getattr(sys, 'frozen', False):
         # The application is frozen
