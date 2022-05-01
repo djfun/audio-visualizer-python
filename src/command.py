@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import signal
+import shutil
 import logging
 
 from . import core
@@ -225,6 +226,38 @@ class Command(QtCore.QObject):
         from . import tests
         test_report = os.path.join(core.Core.logDir, "test_report.log")
         tests.run(test_report)
+
+        # Print test report into terminal
         with open(test_report, "r") as f:
             output = f.readlines()
-        print("".join(output))
+        test_output = "".join(output)
+        print(test_output)
+
+        # Choose a numbered location to put the output file
+        logNumber = 0
+        def getFilename():
+            """Get a numbered filename for the final test report"""
+            nonlocal logNumber
+            name = os.path.join(os.path.expanduser('~'), "avp_test_report")
+            while True:
+                possibleName = f"{name}{logNumber:0>2}.txt"
+                if os.path.exists(possibleName) and logNumber < 100:
+                    logNumber += 1
+                    continue
+                break
+            return possibleName
+
+        # Copy latest debug log to chosen test report location
+        filename = getFilename()
+        if logNumber == 100:
+            print("Test Report could not be created.")
+            return
+        try:
+            shutil.copy(os.path.join(core.Core.logDir, "avp_debug.log"), filename)
+        except FileNotFoundError:
+            print("No debug log found.")
+        # Append actual test report to debug log
+        with open(filename, "a") as f:
+            f.write(f"{'='*59} debug log ends {'='*59}\n")
+            f.write(test_output)
+        print(f"Test Report created at {filename}")
