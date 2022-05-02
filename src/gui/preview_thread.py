@@ -80,6 +80,8 @@ class Worker(QtCore.QObject):
                 except RuntimeError as e:
                     log.error(str(e))
             else:
+                # We must store a reference to this QImage
+                # or else Qt will garbage-collect it on the C++ side
                 self.frame = ImageQt(frame)
                 self.imageCreated.emit(QtGui.QImage(self.frame))
 
