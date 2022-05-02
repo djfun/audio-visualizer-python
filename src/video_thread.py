@@ -120,11 +120,9 @@ class Worker(QtCore.QObject):
             adds it to the checkerboard and emits a final QImage
             to the MainWindow for the live preview
         '''
-        background = Checkerboard(self.width, self.height)
-        image = Image.alpha_composite(background.copy(), frame)
         # We must store a reference to this QImage
         # or else Qt will garbage-collect it on the C++ side
-        self.latestPreview = ImageQt(image)
+        self.latestPreview = ImageQt(frame)
         self.imageCreated.emit(QtGui.QImage(self.latestPreview))
         self.lastPreview = time.time()
 
