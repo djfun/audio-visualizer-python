@@ -4,7 +4,7 @@
     This shows a preview of the video being created and allows for saving
     projects and exporting the video at a later time.
 '''
-from PyQt5 import QtCore, QtGui, QtWidgets, uic
+from PyQt5 import QtCore, QtWidgets, uic
 import PyQt5.QtWidgets as QtWidgets
 from PIL import Image
 from queue import Queue
@@ -754,7 +754,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.autosave()
         self.updateWindowTitle()
 
-    @QtCore.pyqtSlot(QtGui.QImage)
+    @QtCore.pyqtSlot('QImage')
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
 

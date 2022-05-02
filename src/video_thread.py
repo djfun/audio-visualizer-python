@@ -114,21 +114,19 @@ class Worker(QtCore.QObject):
         for audioI in range(0, self.audioArrayLen, self.sampleSize):
             self.compositeQueue.put(audioI)
 
-    def previewDispatch(self):
+    def showPreview(self, frame):
         '''
-            Grabs frames from the previewQueue, adds them to the checkerboard
-            and emits a final QImage to the MainWindow for the live preview
+            Receives a final frame that will be piped to FFmpeg,
+            adds it to the checkerboard and emits a final QImage
+            to the MainWindow for the live preview
         '''
         background = Checkerboard(self.width, self.height)
-
-        while not self.stopped:
-            audioI, frame = self.previewQueue.get()
-            if time.time() - self.lastPreview >= 0.06 or audioI == 0:
-                image = Image.alpha_composite(background.copy(), frame)
-                self.imageCreated.emit(QtGui.QImage(ImageQt(image)))
-                self.lastPreview = time.time()
-
-            self.previewQueue.task_done()
+        image = Image.alpha_composite(background.copy(), frame)
+        # We must store a reference to this QImage
+        # or else Qt will garbage-collect it on the C++ side
+        self.latestPreview = ImageQt(image)
+        self.imageCreated.emit(QtGui.QImage(self.latestPreview))
+        self.lastPreview = time.time()
 
     @pyqtSlot()
     def createVideo(self):
@@ -145,7 +143,6 @@ class Worker(QtCore.QObject):
         self.compositeQueue.maxsize = 20
         self.renderQueue = PriorityQueue()
         self.renderQueue.maxsize = 20
-        self.previewQueue = PriorityQueue()
 
         self.reset()
         progressBarValue = 0
@@ -307,15 +304,13 @@ class Worker(QtCore.QObject):
         self.dispatchThread.daemon = True
         self.dispatchThread.start()
 
-        self.lastPreview = 0.0
-        self.previewDispatch = Thread(
-            target=self.previewDispatch, name="Render Dispatch Thread"
-        )
-        self.previewDispatch.daemon = True
-        self.previewDispatch.start()
+        # Last time preview was drawn
+        self.lastPreview = time.time()
 
         # Begin piping into ffmpeg!
-        frameBuffer = {}
+        frameBuffer = {
+            # audioI: bytes ready to be piped
+        }
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
         self.progressBarSetText.emit("Exporting video...")
@@ -328,14 +323,17 @@ class Worker(QtCore.QObject):
                         break
                     # else fetch the next frame & add to the buffer
                     audioI_, frame = self.renderQueue.get()
-                    frameBuffer[audioI_] = frame
+                    frameBuffer[audioI_] = frame.copy()
                     self.renderQueue.task_done()
                 if self.canceled:
                     break
 
+                # Update live preview
+                if time.time() - self.lastPreview > 0.5:
+                    self.showPreview(frameBuffer[audioI])
+
                 try:
                     self.out_pipe.stdin.write(frameBuffer[audioI].tobytes())
-                    self.previewQueue.put([audioI, frameBuffer.pop(audioI)])
                 except Exception:
                     break
 
@@ -347,6 +345,7 @@ class Worker(QtCore.QObject):
                     self.progressBarSetText.emit(
                         "Exporting video: %s%%" % str(int(progressBarValue))
                     )
+
 
         numpy.seterr(all='print')
 
