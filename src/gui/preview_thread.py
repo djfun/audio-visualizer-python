@@ -38,6 +38,7 @@ class Worker(QtCore.QObject):
           "components": components,
         }
         self.queue.put(dic)
+        log.debug('Preview thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
 
     @pyqtSlot()
     def process(self):

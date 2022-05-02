@@ -133,6 +133,8 @@ class Worker(QtCore.QObject):
     @pyqtSlot()
     def createVideo(self):
         log.debug("Video worker received signal to createVideo")
+        log.debug(
+            'Video thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
         numpy.seterr(divide='ignore')
         self.encoding.emit(True)
         self.extraAudio = []
