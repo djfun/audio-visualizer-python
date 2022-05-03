@@ -55,8 +55,8 @@ setup(
         'pytest'
     ],
     entry_points={
-        'gui_scripts': [
-            f'avp = {PACKAGE_NAME}.main:main'
+        'console_scripts': [
+            f'avp = {PACKAGE_NAME}.__main__:main'
         ],
     }
 )

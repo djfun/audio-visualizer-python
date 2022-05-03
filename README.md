@@ -31,20 +31,25 @@ The program works on Linux, macOS, and Windows. If you encounter problems runnin
 
 
 # Installation
+* On any platform, you may wish to install the app within an isolated Python environment so it doesn't affect other Python packages on your system. An easy way to do this is by using [Pipx](https://pypi.org/project/pipx/), which works similarly to Pip but automatically handles isolation.
+* If you have problems running the `avp` command, try using `python -m avp` instead. (Note: python is called python3 on some systems.)
+
+
 ## Manual installation on Ubuntu 22.04
 * Install dependencies: `sudo apt install ffmpeg python3-pip python3-pyqt5`
-* Download this repo and run `pip install .` in this directory
-* Run the program with `python3 -m avp`
+* Download this repo and run `pip install .` in this directory (or use `pipx` for isolation)
+* Run the program with `avp` or `python3 -m avp`
 
 
 ## Manual installation on Windows
 * Install Python from the Windows Store
 * Add Python to your system PATH (it should ask during the installation process)
-* Download this repo
-* Open command prompt, `cd` into the repo directory, and run: `pip install .`
-* Download and install [FFmpeg](https://www.ffmpeg.org/download.html). You can use the static builds.
-* Add FFmpeg to the system PATH as well, or copy ffmpeg.exe into the directory with the rest of the app
-* Now run `python -m avp` from a command prompt window to start the app
+* Download this repo (extract from zip if needed)
+* Download and install [FFmpeg](https://www.ffmpeg.org/download.html). Use the GPL-licensed static builds.
+* Add FFmpeg to the system PATH as well (program will then work anywhere)
+  * Alternatively, copy ffmpeg.exe into the folder that you want to run the program within
+* Open command prompt, `cd` into the repo directory, and run: `pip install .` (or use `pipx` for isolation)
+* Now run `avp` or `python -m avp` from a command prompt window to start the app
 
 
 ## Manual installation on macOS
@@ -59,8 +64,8 @@ brew install sip --with-python3
 brew install pyqt --with-python3
 pip3 install --upgrade pip
 ```
-* Download audio-visualizer-python from this repository and install it using Pip: `pip3 install .`
-* Start the app with `python3 -m avp`
+* Download this repository and install it using Pip: `pip3 install .` (or use `pipx` for isolation)
+* Start the app with `avp` or `python3 -m avp`
 
 
 # Faster Export Times
