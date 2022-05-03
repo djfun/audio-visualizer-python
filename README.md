@@ -5,7 +5,7 @@ This is a little GUI tool which creates an audio visualization video from an inp
 
 Projects can be created from the GUI and used in commandline mode for easy automation of video production. For more information use `avp --help` or for help with a particular component use `avp -c 0 componentName help`.
 
-The program works on Linux, macOS, and Windows. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and submit a pull request and/or file an issue on this project. To gather extra information to help us debug the problem, run `avp -t` and include the text file it creates.
+The program works on Linux, macOS, and Windows. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and submit a pull request and/or file an issue on this project. To gather extra information to help us debug the problem, run `avp --test` and include the text file it creates.
 
 
 # Examples
@@ -18,7 +18,7 @@ The program works on Linux, macOS, and Windows. If you encounter problems runnin
 ## Commandline snippets
 * Create a simple visualization: `avp -c 0 classic -i something.mp3 -o output.mp4`
 * Create the same visualization but with split layout and more extreme fluctuations: `avp -c 0 classic layout=split scale=40 -i something.mp3 -o output.mp4`
-* Create a template project named `template` with your typical visualizers and watermarks using the GUI, then add text to the top layer from commandline: `avp template -c 99 text "title=Episode 371" -i /this/weeks/audio.ogg -o out`
+* Create a template project named `template` with your typical visualizers and watermarks using the GUI, then add text to the top layer from commandline: `avp template -c 99 text "title=Episode 371" -i /this/weeks/audio.ogg -o output.mp4`
 
 
 # Dependencies
@@ -32,9 +32,7 @@ The program works on Linux, macOS, and Windows. If you encounter problems runnin
 
 # Installation
 ## Manual installation on Ubuntu 22.04
-* Install ffmpeg: `sudo apt install ffmpeg`
-* Install pip: `sudo apt install python3-pip`
-* Install PyQt5: `sudo apt install python3-pyqt5`
+* Install dependencies: `sudo apt install ffmpeg python3-pip python3-pyqt5`
 * Download this repo and run `pip install .` in this directory
 * Run the program with `python3 -m avp`
 
@@ -44,9 +42,9 @@ The program works on Linux, macOS, and Windows. If you encounter problems runnin
 * Add Python to your system PATH (it should ask during the installation process)
 * Download this repo
 * Open command prompt, `cd` into the repo directory, and run: `pip install .`
-* Download and install ffmpeg from [https://www.ffmpeg.org/download.html](https://www.ffmpeg.org/download.html). You can use the static builds.
-* Add ffmpeg to the system PATH as well, or copy ffmpeg.exe into the directory with the rest of the app
-* Now run `python3 -m avp` from a command prompt window to start the app
+* Download and install [FFmpeg](https://www.ffmpeg.org/download.html). You can use the static builds.
+* Add FFmpeg to the system PATH as well, or copy ffmpeg.exe into the directory with the rest of the app
+* Now run `python -m avp` from a command prompt window to start the app
 
 
 ## Manual installation on macOS
@@ -60,10 +58,9 @@ brew install qt
 brew install sip --with-python3
 brew install pyqt --with-python3
 pip3 install --upgrade pip
-pip3 install pillow
-pip3 install numpy
 ```
-Download audio-visualizer-python from this repository and run it with `python3 main.py`.
+* Download audio-visualizer-python from this repository and install it using Pip: `pip3 install .`
+* Start the app with `python3 -m avp`
 
 
 # Faster Export Times
