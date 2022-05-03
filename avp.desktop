@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Audio Visualizer Python
+#Exec=/usr/bin/env python3 -m avp
+#Exec=$HOME/.local/bin/avp
+Exec=$(which avp)
+Icon=
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=AudioVideo;AudioVideoEditing;
