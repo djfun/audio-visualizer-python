@@ -58,11 +58,15 @@ class Command(QtCore.QObject):
         )
         self.parser.add_argument(
             '--test', action='store_true',
-            help='run tests, generate logfiles, then exit'
+            help='run tests and create a report full of debugging info'
         )
         self.parser.add_argument(
             '--debug', action='store_true',
             help='create bigger logfiles while program is running'
+        )
+        self.parser.add_argument(
+            '--no-preview', action='store_true',
+            help='disable live preview during export in GUI mode'
         )
 
         # optional arguments
@@ -139,6 +143,9 @@ class Command(QtCore.QObject):
         elif self.args.input and self.args.output:
             self.createAudioVisualisation(self.args.input, self.args.output)
             return "commandline"
+
+        elif self.args.no_preview:
+            core.Core.previewEnabled = False
 
         elif 'help' not in sys.argv and self.args.projpath is None and '--debug' not in sys.argv:
             self.parser.print_help()

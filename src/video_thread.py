@@ -44,6 +44,7 @@ class Worker(QtCore.QObject):
         self.settings = parent.settings
         self.modules = parent.core.modules
         parent.createVideo.connect(self.createVideo)
+        self.previewEnabled = type(parent.core).previewEnabled
 
         #self.parent = parent
         self.components = components
@@ -327,7 +328,7 @@ class Worker(QtCore.QObject):
                     break
 
                 # Update live preview
-                if time.time() - self.lastPreview > 0.5:
+                if self.previewEnabled and time.time() - self.lastPreview > 0.5:
                     self.showPreview(frameBuffer[audioI])
 
                 try:
