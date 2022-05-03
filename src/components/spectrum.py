@@ -134,7 +134,7 @@ class Component(Component):
         command = [
             self.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
-            '-r', self.settings.value("outputFrameRate"),
+            '-r', str(self.settings.value("outputFrameRate")),
             '-ss', "{0:.3f}".format(startPt),
             '-i',
             self.core.junkStream
@@ -219,7 +219,7 @@ class Component(Component):
                 display = 'rlog'
             filter_ = (
                 'ahistogram=r=%s:s=%sx%s:dmode=separate:ascale=%s:scale=%s' % (
-                    self.settings.value("outputFrameRate"),
+                    str(self.settings.value("outputFrameRate")),
                     w, h,
                     amplitude, display
                 )
@@ -245,7 +245,7 @@ class Component(Component):
             filter_ = (
                 'showcqt=r=%s:s=%sx%s:count=30:text=0:tc=%s,'
                 'colorkey=color=black:similarity=0.1:blend=0.5 ' % (
-                    self.settings.value("outputFrameRate"),
+                    str(self.settings.value("outputFrameRate")),
                     w, h,
                     str(self.tc),
                 )
@@ -256,7 +256,7 @@ class Component(Component):
                 '[atrash] anullsink; '
                 '[vtmp1] colorkey=color=black:similarity=0.1:blend=0.5, '
                 'crop=in_w/8:in_h:(in_w/8)*7:0  ' % (
-                    self.settings.value("outputFrameRate"),
+                    str(self.settings.value("outputFrameRate")),
                     w, h,
                 )
             )

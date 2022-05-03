@@ -95,7 +95,7 @@ class Component(Component):
         command = [
             self.core.FFMPEG_BIN,
             '-thread_queue_size', '512',
-            '-r', self.settings.value("outputFrameRate"),
+            '-r', str(self.settings.value("outputFrameRate")),
             '-ss', "{0:.3f}".format(startPt),
             '-i',
             self.core.junkStream
@@ -149,7 +149,7 @@ class Component(Component):
             filter_ = (
                 'showwaves='
                 'r=%s:s=%sx%s:mode=%s:colors=%s@%s:scale=%s' % (
-                    self.settings.value("outputFrameRate"),
+                    str(self.settings.value("outputFrameRate")),
                     self.settings.value("outputWidth"),
                     self.settings.value("outputHeight"),
                     self.page.comboBox_mode.currentText().lower()
