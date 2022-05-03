@@ -38,6 +38,7 @@ class Worker(QtCore.QObject):
           "components": components,
         }
         self.queue.put(dic)
+        log.debug('Preview thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
 
     @pyqtSlot()
     def process(self):
@@ -79,6 +80,8 @@ class Worker(QtCore.QObject):
                 except RuntimeError as e:
                     log.error(str(e))
             else:
+                # We must store a reference to this QImage
+                # or else Qt will garbage-collect it on the C++ side
                 self.frame = ImageQt(frame)
                 self.imageCreated.emit(QtGui.QImage(self.frame))
 

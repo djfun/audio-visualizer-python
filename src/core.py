@@ -487,6 +487,7 @@ class Core:
             ],
             'logDir': os.path.join(dataDir, 'log'),
             'logEnabled': False,
+            'previewEnabled': True,
         }
 
         settings['videoFormats'] = toolkit.appendUppercase([
