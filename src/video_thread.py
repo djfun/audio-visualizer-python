@@ -322,7 +322,7 @@ class Worker(QtCore.QObject):
                         break
                     # else fetch the next frame & add to the buffer
                     audioI_, frame = self.renderQueue.get()
-                    frameBuffer[audioI_] = frame.copy()
+                    frameBuffer[audioI_] = frame
                     self.renderQueue.task_done()
                 if self.canceled:
                     break
