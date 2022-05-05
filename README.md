@@ -3,11 +3,12 @@
 
 This is a little GUI tool which creates an audio visualization video from an input audio file. Different components can be added and layered to change the resulting video and add images, videos, gradients, text, etc. Encoding options can be changed with a variety of different output containers.
 
-The program works on Linux, macOS, and Windows. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and submit a pull request and/or file an issue on this project.
+The program works on **Linux**, **macOS**, and **Windows**. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and submit a pull request and/or file an [issue](/issues) on this project.
 
 
 # Screenshots & Videos
-![Screenshot](/screenshot.png?raw=true)
+[<img title="AVP running on Windows" alt="Screenshot of program on Windows" src="screenshot.png" width="707">](/screenshot.png?raw=true)
+
 ## A video created by this app
 * **[YouTube: A day in spring](https://www.youtube.com/watch?v=-M3jR1NuJHM)** 🎥
 
