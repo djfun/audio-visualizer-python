@@ -65,10 +65,11 @@ Projects can be created with the GUI then loaded from the commandline for easy a
     _(component names are "fuzzy searched" so many names will work)_
 * See more commandline options: `avp --help`
 * Run program in debug mode: `avp --debug`
-  * Debugging log files are in the app's config directory (`.config` or `AppData/Local`)
+  * Debugging log files are in the app's config directory (`.config` on Linux, `AppData/Local` on Windows, `Library/Preferences` on macOS)
+* [See more examples in the wiki!](https://github.com/djfun/audio-visualizer-python/wiki/Commandline-Mode)
 
 
-# Keyboard Shortcuts
+# [Keyboard Shortcuts](https://github.com/djfun/audio-visualizer-python/wiki/Keyboard-Shortcuts)
 | Key Combo                 | Effect                                             |
 | ------------------------- | -------------------------------------------------- |
 | Ctrl+S                    | Save Current Project                               |
