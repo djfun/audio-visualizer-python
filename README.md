@@ -3,7 +3,7 @@
 
 This is a little GUI tool which creates an audio visualization video from an input audio file. Different components can be added and layered to change the resulting video and add images, videos, gradients, text, etc. Encoding options can be changed with a variety of different output containers.
 
-The program works on **Linux**, **macOS**, and **Windows**. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and submit a pull request and/or file an [issue](/issues) on this project.
+The program works on **Linux**, **macOS**, and **Windows**. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and submit a pull request and/or file an [issue](https://github.com/djfun/audio-visualizer-python/issues) on this project.
 
 
 # Screenshots & Videos
@@ -52,23 +52,6 @@ pip3 install --upgrade pip
 * Start the app with `avp` or `python3 -m avp`
 
 
-# Commandline Mode
-Projects can be created with the GUI then loaded from the commandline for easy automation of video production. Some components have commandline options for extra customization, and you can save "presets" with settings to load if the commandline option doesn't exist.
-
-## Example commands
-* Create a video with a grey "classic visualizer", background image, and text:
-    * `avp -c 0 image path=src/tests/data/test.jpg -c 1 classic color=180,180,180 -c 2 text "title=Episode 371" -i src/tests/data/test.ogg -o output.mp4`
-* Create projects and presets from commandline and add changed elements onto them:
-    * `avp my-podcast-project -c 99 text "title=Episode 371" preset=PodcastText -i input.ogg -o output.mp4`
-* Get more commandline options for Classic Visualizer component:
-    * `avp -c 0 classic help`
-    _(component names are "fuzzy searched" so many names will work)_
-* See more commandline options: `avp --help`
-* Run program in debug mode: `avp --debug`
-  * Debugging log files are in the app's config directory (`.config` on Linux, `AppData/Local` on Windows, `Library/Preferences` on macOS)
-* [See more examples in the wiki!](https://github.com/djfun/audio-visualizer-python/wiki/Commandline-Mode)
-
-
 # [Keyboard Shortcuts](https://github.com/djfun/audio-visualizer-python/wiki/Keyboard-Shortcuts)
 | Key Combo                 | Effect                                             |
 | ------------------------- | -------------------------------------------------- |
@@ -89,8 +72,15 @@ Projects can be created with the GUI then loaded from the commandline for easy a
 | Ctrl+End                  | Move Selected Component to Bottom                  |
 | Ctrl+Shift+U              | Open Undo History                                  |
 | Ctrl+Shift+F              | Show FFmpeg Command                                |
-| Ctrl+Alt+Shift+R          | Force redraw preview (must use `--debug`)          |
-| Ctrl+Alt+Shift+A          | Dump MainWindow data into log (must use `--debug`) |
+
+
+# Commandline Mode
+Projects can be created with the GUI then loaded from the commandline for easy automation of video production. Some components have commandline options for extra customization, and you can save "presets" with settings to load if the commandline option doesn't exist.
+
+## Example/test command
+* Create a video with a grey "classic visualizer", background image, and text:
+    * `avp -c 0 image path=src/tests/data/test.jpg -c 1 classic color=180,180,180 -c 2 text "title=Episode 371" -i src/tests/data/test.ogg -o output.mp4`
+* [See more about commandline mode in the wiki!](https://github.com/djfun/audio-visualizer-python/wiki/Commandline-Mode)
 
 
 # Developer Information
