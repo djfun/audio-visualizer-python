@@ -148,14 +148,10 @@ class Component(Component):
         if self.mode < 3:
             filter_ = (
                 'showwaves='
-                'r=%s:s=%sx%s:mode=%s:colors=%s@%s:scale=%s' % (
-                    str(self.settings.value("outputFrameRate")),
-                    self.settings.value("outputWidth"),
-                    self.settings.value("outputHeight"),
-                    self.page.comboBox_mode.currentText().lower()
-                    if self.mode != 3 else 'p2p',
-                    hexcolor, opacity, amplitude,
-                )
+                f'r={str(self.settings.value("outputFrameRate"))}:'
+                f's={self.settings.value("outputWidth")}x{self.settings.value("outputHeight")}:'
+                f'mode={self.page.comboBox_mode.currentText().lower() if self.mode != 3 else "p2p"}:'
+                f'colors={hexcolor}@{opacity}:scale={amplitude}'
             )
         elif self.mode > 2:
             filter_ = (
