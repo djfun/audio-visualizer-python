@@ -73,7 +73,9 @@ class Worker(QtCore.QObject):
         return ffmpegCommand
 
     def determineAudioLength(self):
-        '''Returns longest audio length of loaded components, or False if failure occurs'''
+        '''
+        Returns audio length which determines length of final video, or False if failure occurs
+        '''
         if any([
                 True if 'pcm' in comp.properties() else False
                 for comp in self.components
@@ -96,6 +98,10 @@ class Worker(QtCore.QObject):
         return duration
 
     def preFrameRender(self):
+        '''
+        Initializes components that need to pre-compute stuff.
+        Also prerenders "static" components like text and merges them if possible
+        '''
         self.staticComponents = {}
 
         # Call preFrameRender on each component
@@ -180,10 +186,8 @@ class Worker(QtCore.QObject):
 
     def frameRender(self, audioI):
         '''
-            Grabs audio data indices at frames to export, from compositeQueue.
-            Sends it to the components' frameRender methods in layer order
-            to create subframes & composite them into the final frame.
-            The resulting frames are collected in the renderQueue
+        Renders a frame composited together from the framse returned by each component
+        audioI is a multiple of self.sampleSize, which can be divided to determine frameNo
         '''
         def err():
             self.closePipe()
@@ -225,9 +229,8 @@ class Worker(QtCore.QObject):
 
     def showPreview(self, frame):
         '''
-            Receives a final frame that will be piped to FFmpeg,
-            adds it to the checkerboard and emits a final QImage
-            to the MainWindow for the live preview
+        Receives a final frame that will be piped to FFmpeg,
+        adds it to the MainWindow for the live preview
         '''
         # We must store a reference to this QImage
         # or else Qt will garbage-collect it on the C++ side
@@ -236,6 +239,16 @@ class Worker(QtCore.QObject):
 
     @pyqtSlot()
     def createVideo(self):
+        '''
+        1. Numpy is set to ignore division errors during this method
+        2. Determine length of final video
+        3. Call preFrameRender on each component
+        4. Create the main FFmpeg command
+        5. Open the out_pipe to FFmpeg process
+        6. Iterate over the audio data array and call frameRender on the components to get frames
+        7. Close the out_pipe
+        8. Call postFrameRender on each component
+        '''
         log.debug("Video worker received signal to createVideo")
         log.debug(
             'Video thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
@@ -315,6 +328,9 @@ class Worker(QtCore.QObject):
                     "Exporting video: %s%%" % str(int(progressBarValue))
                 )
 
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # Finished creating the video!
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
         numpy.seterr(all='print')
 
