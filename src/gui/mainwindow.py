@@ -78,6 +78,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.undoStack = QtWidgets.QUndoStack(self)
         undoLimit = self.settings.value("pref_undoLimit")
         self.undoStack.setUndoLimit(undoLimit)
+        self.undoStack.undo = disableWhenEncoding(self.undoStack.undo)
+        self.undoStack.redo = disableWhenEncoding(self.undoStack.redo)
+        self.undoDialog = None
 
         # Create Preset Manager
         self.presetManager = PresetManager(self)
@@ -684,6 +687,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def changeEncodingStatus(self, status):
         self.encoding = status
         if status:
+            # Disable many widgets when starting to export
             self.pushButton_createVideo.setEnabled(False)
             self.pushButton_Cancel.setEnabled(True)
             self.comboBox_resolution.setEnabled(False)
@@ -695,16 +699,21 @@ class MainWindow(QtWidgets.QMainWindow):
             self.toolButton_selectOutputFile.setEnabled(False)
             self.lineEdit_audioFile.setEnabled(False)
             self.lineEdit_outputFile.setEnabled(False)
+            self.listWidget_componentList.setEnabled(False)
             self.pushButton_addComponent.setEnabled(False)
             self.pushButton_removeComponent.setEnabled(False)
             self.pushButton_listMoveDown.setEnabled(False)
             self.pushButton_listMoveUp.setEnabled(False)
+            self.pushButton_undo.setEnabled(False)
             self.menuButton_newProject.setEnabled(False)
             self.menuButton_openProject.setEnabled(False)
+            # Close undo history if open
+            if self.undoDialog is not None:
+                self.undoDialog.close()
+                self.undoDialog = None
+            # Show label under progress bar on macOS
             if sys.platform == 'darwin':
                 self.progressLabel.setHidden(False)
-            else:
-                self.listWidget_componentList.setEnabled(False)
         else:
             self.pushButton_createVideo.setEnabled(True)
             self.pushButton_Cancel.setEnabled(False)
@@ -721,6 +730,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.pushButton_removeComponent.setEnabled(True)
             self.pushButton_listMoveDown.setEnabled(True)
             self.pushButton_listMoveUp.setEnabled(True)
+            self.pushButton_undo.setEnabled(True)
             self.menuButton_newProject.setEnabled(True)
             self.menuButton_openProject.setEnabled(True)
             self.listWidget_componentList.setEnabled(True)
@@ -763,13 +773,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
 
+    @disableWhenEncoding
     def showUndoStack(self):
-        dialog = QtWidgets.QDialog(self)
+        self.undoDialog = QtWidgets.QDialog(self)
+        def closeUndoDialog(self, *args):
+            self.undoDialog = None
+            super().closeEvent(*args)
+        self.undoDialog.closeEvent = closeUndoDialog
+        # Add standard QUndoView to standard QDialog
         undoView = QtWidgets.QUndoView(self.undoStack)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(undoView)
-        dialog.setLayout(layout)
-        dialog.show()
+        self.undoDialog.setLayout(layout)
+        self.undoDialog.show()
 
     def showFfmpegCommand(self):
         from textwrap import wrap
