@@ -53,6 +53,25 @@ class Worker(QtCore.QObject):
         self.canceled = False
         self.error = False
 
+    def createFfmpegCommand(self, duration):
+        try:
+            ffmpegCommand = createFfmpegCommand(
+                self.inputFile, self.outputFile, self.components, duration
+            )
+        except sp.CalledProcessError as e:
+            #FIXME video_thread should own this error signal, not components
+            self.components[0]._error.emit("Ffmpeg could not be found. Is it installed?", str(e))
+            self.error = True
+            return
+        
+        if not ffmpegCommand:
+            #FIXME video_thread should own this error signal, not components
+            self.components[0]._error.emit("The FFmpeg command could not be generated.", "")
+            log.critical("Cancelling render process due to failure while generating the ffmpeg command.")
+            self.failExport()
+            return
+        return ffmpegCommand
+
     def determineAudioLength(self):
         '''Returns longest audio length of loaded components, or False if failure occurs'''
         if any([
@@ -76,7 +95,90 @@ class Worker(QtCore.QObject):
                     self.hertz) - self.sampleSize)
         return duration
 
-    def renderFrame(self, audioI):
+    def preFrameRender(self):
+        self.staticComponents = {}
+
+        # Call preFrameRender on each component
+        canceledByComponent = False
+        initText = ", ".join([
+            "%s) %s" % (num, str(component))
+            for num, component in enumerate(reversed(self.components))
+        ])
+        print('Loaded Components:', initText)
+        log.info('Calling preFrameRender for %s', initText)
+        for compNo, comp in enumerate(reversed(self.components)):
+            try:
+                comp.preFrameRender(
+                    audioFile=self.inputFile,
+                    completeAudioArray=self.completeAudioArray,
+                    audioArrayLen=self.audioArrayLen,
+                    sampleSize=self.sampleSize,
+                    progressBarUpdate=self.progressBarUpdate,
+                    progressBarSetText=self.progressBarSetText
+                )
+            except ComponentError:
+                log.warning(
+                    '#%s %s encountered an error in its preFrameRender method',
+                    compNo,
+                    comp
+                )
+
+            compProps = comp.properties()
+            if 'error' in compProps or comp._lockedError is not None:
+                self.cancel()
+                self.canceled = True
+                canceledByComponent = True
+                compError = comp.error() \
+                    if type(comp.error()) is tuple else (comp.error(), '')
+                errMsg = (
+                    "Component #%s (%s) encountered an error!" % (
+                        str(compNo), comp.name
+                    )
+                    if comp.error() is None else
+                    'Export cancelled by component #%s (%s): %s' % (
+                        str(compNo),
+                        comp.name,
+                        compError[0]
+                    )
+                )
+                log.error(errMsg)
+                comp._error.emit(errMsg, compError[1])
+                break
+            if 'static' in compProps:
+                log.info('Saving static frame from #%s %s', compNo, comp)
+                self.staticComponents[compNo] = \
+                    comp.frameRender(0).copy()
+
+        # Check if any errors occured
+        log.debug("Checking if a component wishes to cancel the export...")
+        if self.canceled:
+            if canceledByComponent:
+                log.error(
+                    'Export cancelled by component #%s (%s): %s',
+                    compNo,
+                    comp.name,
+                    'No message.' if comp.error() is None else (
+                        comp.error() if type(comp.error()) is str
+                        else comp.error()[0]
+                    )
+                )
+            self.cancelExport()
+        
+        # Merge static frames that can be merged to reduce workload
+        def mergeConsecutiveStaticComponentFrames(self):
+            log.info("Merging consecutive static component frames")
+            for compNo in range(len(self.components)):
+                if compNo not in self.staticComponents \
+                        or compNo + 1 not in self.staticComponents:
+                    continue
+                self.staticComponents[compNo + 1] = Image.alpha_composite(
+                    self.staticComponents.pop(compNo),
+                    self.staticComponents[compNo + 1]
+                )
+                self.staticComponents[compNo] = None
+        mergeConsecutiveStaticComponentFrames(self)
+
+    def frameRender(self, audioI):
         '''
             Grabs audio data indices at frames to export, from compositeQueue.
             Sends it to the components' frameRender methods in layer order
@@ -143,128 +245,43 @@ class Worker(QtCore.QObject):
         self.width = int(self.settings.value('outputWidth'))
         self.height = int(self.settings.value('outputHeight'))
 
-        # set Core.canceled to False and call .reset() on each component
+        # Set core.Core.canceled to False and call .reset() on each component
         self.reset()
-        # initialize progress bar
+        # Initialize progress bar to 0
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
 
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-        # READ AUDIO, INITIALIZE COMPONENTS, OPEN A PIPE TO FFMPEG
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # Determine longest length of audio which will be the final video's duration
         log.debug("Determining length of audio...")
         duration = self.determineAudioLength()
         if not duration:
             return
 
+        # Call preFrameRender on each component to perform initialization
         self.progressBarUpdate.emit(0)
         self.progressBarSetText.emit("Starting components...")
-        canceledByComponent = False
-        initText = ", ".join([
-            "%s) %s" % (num, str(component))
-            for num, component in enumerate(reversed(self.components))
-        ])
-        print('Loaded Components:', initText)
-        log.info('Calling preFrameRender for %s', initText)
-        self.staticComponents = {}
-        for compNo, comp in enumerate(reversed(self.components)):
-            try:
-                comp.preFrameRender(
-                    audioFile=self.inputFile,
-                    completeAudioArray=self.completeAudioArray,
-                    audioArrayLen=self.audioArrayLen,
-                    sampleSize=self.sampleSize,
-                    progressBarUpdate=self.progressBarUpdate,
-                    progressBarSetText=self.progressBarSetText
-                )
-            except ComponentError:
-                log.warning(
-                    '#%s %s encountered an error in its preFrameRender method',
-                    compNo,
-                    comp
-                )
-
-            compProps = comp.properties()
-            if 'error' in compProps or comp._lockedError is not None:
-                self.cancel()
-                self.canceled = True
-                canceledByComponent = True
-                compError = comp.error() \
-                    if type(comp.error()) is tuple else (comp.error(), '')
-                errMsg = (
-                    "Component #%s (%s) encountered an error!" % (
-                        str(compNo), comp.name
-                    )
-                    if comp.error() is None else
-                    'Export cancelled by component #%s (%s): %s' % (
-                        str(compNo),
-                        comp.name,
-                        compError[0]
-                    )
-                )
-                log.error(errMsg)
-                comp._error.emit(errMsg, compError[1])
-                break
-            if 'static' in compProps:
-                log.info('Saving static frame from #%s %s', compNo, comp)
-                self.staticComponents[compNo] = \
-                    comp.frameRender(0).copy()
-
-        log.debug("Checking if a component wishes to cancel the export...")
+        self.preFrameRender()
         if self.canceled:
-            if canceledByComponent:
-                log.error(
-                    'Export cancelled by component #%s (%s): %s',
-                    compNo,
-                    comp.name,
-                    'No message.' if comp.error() is None else (
-                        comp.error() if type(comp.error()) is str
-                        else comp.error()[0]
-                    )
-                )
-            self.cancelExport()
             return
 
-        log.info("Merging consecutive static component frames")
-        for compNo in range(len(self.components)):
-            if compNo not in self.staticComponents \
-                    or compNo + 1 not in self.staticComponents:
-                continue
-            self.staticComponents[compNo + 1] = Image.alpha_composite(
-                self.staticComponents.pop(compNo),
-                self.staticComponents[compNo + 1]
-            )
-            self.staticComponents[compNo] = None
-
-        try:
-            ffmpegCommand = createFfmpegCommand(
-                self.inputFile, self.outputFile, self.components, duration
-            )
-        except sp.CalledProcessError as e:
-            #FIXME video_thread should own this error signal, not components
-            self.components[0]._error.emit("Ffmpeg could not be found. Is it installed?", str(e))
-            self.error = True
+        # Create FFmpeg command
+        ffmpegCommand = self.createFfmpegCommand(duration)
+        if not ffmpegCommand:
             return
-
         cmd = " ".join(ffmpegCommand)
         print('###### FFMPEG COMMAND ######\n%s' % cmd)
         print('############################')
-        if not cmd:
-            #FIXME video_thread should own this error signal, not components
-            self.components[0]._error.emit("The ffmpeg command could not be generated.", "")
-            log.critical("Cancelling render process due to failure while generating the ffmpeg command.")
-            self.failExport()
-            return
-
-        log.info('Opening pipe to ffmpeg')
         log.info(cmd)
+
+        # Open pipe to FFmpeg
+        log.info('Opening pipe to FFmpeg')
         try:
             self.out_pipe = openPipe(
                 ffmpegCommand,
                 stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
             )
         except sp.CalledProcessError:
-            log.critical('Ffmpeg pipe couldn\'t be created!', exc_info=True)
+            log.critical("Out_Pipe to FFmpeg couldn't be created!", exc_info=True)
             raise
 
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -278,7 +295,7 @@ class Worker(QtCore.QObject):
             if self.canceled:
                 break
             # fetch the next frame & add to the FFmpeg pipe
-            frame = self.renderFrame(audioI)
+            frame = self.frameRender(audioI)
 
             # Update live preview
             if self.previewEnabled:
