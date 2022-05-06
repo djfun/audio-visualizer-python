@@ -1,9 +1,11 @@
 '''
-    Thread created to export a video. It has a slot to begin export using
-    an input file, output path, and component list. During export multiple
-    threads are created to render the video as quickly as possible. Signals
-    are emitted to update MainWindow's progress bar, detail text, and preview.
-    Export can be cancelled with cancel()
+Worker thread created to export a video. It has a slot to begin export using
+an input file, output path, and component list.
+
+Signals are emitted to update MainWindow's progress bar, detail text, and preview.
+A Command object takes the place of MainWindow while in commandline mode.
+
+Export can be cancelled with cancel()
 '''
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
