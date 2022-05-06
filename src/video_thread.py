@@ -53,6 +53,29 @@ class Worker(QtCore.QObject):
         self.canceled = False
         self.error = False
 
+    def determineAudioLength(self):
+        '''Returns longest audio length of loaded components, or False if failure occurs'''
+        if any([
+                True if 'pcm' in comp.properties() else False
+                for comp in self.components
+                ]):
+            self.progressBarSetText.emit("Loading audio file...")
+            audioFileTraits = readAudioFile(
+                self.inputFile, self
+            )
+            if audioFileTraits is None:
+                self.cancelExport()
+                return False
+            self.completeAudioArray, duration = audioFileTraits
+            self.audioArrayLen = len(self.completeAudioArray)
+        else:
+            duration = getAudioDuration(self.inputFile)
+            self.completeAudioArray = []
+            self.audioArrayLen = int(
+                ((duration * self.hertz) +
+                    self.hertz) - self.sampleSize)
+        return duration
+
     def renderFrame(self, audioI):
         '''
             Grabs audio data indices at frames to export, from compositeQueue.
@@ -130,25 +153,9 @@ class Worker(QtCore.QObject):
         # READ AUDIO, INITIALIZE COMPONENTS, OPEN A PIPE TO FFMPEG
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
         log.debug("Determining length of audio...")
-        if any([
-                True if 'pcm' in comp.properties() else False
-                for comp in self.components
-                ]):
-            self.progressBarSetText.emit("Loading audio file...")
-            audioFileTraits = readAudioFile(
-                self.inputFile, self
-            )
-            if audioFileTraits is None:
-                self.cancelExport()
-                return
-            self.completeAudioArray, duration = audioFileTraits
-            self.audioArrayLen = len(self.completeAudioArray)
-        else:
-            duration = getAudioDuration(self.inputFile)
-            self.completeAudioArray = []
-            self.audioArrayLen = int(
-                ((duration * self.hertz) +
-                    self.hertz) - self.sampleSize)
+        duration = self.determineAudioLength()
+        if not duration:
+            return
 
         self.progressBarUpdate.emit(0)
         self.progressBarSetText.emit("Starting components...")
@@ -263,10 +270,9 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-        # Begin piping into ffmpeg!
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
+        # Begin piping into ffmpeg!
         self.progressBarSetText.emit("Exporting video...")
         for audioI in range(0, self.audioArrayLen, self.sampleSize):
             if self.canceled:
