@@ -53,9 +53,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.resize(
             int(self.width() *
-            (dpi / 96)),
+            (dpi / 144)),
             int(self.height() *
-            (dpi / 96))
+            (dpi / 144))
         )
 
         self.core = Core()
@@ -431,6 +431,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Close MainWindow when receiving Ctrl+C from terminal
         signal.signal(signal.SIGINT, lambda *args: self.close())
+
+        # Add initial components if none are in the list
+        if not self.core.selectedComponents:
+            self.addComponent(0, 1)
+            self.addComponent(0, 0)
 
     def __repr__(self):
         return (
