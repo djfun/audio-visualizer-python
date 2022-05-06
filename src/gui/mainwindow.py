@@ -80,7 +80,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.undoStack.setUndoLimit(undoLimit)
         self.undoStack.undo = disableWhenEncoding(self.undoStack.undo)
         self.undoStack.redo = disableWhenEncoding(self.undoStack.redo)
-        self.undoDialog = None
+
+        # Create Undo Dialog - A standard QUndoView on a standard QDialog
+        self.undoDialog = QtWidgets.QDialog(self)
+        undoView = QtWidgets.QUndoView(self.undoStack)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(undoView)
+        self.undoDialog.setLayout(layout)
 
         # Create Preset Manager
         self.presetManager = PresetManager(self)
@@ -437,8 +443,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Add initial components if none are in the list
         if not self.core.selectedComponents:
-            self.addComponent(0, 1)
-            self.addComponent(0, 0)
+            self.core.insertComponent(0, 0, self)
+            self.core.insertComponent(1, 1, self)
 
     def __repr__(self):
         return (
@@ -707,10 +713,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.pushButton_undo.setEnabled(False)
             self.menuButton_newProject.setEnabled(False)
             self.menuButton_openProject.setEnabled(False)
-            # Close undo history if open
-            if self.undoDialog is not None:
-                self.undoDialog.close()
-                self.undoDialog = None
+            # Close undo history dialog if open
+            self.undoDialog.close()
             # Show label under progress bar on macOS
             if sys.platform == 'darwin':
                 self.progressLabel.setHidden(False)
@@ -775,16 +779,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @disableWhenEncoding
     def showUndoStack(self):
-        self.undoDialog = QtWidgets.QDialog(self)
-        def closeUndoDialog(self, *args):
-            self.undoDialog = None
-            super().closeEvent(*args)
-        self.undoDialog.closeEvent = closeUndoDialog
-        # Add standard QUndoView to standard QDialog
-        undoView = QtWidgets.QUndoView(self.undoStack)
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(undoView)
-        self.undoDialog.setLayout(layout)
         self.undoDialog.show()
 
     def showFfmpegCommand(self):
