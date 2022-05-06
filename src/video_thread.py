@@ -13,8 +13,6 @@ import numpy
 import subprocess as sp
 import sys
 import os
-from queue import Queue, PriorityQueue
-from threading import Thread, Event
 import time
 import signal
 import logging
@@ -46,7 +44,6 @@ class Worker(QtCore.QObject):
         parent.createVideo.connect(self.createVideo)
         self.previewEnabled = type(parent.core).previewEnabled
 
-        #self.parent = parent
         self.components = components
         self.outputFile = outputFile
         self.inputFile = inputFile
@@ -55,102 +52,30 @@ class Worker(QtCore.QObject):
         self.sampleSize = 1470  # 44100 / 30 = 1470
         self.canceled = False
         self.error = False
-        self.stopped = False
 
-    def renderNode(self):
-        '''
-            Grabs audio data indices at frames to export, from compositeQueue.
-            Sends it to the components' frameRender methods in layer order
-            to create subframes & composite them into the final frame.
-            The resulting frames are collected in the renderQueue
-        '''
-        def err():
-            self.closePipe()
-            self.cancelExport()
+    def createFfmpegCommand(self, duration):
+        try:
+            ffmpegCommand = createFfmpegCommand(
+                self.inputFile, self.outputFile, self.components, duration
+            )
+        except sp.CalledProcessError as e:
+            #FIXME video_thread should own this error signal, not components
+            self.components[0]._error.emit("Ffmpeg could not be found. Is it installed?", str(e))
             self.error = True
-            msg = 'A render node failed critically.'
-            log.critical(msg)
-            comp._error.emit(msg, str(e))
+            return
+        
+        if not ffmpegCommand:
+            #FIXME video_thread should own this error signal, not components
+            self.components[0]._error.emit("The FFmpeg command could not be generated.", "")
+            log.critical("Cancelling render process due to failure while generating the ffmpeg command.")
+            self.failExport()
+            return
+        return ffmpegCommand
 
-        while not self.stopped:
-            audioI = self.compositeQueue.get()
-            bgI = int(audioI / self.sampleSize)
-            frame = None
-            for layerNo, comp in enumerate(reversed((self.components))):
-                try:
-                    if layerNo in self.staticComponents:
-                        if self.staticComponents[layerNo] is None:
-                            # this layer was merged into a following layer
-                            continue
-                        # static component
-                        if frame is None:  # bottom-most layer
-                            frame = self.staticComponents[layerNo]
-                        else:
-                            frame = Image.alpha_composite(
-                                frame, self.staticComponents[layerNo]
-                            )
-
-                    else:
-                        # animated component
-                        if frame is None:  # bottom-most layer
-                            frame = comp.frameRender(bgI)
-                        else:
-                            frame = Image.alpha_composite(
-                                frame, comp.frameRender(bgI)
-                            )
-                except Exception as e:
-                    err()
-
-            self.renderQueue.put([audioI, frame])
-            self.compositeQueue.task_done()
-
-    def renderDispatch(self):
+    def determineAudioLength(self):
         '''
-            Places audio data indices in the compositeQueue, to be used
-            by a renderNode later. All indices are multiples of self.sampleSize
-            sampleSize * frameNo = audioI, AKA audio data starting at frameNo
+        Returns audio length which determines length of final video, or False if failure occurs
         '''
-        log.debug('Dispatching Frames for Compositing...')
-
-        for audioI in range(0, self.audioArrayLen, self.sampleSize):
-            self.compositeQueue.put(audioI)
-
-    def showPreview(self, frame):
-        '''
-            Receives a final frame that will be piped to FFmpeg,
-            adds it to the checkerboard and emits a final QImage
-            to the MainWindow for the live preview
-        '''
-        # We must store a reference to this QImage
-        # or else Qt will garbage-collect it on the C++ side
-        self.latestPreview = ImageQt(frame)
-        self.imageCreated.emit(QtGui.QImage(self.latestPreview))
-        self.lastPreview = time.time()
-
-    @pyqtSlot()
-    def createVideo(self):
-        log.debug("Video worker received signal to createVideo")
-        log.debug(
-            'Video thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
-        numpy.seterr(divide='ignore')
-        self.encoding.emit(True)
-        self.extraAudio = []
-        self.width = int(self.settings.value('outputWidth'))
-        self.height = int(self.settings.value('outputHeight'))
-
-        self.compositeQueue = Queue()
-        self.compositeQueue.maxsize = 20
-        self.renderQueue = PriorityQueue()
-        self.renderQueue.maxsize = 20
-
-        self.reset()
-        progressBarValue = 0
-        self.progressBarUpdate.emit(progressBarValue)
-
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-        # READ AUDIO, INITIALIZE COMPONENTS, OPEN A PIPE TO FFMPEG
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-        log.debug("Determining length of audio...")
         if any([
                 True if 'pcm' in comp.properties() else False
                 for comp in self.components
@@ -161,7 +86,7 @@ class Worker(QtCore.QObject):
             )
             if audioFileTraits is None:
                 self.cancelExport()
-                return
+                return False
             self.completeAudioArray, duration = audioFileTraits
             self.audioArrayLen = len(self.completeAudioArray)
         else:
@@ -170,9 +95,16 @@ class Worker(QtCore.QObject):
             self.audioArrayLen = int(
                 ((duration * self.hertz) +
                     self.hertz) - self.sampleSize)
+        return duration
 
-        self.progressBarUpdate.emit(0)
-        self.progressBarSetText.emit("Starting components...")
+    def preFrameRender(self):
+        '''
+        Initializes components that need to pre-compute stuff.
+        Also prerenders "static" components like text and merges them if possible
+        '''
+        self.staticComponents = {}
+
+        # Call preFrameRender on each component
         canceledByComponent = False
         initText = ", ".join([
             "%s) %s" % (num, str(component))
@@ -180,7 +112,6 @@ class Worker(QtCore.QObject):
         ])
         print('Loaded Components:', initText)
         log.info('Calling preFrameRender for %s', initText)
-        self.staticComponents = {}
         for compNo, comp in enumerate(reversed(self.components)):
             try:
                 comp.preFrameRender(
@@ -224,6 +155,7 @@ class Worker(QtCore.QObject):
                 self.staticComponents[compNo] = \
                     comp.frameRender(0).copy()
 
+        # Check if any errors occured
         log.debug("Checking if a component wishes to cancel the export...")
         if self.canceled:
             if canceledByComponent:
@@ -237,114 +169,168 @@ class Worker(QtCore.QObject):
                     )
                 )
             self.cancelExport()
-            return
+        
+        # Merge static frames that can be merged to reduce workload
+        def mergeConsecutiveStaticComponentFrames(self):
+            log.info("Merging consecutive static component frames")
+            for compNo in range(len(self.components)):
+                if compNo not in self.staticComponents \
+                        or compNo + 1 not in self.staticComponents:
+                    continue
+                self.staticComponents[compNo + 1] = Image.alpha_composite(
+                    self.staticComponents.pop(compNo),
+                    self.staticComponents[compNo + 1]
+                )
+                self.staticComponents[compNo] = None
+        mergeConsecutiveStaticComponentFrames(self)
 
-        log.info("Merging consecutive static component frames")
-        for compNo in range(len(self.components)):
-            if compNo not in self.staticComponents \
-                    or compNo + 1 not in self.staticComponents:
-                continue
-            self.staticComponents[compNo + 1] = Image.alpha_composite(
-                self.staticComponents.pop(compNo),
-                self.staticComponents[compNo + 1]
-            )
-            self.staticComponents[compNo] = None
-
-        try:
-            ffmpegCommand = createFfmpegCommand(
-                self.inputFile, self.outputFile, self.components, duration
-            )
-        except sp.CalledProcessError as e:
-            #FIXME video_thread should own this error signal, not components
-            self.components[0]._error.emit("Ffmpeg could not be found. Is it installed?", str(e))
+    def frameRender(self, audioI):
+        '''
+        Renders a frame composited together from the framse returned by each component
+        audioI is a multiple of self.sampleSize, which can be divided to determine frameNo
+        '''
+        def err():
+            self.closePipe()
+            self.cancelExport()
             self.error = True
+            msg = 'A call to renderFrame in the video thread failed critically.'
+            log.critical(msg)
+            comp._error.emit(msg, str(e))
+
+        bgI = int(audioI / self.sampleSize)
+        frame = None
+        for layerNo, comp in enumerate(reversed((self.components))):
+            if self.canceled:
+                break
+            try:
+                if layerNo in self.staticComponents:
+                    if self.staticComponents[layerNo] is None:
+                        # this layer was merged into a following layer
+                        continue
+                    # static component
+                    if frame is None:  # bottom-most layer
+                        frame = self.staticComponents[layerNo]
+                    else:
+                        frame = Image.alpha_composite(
+                            frame, self.staticComponents[layerNo]
+                        )
+
+                else:
+                    # animated component
+                    if frame is None:  # bottom-most layer
+                        frame = comp.frameRender(bgI)
+                    else:
+                        frame = Image.alpha_composite(
+                            frame, comp.frameRender(bgI)
+                        )
+            except Exception as e:
+                err()
+        return frame
+
+    def showPreview(self, frame):
+        '''
+        Receives a final frame that will be piped to FFmpeg,
+        adds it to the MainWindow for the live preview
+        '''
+        # We must store a reference to this QImage
+        # or else Qt will garbage-collect it on the C++ side
+        self.latestPreview = ImageQt(frame)
+        self.imageCreated.emit(QtGui.QImage(self.latestPreview))
+
+    @pyqtSlot()
+    def createVideo(self):
+        '''
+        1. Numpy is set to ignore division errors during this method
+        2. Determine length of final video
+        3. Call preFrameRender on each component
+        4. Create the main FFmpeg command
+        5. Open the out_pipe to FFmpeg process
+        6. Iterate over the audio data array and call frameRender on the components to get frames
+        7. Close the out_pipe
+        8. Call postFrameRender on each component
+        '''
+        log.debug("Video worker received signal to createVideo")
+        log.debug(
+            'Video thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
+        numpy.seterr(divide='ignore')
+        self.encoding.emit(True)
+        self.extraAudio = []
+        self.width = int(self.settings.value('outputWidth'))
+        self.height = int(self.settings.value('outputHeight'))
+
+        # Set core.Core.canceled to False and call .reset() on each component
+        self.reset()
+        # Initialize progress bar to 0
+        progressBarValue = 0
+        self.progressBarUpdate.emit(progressBarValue)
+
+        # Determine longest length of audio which will be the final video's duration
+        log.debug("Determining length of audio...")
+        duration = self.determineAudioLength()
+        if not duration:
             return
 
+        # Call preFrameRender on each component to perform initialization
+        self.progressBarUpdate.emit(0)
+        self.progressBarSetText.emit("Starting components...")
+        self.preFrameRender()
+        if self.canceled:
+            return
+
+        # Create FFmpeg command
+        ffmpegCommand = self.createFfmpegCommand(duration)
+        if not ffmpegCommand:
+            return
         cmd = " ".join(ffmpegCommand)
         print('###### FFMPEG COMMAND ######\n%s' % cmd)
         print('############################')
-        if not cmd:
-            #FIXME video_thread should own this error signal, not components
-            self.components[0]._error.emit("The ffmpeg command could not be generated.", "")
-            log.critical("Cancelling render process due to failure while generating the ffmpeg command.")
-            self.failExport()
-            return
-
-        log.info('Opening pipe to ffmpeg')
         log.info(cmd)
+
+        # Open pipe to FFmpeg
+        log.info('Opening pipe to FFmpeg')
         try:
             self.out_pipe = openPipe(
                 ffmpegCommand,
                 stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
             )
         except sp.CalledProcessError:
-            log.critical('Ffmpeg pipe couldn\'t be created!', exc_info=True)
+            log.critical("Out_Pipe to FFmpeg couldn't be created!", exc_info=True)
             raise
 
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-        # Make 2 or 3 renderNodes in new threads to create the frames
-        self.renderThreads = []
-        try:
-            numCpus = len(os.sched_getaffinity(0))
-        except Exception:
-            numCpus = os.cpu_count()
-
-        for i in range(2 if numCpus <= 2 else 3):
-            self.renderThreads.append(
-                Thread(target=self.renderNode, name="Render Thread"))
-            self.renderThreads[i].daemon = True
-            self.renderThreads[i].start()
-
-        self.dispatchThread = Thread(
-            target=self.renderDispatch, name="Render Dispatch Thread")
-        self.dispatchThread.daemon = True
-        self.dispatchThread.start()
-
-        # Last time preview was drawn
-        self.lastPreview = time.time()
-
-        # Begin piping into ffmpeg!
-        frameBuffer = {
-            # audioI: bytes ready to be piped
-        }
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
+        # Begin piping into ffmpeg!
         self.progressBarSetText.emit("Exporting video...")
-        if not self.canceled:
-            for audioI in range(
-                    0, self.audioArrayLen, self.sampleSize):
-                while True:
-                    if audioI in frameBuffer or self.canceled:
-                        # if frame's in buffer, pipe it to ffmpeg
-                        break
-                    # else fetch the next frame & add to the buffer
-                    audioI_, frame = self.renderQueue.get()
-                    frameBuffer[audioI_] = frame
-                    self.renderQueue.task_done()
-                if self.canceled:
-                    break
+        for audioI in range(0, self.audioArrayLen, self.sampleSize):
+            if self.canceled:
+                break
+            # fetch the next frame & add to the FFmpeg pipe
+            frame = self.frameRender(audioI)
 
-                # Update live preview
-                if self.previewEnabled and time.time() - self.lastPreview > 0.5:
-                    self.showPreview(frameBuffer[audioI])
+            # Update live preview
+            if self.previewEnabled:
+                self.showPreview(frame)
 
-                try:
-                    self.out_pipe.stdin.write(frameBuffer[audioI].tobytes())
-                except Exception:
-                    break
+            try:
+                self.out_pipe.stdin.write(frame.tobytes())
+            except Exception:
+                break
 
-                # increase progress bar value
-                completion = (audioI / self.audioArrayLen) * 100
-                if progressBarValue + 1 <= completion:
-                    progressBarValue = numpy.floor(completion).astype(int)
-                    self.progressBarUpdate.emit(progressBarValue)
-                    self.progressBarSetText.emit(
-                        "Exporting video: %s%%" % str(int(progressBarValue))
-                    )
+            # increase progress bar value
+            completion = (audioI / self.audioArrayLen) * 100
+            if progressBarValue + 1 <= completion:
+                progressBarValue = numpy.floor(completion).astype(int)
+                self.progressBarUpdate.emit(progressBarValue)
+                self.progressBarSetText.emit(
+                    "Exporting video: %s%%" % str(int(progressBarValue))
+                )
 
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # Finished creating the video!
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
         numpy.seterr(all='print')
 
@@ -371,7 +357,6 @@ class Worker(QtCore.QObject):
 
         self.error = False
         self.canceled = False
-        self.stopped = True
         self.encoding.emit(False)
         self.videoCreated.emit()
 
@@ -401,7 +386,6 @@ class Worker(QtCore.QObject):
 
     def cancel(self):
         self.canceled = True
-        self.stopped = True
         self.core.cancel()
 
         for comp in self.components:
