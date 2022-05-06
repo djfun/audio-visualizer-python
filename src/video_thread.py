@@ -108,7 +108,6 @@ class Worker(QtCore.QObject):
         # or else Qt will garbage-collect it on the C++ side
         self.latestPreview = ImageQt(frame)
         self.imageCreated.emit(QtGui.QImage(self.latestPreview))
-        self.lastPreview = time.time()
 
     @pyqtSlot()
     def createVideo(self):
@@ -265,9 +264,6 @@ class Worker(QtCore.QObject):
         # START CREATING THE VIDEO
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-        # Last time preview was drawn
-        self.lastPreview = time.time()
-
         # Begin piping into ffmpeg!
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
@@ -279,7 +275,7 @@ class Worker(QtCore.QObject):
             frame = self.renderFrame(audioI)
 
             # Update live preview
-            if self.previewEnabled and time.time() - self.lastPreview > 0.5:
+            if self.previewEnabled:
                 self.showPreview(frame)
 
             try:
