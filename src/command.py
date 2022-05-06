@@ -38,6 +38,7 @@ class Command(QtCore.QObject):
 
     def parseArgs(self):
         self.parser = argparse.ArgumentParser(
+            prog='avp' if os.path.basename(sys.argv[0]) == "__main__.py" else None,
             description='Create a visualization for an audio file',
             epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
                         '-i ~/Music/song.mp3 -o ~/video.mp4 '
