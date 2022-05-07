@@ -153,7 +153,7 @@ class Component(Component):
         if self.core.logEnabled:
             logFilename = os.path.join(
                 self.core.logDir, 'preview_%s.log' % str(self.compPos))
-            log.debug('Creating ffmpeg process (log at %s)' % logFilename)
+            log.debug('Creating FFmpeg process (log at %s)' % logFilename)
             with open(logFilename, 'w') as logf:
                 logf.write(" ".join(command) + '\n\n')
             with open(logFilename, 'a') as logf:
@@ -194,13 +194,13 @@ class Component(Component):
             elif self.amplitude == 5:
                 amplitude = 'log'
             filter_ = (
-                'showspectrum=s=%sx%s:slide=scroll:win_func=%s:'
-                'color=%s:scale=%s,'
-                'colorkey=color=black:similarity=0.1:blend=0.5' % (
-                    w, h,
-                    self.page.comboBox_window.currentText(),
-                    color, amplitude,
-                )
+                f'showspectrum=s={w}x{h}:'
+                'slide=scroll:'
+                f'win_func={self.page.comboBox_window.currentText()}:'
+                f'color={color}:'
+                f'scale={amplitude},'
+                'colorkey=color=black:'
+                'similarity=0.1:blend=0.5'
             )
         elif self.filterType == 1:  # Histogram
             if self.amplitude1 == 0:
@@ -218,11 +218,11 @@ class Component(Component):
             elif self.display == 4:
                 display = 'rlog'
             filter_ = (
-                'ahistogram=r=%s:s=%sx%s:dmode=separate:ascale=%s:scale=%s' % (
-                    str(self.settings.value("outputFrameRate")),
-                    w, h,
-                    amplitude, display
-                )
+                f'ahistogram=r={str(self.settings.value("outputFrameRate"))}:'
+                f's={w}x{h}:'
+                'dmode=separate:'
+                f'ascale={amplitude}:'
+                f'scale={display}'
             )
         elif self.filterType == 2:  # Vector Scope
             if self.amplitude2 == 0:
@@ -235,30 +235,31 @@ class Component(Component):
                 amplitude = 'lin'
             m = self.page.comboBox_mode.currentText()
             filter_ = (
-                'avectorscope=s=%sx%s:draw=%s:m=%s:scale=%s:zoom=%s' % (
-                    w, h,
-                    'line'if self.draw else 'dot',
-                    m, amplitude, str(self.zoom),
-                )
+                f'avectorscope=s={w}x{h}:'
+                f'draw={"line" if self.draw else "dot"}:'
+                f'm={m}:'
+                f'scale={amplitude}:'
+                f'zoom={str(self.zoom)}'
             )
         elif self.filterType == 3:  # Musical Scale
             filter_ = (
-                'showcqt=r=%s:s=%sx%s:count=30:text=0:tc=%s,'
-                'colorkey=color=black:similarity=0.1:blend=0.5 ' % (
-                    str(self.settings.value("outputFrameRate")),
-                    w, h,
-                    str(self.tc),
-                )
+                f'showcqt=r={str(self.settings.value("outputFrameRate"))}:'
+                f's={w}x{h}:'
+                'count=30:'
+                'text=0:'
+                f'tc={str(self.tc)},'
+                'colorkey=color=black:'
+                'similarity=0.1:blend=0.5'
             )
         elif self.filterType == 4:  # Phase
             filter_ = (
-                'aphasemeter=r=%s:s=%sx%s:video=1 [atrash][vtmp1]; '
+                f'aphasemeter=r={str(self.settings.value("outputFrameRate"))}:'
+                f's={w}x{h}:'
+                'video=1 [atrash][vtmp1]; '
                 '[atrash] anullsink; '
-                '[vtmp1] colorkey=color=black:similarity=0.1:blend=0.5, '
-                'crop=in_w/8:in_h:(in_w/8)*7:0  ' % (
-                    str(self.settings.value("outputFrameRate")),
-                    w, h,
-                )
+                '[vtmp1] colorkey=color=black:'
+                'similarity=0.1:blend=0.5, '
+                'crop=in_w/8:in_h:(in_w/8)*7:0  '
             )
 
         if self.filterType < 2:
