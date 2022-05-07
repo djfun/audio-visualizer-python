@@ -155,32 +155,23 @@ class Component(Component):
             )
         elif self.mode > 2:
             filter_ = (
-                'showfreqs=s=%sx%s:mode=%s:colors=%s@%s'
-                ':ascale=%s:fscale=%s' % (
-                    self.settings.value("outputWidth"),
-                    self.settings.value("outputHeight"),
-                    'line' if self.mode == 4 else 'bar',
-                    hexcolor, opacity, amplitude,
-                    'log' if self.mono else 'lin'
-                )
+                f'showfreqs=s={str(self.settings.value("outputWidth"))}x{str(self.settings.value("outputHeight"))}:'
+                f'mode={"line" if self.mode == 4 else "bar"}:'
+                f'colors={hexcolor}@{opacity}'
+                f":ascale={amplitude}:fscale={'log' if self.mono else 'lin'}"
             )
 
         baselineHeight = int(self.height * (4 / 1080))
         return [
             '-filter_complex',
-            '%s%s%s'
-            '%s%s%s [v1]; '
+            f"{exampleSound('wave', extra='') if preview and genericPreview else '[0:a] '}"
+            f"{'compand=gain=4,' if self.compress else ''}"
+            f"{'aformat=channel_layouts=mono,' if self.mono and self.mode < 3 else ''}"
+            f"{filter_}"
+            f"{', drawbox=x=(iw-w)/2:y=(ih-h)/2:w=iw:h=%s:color=%s@%s' % (baselineHeight, hexcolor, opacity) if self.mode < 2 else ''}"
+            f"{', hflip' if self.mirror else''}"
+            " [v1]; "
             '[v1] scale=%s:%s%s [v]' % (
-                exampleSound('wave', extra='')
-                if preview and genericPreview else '[0:a] ',
-                'compand=gain=4,' if self.compress else '',
-                'aformat=channel_layouts=mono,'
-                if self.mono and self.mode < 3 else '',
-                filter_,
-                ', drawbox=x=(iw-w)/2:y=(ih-h)/2:w=iw:h=%s:color=%s@%s' % (
-                    baselineHeight, hexcolor, opacity,
-                ) if self.mode < 2 else '',
-                ', hflip' if self.mirror else'',
                 w, h,
                 ', trim=duration=%s' % "{0:.3f}".format(startPt + 3)
                 if preview else '',
