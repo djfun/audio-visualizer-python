@@ -487,6 +487,6 @@ def exampleSound(
     elif style == 'wave':
         src = 'sin(random(0)*2*PI*t)*tan(random(0)*2*PI*t)'
     elif style == 'stereo':
-        src = '0.1*sin(2*PI*(360-2.5/2)*t) : 0.1*sin(2*PI*(360+2.5/2)*t)'
+        src = '0.1*sin(2*PI*(360-2.5/2)*t) | 0.1*sin(2*PI*(360+2.5/2)*t)'
 
     return "aevalsrc='%s', %s%s" % (src, extra, ', ' if extra else '')
