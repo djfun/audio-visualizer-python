@@ -25,6 +25,7 @@ from ..toolkit import (
 )
 
 
+appName = 'Audio Visualizer'
 log = logging.getLogger('AVP.Gui.MainWindow')
 
 
@@ -83,6 +84,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Create Undo Dialog - A standard QUndoView on a standard QDialog
         self.undoDialog = QtWidgets.QDialog(self)
+        self.undoDialog.setWindowTitle("Undo History")
         undoView = QtWidgets.QUndoView(self.undoStack)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(undoView)
@@ -468,18 +470,18 @@ class MainWindow(QtWidgets.QMainWindow):
     @disableWhenOpeningProject
     def updateWindowTitle(self):
         log.debug("Setting main window's title")
-        appName = 'Audio Visualizer'
+        windowTitle = appName
         try:
             if self.currentProject:
-                appName += ' - %s' % \
+                windowTitle += ' - %s' % \
                     os.path.splitext(
                         os.path.basename(self.currentProject))[0]
             if self.autosaveExists(identical=False):
-                appName += '*'
+                windowTitle += '*'
         except AttributeError:
             pass
-        log.verbose(f'Window title is "{appName}"')
-        self.setWindowTitle(appName)
+        log.verbose(f'Window title is "{windowTitle}"')
+        self.setWindowTitle(windowTitle)
 
     @QtCore.pyqtSlot(int, dict)
     def updateComponentTitle(self, pos, presetStore=False):
@@ -999,6 +1001,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def showMessage(self, **kwargs):
         parent = kwargs['parent'] if 'parent' in kwargs else self
         msg = QtWidgets.QMessageBox(parent)
+        msg.setWindowTitle(appName)
         msg.setModal(True)
         msg.setText(kwargs['msg'])
         msg.setIcon(
