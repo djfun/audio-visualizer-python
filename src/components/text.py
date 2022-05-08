@@ -25,14 +25,15 @@ class Component(Component):
         self.page.comboBox_textAlign.addItem("Middle")
         self.page.comboBox_textAlign.addItem("Right")
         self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
-
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
         self.page.lineEdit_title.setText(self.title)
-
         self.page.pushButton_center.clicked.connect(self.centerXY)
-        self.page.fontComboBox_titleFont.currentFontChanged.connect(
-            self.update
-        )
+
+        self.page.fontComboBox_titleFont.currentFontChanged.connect(self._sendUpdateSignal)
+        # The QFontComboBox must be connected directly to the Qt Signal
+        # which triggers the preview to update.
+        # This unfortunately makes changing the font into a non-undoable action.
+        # Must be something broken in the conversion to a ComponentAction
 
         self.trackWidgets({
             'textColor': self.page.lineEdit_textColor,
