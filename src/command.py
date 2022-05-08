@@ -8,6 +8,7 @@ import argparse
 import os
 import sys
 import time
+import glob
 import signal
 import shutil
 import logging
@@ -106,9 +107,7 @@ class Command(QtCore.QObject):
                 )
             if not projPath.endswith('.avp'):
                 projPath += '.avp'
-            success = self.core.openProject(self, projPath)
-            if not success:
-                quit(1)
+            self.core.openProject(self, projPath)
             self.core.selectedComponents = list(
                 reversed(self.core.selectedComponents))
             self.core.componentListChanged()
@@ -165,7 +164,12 @@ class Command(QtCore.QObject):
         elif args.no_preview:
             core.Core.previewEnabled = False
 
-        elif 'help' not in sys.argv and args.projpath is None and '--debug' not in sys.argv:
+        elif (
+                args.projpath is None and 
+                'help' not in sys.argv and
+                '--debug' not in sys.argv and
+                '--test' not in sys.argv
+                ):
             parser.print_help()
             quit(1)
 
@@ -246,8 +250,6 @@ class Command(QtCore.QObject):
         return None
 
     def runTests(self):
-        core.FILE_LOGLVL = logging.DEBUG
-        core.Core.makeLogger()
         from . import tests
         test_report = os.path.join(core.Core.logDir, "test_report.log")
         tests.run(test_report)
@@ -279,10 +281,29 @@ class Command(QtCore.QObject):
             return
         try:
             shutil.copy(os.path.join(core.Core.logDir, "avp_debug.log"), filename)
+            with open(filename, "a") as f:
+                f.write(f"{'='*60} debug log ends {'='*60}\n")
         except FileNotFoundError:
-            print("No debug log found.")
+            with open(filename, "w") as f:
+                f.write(f"{'='*60} no debug log {'='*60}\n")
+
+        def concatenateLogs(logPattern):
+            nonlocal filename
+            renderLogs = glob.glob(os.path.join(core.Core.logDir, logPattern))
+            with open(filename, "a") as fw:
+                for renderLog in renderLogs:
+                    with open(renderLog, "r") as fr:
+                        fw.write(f"{'='*60} {os.path.basename(renderLog)} {'='*60}\n")
+                        logContents = fr.readlines()
+                        fw.write("".join(logContents[:5]))
+                        fw.write("...trimmed...\n")
+                        fw.write("".join(logContents[-10:]))
+                        fw.write(f"{'='*60} {os.path.basename(renderLog)} {'='*60}\n")
+
+        concatenateLogs("render_*.log")
+        concatenateLogs("preview_*.log")
+
         # Append actual test report to debug log
         with open(filename, "a") as f:
-            f.write(f"{'='*59} debug log ends {'='*59}\n")
             f.write(test_output)
         print(f"Test Report created at {filename}")
