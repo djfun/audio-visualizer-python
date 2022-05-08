@@ -37,62 +37,68 @@ class Command(QtCore.QObject):
         signal.signal(signal.SIGINT, self.stopVideo)
 
     def parseArgs(self):
-        self.parser = argparse.ArgumentParser(
+        parser = argparse.ArgumentParser(
             prog='avp' if os.path.basename(sys.argv[0]) == "__main__.py" else None,
             description='Create a visualization for an audio file',
-            epilog='EXAMPLE COMMAND:   main.py myvideotemplate.avp '
+            epilog='EXAMPLE COMMAND:   avp myvideotemplate '
                         '-i ~/Music/song.mp3 -o ~/video.mp4 '
                         '-c 0 image path=~/Pictures/thisWeeksPicture.jpg '
                         '-c 1 video "preset=My Logo" -c 2 vis layout=classic'
         )
-        self.parser.add_argument(
+
+
+        # input/output automatic-export commands
+        parser.add_argument(
             '-i', '--input', metavar='SOUND',
             help='input audio file'
         )
-        self.parser.add_argument(
+        parser.add_argument(
             '-o', '--output', metavar='OUTPUT',
             help='output video file'
         )
-        self.parser.add_argument(
+        parser.add_argument(
             '--export-project', action='store_true',
-            help='ignore -i and -o, use input and output from project file'
+            help='use input and output files from project file if -i or -o is missing'
         )
-        self.parser.add_argument(
+
+        # mutually exclusive debug options
+        debugCommands = parser.add_mutually_exclusive_group()
+        debugCommands.add_argument(
             '--test', action='store_true',
             help='run tests and create a report full of debugging info'
         )
-        self.parser.add_argument(
+        debugCommands.add_argument(
             '--debug', action='store_true',
             help='create bigger logfiles while program is running'
         )
-        self.parser.add_argument(
-            '--no-preview', action='store_true',
-            help='disable live preview during export in GUI mode'
-        )
 
-        # optional arguments
-        self.parser.add_argument(
+        # project/GUI options
+        parser.add_argument(
             'projpath', metavar='path-to-project',
             help='open a project file (.avp)', nargs='?')
-        self.parser.add_argument(
+        parser.add_argument(
             '-c', '--comp', metavar=('LAYER', 'ARG'),
             help='first arg must be component NAME to insert at LAYER.'
             '"help" for information about possible args for a component.',
             nargs='*', action='append')
+        parser.add_argument(
+            '--no-preview', action='store_true',
+            help='disable live preview during export'
+        )
 
-        self.args = self.parser.parse_args()
+        args = parser.parse_args()
 
-        if self.args.debug:
+        if args.debug:
             core.FILE_LOGLVL = logging.DEBUG
             core.STDOUT_LOGLVL = logging.DEBUG
             core.Core.makeLogger()
 
-        if self.args.test:
+        if args.test:
             self.runTests()
             quit(0)
 
-        if self.args.projpath:
-            projPath = self.args.projpath
+        if args.projpath:
+            projPath = args.projpath
             if not os.path.dirname(projPath):
                 projPath = os.path.join(
                     self.settings.value("projectDir"),
@@ -107,11 +113,11 @@ class Command(QtCore.QObject):
                 reversed(self.core.selectedComponents))
             self.core.componentListChanged()
 
-        if self.args.comp:
-            for comp in self.args.comp:
+        if args.comp:
+            for comp in args.comp:
                 pos = comp[0]
                 name = comp[1]
-                args = comp[2:]
+                compargs = comp[2:]
                 try:
                     pos = int(pos)
                 except ValueError:
@@ -123,11 +129,13 @@ class Command(QtCore.QObject):
                     quit(1)
                 modI = self.core.moduleIndexFor(realName)
                 i = self.core.insertComponent(pos, modI, self)
-                for arg in args:
+                for arg in compargs:
                     self.core.selectedComponents[i].command(arg)
 
-        if self.args.export_project and self.args.projpath:
+        if args.export_project and args.projpath:
             errcode, data = self.core.parseAvFile(projPath)
+            input_ = None
+            output = None
             for key, value in data['WindowFields']:
                 if 'outputFile' in key:
                     output = value
@@ -137,19 +145,28 @@ class Command(QtCore.QObject):
                             output
                         )
                 if 'audioFile' in key:
-                    input = value
-            self.createAudioVisualisation(input, output)
+                    input_ = value
+
+            # use input/output from project file, overwritten by -i and -o
+            if (not input_ and not args.input) or (not output and not args.output):
+                parser.print_help()
+                quit(1)
+
+            self.createAudioVisualisation(
+                input_ if not args.input else args.input,
+                output if not args.output else args.output
+            )
             return "commandline"
 
-        elif self.args.input and self.args.output:
-            self.createAudioVisualisation(self.args.input, self.args.output)
+        elif args.input and args.output:
+            self.createAudioVisualisation(args.input, args.output)
             return "commandline"
 
-        elif self.args.no_preview:
+        elif args.no_preview:
             core.Core.previewEnabled = False
 
-        elif 'help' not in sys.argv and self.args.projpath is None and '--debug' not in sys.argv:
-            self.parser.print_help()
+        elif 'help' not in sys.argv and args.projpath is None and '--debug' not in sys.argv:
+            parser.print_help()
             quit(1)
 
         return "GUI"
