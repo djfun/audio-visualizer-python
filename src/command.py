@@ -138,7 +138,7 @@ class Command(QtCore.QObject):
             for key, value in data['WindowFields']:
                 if 'outputFile' in key:
                     output = value
-                    if not os.path.dirname(value):
+                    if output and not os.path.dirname(value):
                         output = os.path.join(
                             os.path.expanduser('~'),
                             output
