@@ -202,8 +202,8 @@ class Component(Component):
             elif shape == 'lilypad':
                 drawer.pieslice(smallerShape, 290, 250, fill=self.color)
 
-            # Pac-Man
-            elif shape == 'pac-man':
+            # Pie
+            elif shape == 'pie':
                 drawer.pieslice(outlineShape, 35, 320, fill=self.color)
 
             hX, hY = scale(50, self.pxWidth, self.pxHeight, int)  # halfline
@@ -297,12 +297,9 @@ class Component(Component):
 
                 def slantLine(difference):
                     return (
-                        (drawPtX + difference),
-                        (drawPtY + self.pxHeight - qY)
-                    ),
-                    (
-                        (drawPtX + hX),
-                        (drawPtY + hY)
+                        (drawPtX + difference), (drawPtY + self.pxHeight - qY)
+                    ), (
+                        (drawPtX + hX), (drawPtY + hY)
                     )
 
                 drawer.line(
