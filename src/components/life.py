@@ -16,7 +16,19 @@ class Component(Component):
         super().widget(*args)
         self.scale = 32
         self.updateGridSize()
-        self.startingGrid = set()
+        # The initial grid: a "Queen Bee Shuttle"
+        # https://conwaylife.com/wiki/Queen_bee_shuttle
+        self.startingGrid = set([
+            (3, 7), (3, 8),
+            (4, 7), (4, 8),
+            (8, 7),
+            (9, 6), (9, 8),
+            (10, 5), (10, 9),
+            (11, 6), (11, 7), (11, 8),
+            (12, 4), (12, 5), (12, 9), (12, 10),
+            (23, 6), (23, 7),
+            (24, 6), (24, 7)
+        ])
         self.page.pushButton_pickImage.clicked.connect(self.pickImage)
         self.trackWidgets({
             'tickRate': self.page.spinBox_tickRate,
