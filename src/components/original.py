@@ -38,6 +38,7 @@ class Component(Component):
             'layout': self.page.comboBox_visLayout,
             'scale': self.page.spinBox_scale,
             'y': self.page.spinBox_y,
+            'smooth': self.page.spinBox_smooth,
         }, colorWidgets={
             'visColor': self.page.pushButton_visColor,
         }, relativeWidgets=[
@@ -53,8 +54,8 @@ class Component(Component):
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
-        self.smoothConstantDown = 0.08
-        self.smoothConstantUp = 0.8
+        self.smoothConstantDown = 0.08 + 0 if not self.smooth else self.smooth / 15
+        self.smoothConstantUp = 0.8 - 0 if not self.smooth else self.smooth / 15
         self.lastSpectrum = None
         self.spectrumArray = {}
 
