@@ -272,6 +272,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.updateResolution
                 )
 
+        # Qt Checkbox returns 0 for unchecked
+        self.checkBox_2pass.stateChanged.connect(
+            lambda state: setattr(self.core, "encoderPasses", 2 if state else 1)
+        )
+
         self.pushButton_listMoveUp.clicked.connect(
             lambda: self.moveComponent(-1)
         )

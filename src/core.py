@@ -32,6 +32,7 @@ class Core:
         self.selectedComponents = []
         self.savedPresets = {}  # copies of presets to detect modification
         self.openingProject = False
+        self.encoderPasses = 1
 
     def __repr__(self):
         return "\n=~=~=~=\n".join(
