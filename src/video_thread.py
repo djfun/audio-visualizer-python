@@ -284,21 +284,6 @@ class Worker(QtCore.QObject):
         ffmpegCommand = self.createFfmpegCommand(duration)
         if not ffmpegCommand:
             return
-        cmd = " ".join(ffmpegCommand)
-        print('###### FFMPEG COMMAND ######\n%s' % cmd)
-        print('############################')
-        log.info(cmd)
-
-        # Open pipe to FFmpeg
-        log.info('Opening pipe to FFmpeg')
-        try:
-            self.out_pipe = openPipe(
-                ffmpegCommand,
-                stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
-            )
-        except sp.CalledProcessError:
-            log.critical("Out_Pipe to FFmpeg couldn't be created!", exc_info=True)
-            raise
 
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO
@@ -306,7 +291,7 @@ class Worker(QtCore.QObject):
         encoderPassCount = 0
         while encoderPassCount < self.encoderPasses:
             encoderPassCount += 1
-            success = self.encoderPass(encoderPassCount)
+            success = self.encoderPass(ffmpegCommand, encoderPassCount)
             if not success:
                 return
         
@@ -316,7 +301,7 @@ class Worker(QtCore.QObject):
         self.encoding.emit(False)
         self.videoCreated.emit()
 
-    def encoderPass(self, encoderPassCount):
+    def encoderPass(self, ffmpegCommand, encoderPassCount):
         '''
         A single pass of the encoder process using FFmpeg,
         may occur multiple times if multi-pass encoding is enabled
@@ -325,6 +310,33 @@ class Worker(QtCore.QObject):
             f"{f'pass #{str(encoderPassCount)}: ' if encoderPassCount < self.encoderPasses else 'video: '}"
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
+
+        cmd = ffmpegCommand[:]
+        if self.encoderPasses > 1:
+            if encoderPassCount == self.encoderPasses:
+                # final encoding pass
+                cmd.insert(-1, "-pass")
+                cmd.insert(-1, str(encoderPassCount))
+            else:
+                # remove output filename from non-final pass
+                del cmd[-1]
+                cmd.extend(["-pass", str(encoderPassCount), "/dev/null" if sys.platform != 'win32' else "NUL"])
+
+        strcmd = " ".join(cmd)
+        print('###### FFMPEG COMMAND ######\n%s' % strcmd)
+        print('############################')
+        log.info(strcmd)
+
+        # Open pipe to FFmpeg
+        log.info('Opening pipe to FFmpeg')
+        try:
+            self.out_pipe = openPipe(
+                cmd,
+                stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stdout
+            )
+        except sp.CalledProcessError:
+            log.critical("Out_Pipe to FFmpeg couldn't be created!", exc_info=True)
+            raise
         
         # Begin piping into ffmpeg!
         self.progressBarSetText.emit("Exporting video...")
