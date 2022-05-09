@@ -582,7 +582,7 @@
              <widget class="QComboBox" name="comboBox_videoContainer">
               <property name="minimumSize">
                <size>
-                <width>150</width>
+                <width>75</width>
                 <height>0</height>
                </size>
               </property>
@@ -630,6 +630,16 @@
                 <width>0</width>
                 <height>0</height>
                </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkBox_2pass">
+              <property name="toolTip">
+               <string>longer export time with increased quality:filesize ratio</string>
+              </property>
+              <property name="text">
+               <string>2-pass</string>
               </property>
              </widget>
             </item>
