@@ -45,6 +45,7 @@ class Worker(QtCore.QObject):
         self.modules = parent.core.modules
         parent.createVideo.connect(self.createVideo)
         self.previewEnabled = type(parent.core).previewEnabled
+        self.encoderPasses = parent.core.encoderPasses
 
         self.components = components
         self.outputFile = outputFile
@@ -302,8 +303,29 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        encoderPassCount = 0
+        while encoderPassCount < self.encoderPasses:
+            encoderPassCount += 1
+            success = self.encoderPass(encoderPassCount)
+            if not success:
+                return
+        
+        self.progressBarSetText.emit('Export Complete')
+        self.error = False
+        self.canceled = False
+        self.encoding.emit(False)
+        self.videoCreated.emit()
+
+    def encoderPass(self, encoderPassCount):
+        '''
+        A single pass of the encoder process using FFmpeg,
+        may occur multiple times if multi-pass encoding is enabled
+        '''
+        exportText = "Exporting " \
+            f"{f'pass #{str(encoderPassCount)}: ' if encoderPassCount < self.encoderPasses else 'video: '}"
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
+        
         # Begin piping into ffmpeg!
         self.progressBarSetText.emit("Exporting video...")
         for audioI in range(0, self.audioArrayLen, self.sampleSize):
@@ -327,12 +349,10 @@ class Worker(QtCore.QObject):
                 progressBarValue = numpy.floor(completion).astype(int)
                 self.progressBarUpdate.emit(progressBarValue)
                 self.progressBarSetText.emit(
-                    "Exporting video: %s%%" % str(int(progressBarValue))
+                    f"{exportText}{str(int(progressBarValue))}%"
                 )
 
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-        # Finished creating the video!
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # Finished encoding one pass of the video!
 
         numpy.seterr(all='print')
 
@@ -347,20 +367,13 @@ class Worker(QtCore.QObject):
                 os.remove(self.outputFile)
             except Exception:
                 pass
-            self.progressBarUpdate.emit(0)
-            self.progressBarSetText.emit('Export Canceled')
-        else:
-            if self.error:
-                self.failExport()
-            else:
-                print("Export Complete")
-                self.progressBarUpdate.emit(100)
-                self.progressBarSetText.emit('Export Complete')
-
-        self.error = False
-        self.canceled = False
-        self.encoding.emit(False)
-        self.videoCreated.emit()
+            self.cancelExport()
+            return False
+        elif self.error:
+            self.failExport()
+            return False
+        self.progressBarUpdate.emit(100)
+        return True
 
     def closePipe(self):
         try:
