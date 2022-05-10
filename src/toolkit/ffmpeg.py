@@ -422,7 +422,7 @@ def readAudioFile(filename, videoWorker):
     '''
     duration = getAudioDuration(filename)
     if not duration:
-        log.error('Audio file doesn\'t exist or unreadable.')
+        log.error(f"Audio file {filename} doesn't exist or unreadable.")
         return
 
     command = [
