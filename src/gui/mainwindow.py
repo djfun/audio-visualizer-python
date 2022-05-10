@@ -193,7 +193,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progressBar_createVideo.setValue(0)
 
         self.pushButton_createVideo.clicked.connect(
-            self.createAudioVisualisation)
+            self.createAudioVisualization)
 
         self.pushButton_Cancel.clicked.connect(self.stopVideo)
 
@@ -638,7 +638,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.videoWorker.cancel()
         self.canceled = True
 
-    def createAudioVisualisation(self):
+    def createAudioVisualization(self):
         # create output video if mandatory settings are filled in
         audioFile = self.lineEdit_audioFile.text()
         outputPath = self.lineEdit_outputFile.text()

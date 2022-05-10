@@ -151,14 +151,14 @@ class Command(QtCore.QObject):
                 parser.print_help()
                 quit(1)
 
-            self.createAudioVisualisation(
+            self.createAudioVisualization(
                 input_ if not args.input else args.input,
                 output if not args.output else args.output
             )
             return "commandline"
 
         elif args.input and args.output:
-            self.createAudioVisualisation(args.input, args.output)
+            self.createAudioVisualization(args.input, args.output)
             return "commandline"
 
         elif args.no_preview:
@@ -175,7 +175,7 @@ class Command(QtCore.QObject):
 
         return "GUI"
 
-    def createAudioVisualisation(self, input, output):
+    def createAudioVisualization(self, input, output):
         self.core.selectedComponents = list(
             reversed(self.core.selectedComponents))
         self.core.componentListChanged()
@@ -211,7 +211,10 @@ class Command(QtCore.QObject):
 
     @QtCore.pyqtSlot()
     def videoCreated(self):
-        quit(0)
+        self.quit(0)
+
+    def quit(self, code):
+        quit(code)
 
     def showMessage(self, **kwargs):
         print(kwargs['msg'])
