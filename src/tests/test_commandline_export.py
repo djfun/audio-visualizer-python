@@ -23,7 +23,7 @@ def test_commandline_classic_export(qtbot):
         Wait until videoCreated is emitted by the video_thread Worker
         or until 10 second timeout has passed
         '''
-        sys.__stdout__.write(f"Test Video created at {outputFilename}")
+        print(f"Test Video created at {outputFilename}")
 
     assert os.path.exists(outputFilename)
     # output video should be at least 200kb

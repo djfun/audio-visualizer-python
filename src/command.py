@@ -261,12 +261,6 @@ class Command(QtCore.QObject):
         test_report = os.path.join(core.Core.logDir, "test_report.log")
         tests.run(test_report)
 
-        # Print test report into terminal
-        with open(test_report, "r") as f:
-            output = f.readlines()
-        test_output = "".join(output)
-        print(test_output)
-
         # Choose a numbered location to put the output file
         logNumber = 0
         def getFilename():
@@ -311,6 +305,10 @@ class Command(QtCore.QObject):
         concatenateLogs("preview_*.log")
 
         # Append actual test report to debug log
+        with open(test_report, "r") as f:
+            output = f.readlines()
+        test_output = "".join(output)
+        print(test_output)
         with open(filename, "a") as f:
             f.write(test_output)
         print(f"Test Report created at {filename}")
