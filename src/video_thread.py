@@ -366,7 +366,7 @@ class Worker(QtCore.QObject):
         try:
             self.out_pipe.stdin.close()
         except (BrokenPipeError, OSError):
-            log.error('Broken pipe to FFmpeg!')
+            log.debug('Broken pipe to FFmpeg!')
         if self.out_pipe.stderr is not None:
             log.error(self.out_pipe.stderr.read())
             self.out_pipe.stderr.close()
