@@ -1,7 +1,8 @@
-from .__init__ import core
+from ..core import Core
 
 
-def test_component_names(core):
+def test_component_names():
+    core = Core()
     assert core.compNames == [
         'Classic Visualizer',
         'Color',
@@ -15,5 +16,6 @@ def test_component_names(core):
     ]
 
 
-def test_moduleindex(core):
+def test_moduleindex():
+    core = Core()
     assert core.moduleIndexFor("Classic Visualizer") == 0

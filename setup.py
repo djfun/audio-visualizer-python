@@ -52,7 +52,8 @@ setup(
         'Pillow',
         'PyQt5',
         'numpy',
-        'pytest'
+        'pytest',
+        'pytest-qt',
     ],
     entry_points={
         'console_scripts': [

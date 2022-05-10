@@ -2,26 +2,15 @@ import pytest
 import os
 import sys
 from ..core import Core
-from ..command import Command
 
 
-@pytest.fixture
-def core():
-    return Core()
-
-
-@pytest.fixture
-def command():
-    """Like a MainWindow for commandline mode, this owns the Core"""
-    return Command()
-
-
-def getTestData(filename):
+def getTestDataPath(filename):
     return os.path.join(Core.wd, 'tests', 'data', filename)
 
 
 def run(logFile):
     """Run Pytest, which then imports and runs all tests in this module."""
+    os.environ["PYTEST_QT_API"] = "pyqt5"
     with open(logFile, "w") as f:
         # temporarily redirect stdout to a text file so we capture pytest's output
         sys.stdout = f

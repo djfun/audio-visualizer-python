@@ -1,4 +1,4 @@
-recursive-include src/tests
+include src/tests/*
 include src/components/*.ui
 include src/gui/*.ui
 include src/gui/background.png
