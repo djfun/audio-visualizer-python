@@ -176,6 +176,10 @@ class Command(QtCore.QObject):
         return "GUI"
 
     def createAudioVisualization(self, input, output):
+        if not self.core.selectedComponents:
+            print("No components selected. Adding a default visualizer.")
+            time.sleep(1)
+            self.core.insertComponent(0, 0, self)
         self.core.selectedComponents = list(
             reversed(self.core.selectedComponents))
         self.core.componentListChanged()
