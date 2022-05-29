@@ -44,22 +44,23 @@ class Core():
 
   def drawBaseImage(self, backgroundFile, titleText, titleFont, fontSize, alignment,\
                      xOffset, yOffset, textColor, visColor):
-    if backgroundFile == '':
-       im = Image.new("RGB", (1280, 720), "black")
-    else:
-       im = Image.open(backgroundFile)
-
-    if self._image == None or not self.lastBackgroundImage == backgroundFile:
-      self.lastBackgroundImage = backgroundFile
-
+    # Create a fresh Pillow image to paste the background onto
+    # because QPainter doesn't like the format returned by Image.open()
+    im = Image.new("RGB", (1280, 720), "black")
+    # Add background image if there is one
+    if backgroundFile:
+      bg = Image.open(backgroundFile)
       # resize if necessary
-      if not im.size == (1280, 720):
-        im = im.resize((1280, 720), Image.ANTIALIAS)
+      if not bg.size == (1280, 720):
+        bg = bg.resize((1280, 720), Image.ANTIALIAS)
+      im.paste(bg, box=(0, 0))
 
-      self._image = ImageQt(im)
-   
-    self._image1 = QtGui.QImage(self._image)
-    painter = QPainter(self._image1)
+    if self._image == None or not self.lastBackgroundImage == im:
+      self.lastBackgroundImage = im
+
+    self._image = ImageQt(im)
+    
+    painter = QPainter(self._image)
     font = titleFont
     font.setPixelSize(fontSize)
     painter.setFont(font)
@@ -79,7 +80,7 @@ class Core():
 
     buffer = QtCore.QBuffer()
     buffer.open(QtCore.QIODevice.ReadWrite)
-    self._image1.save(buffer, "PNG")
+    self._image.save(buffer, "PNG")
 
     strio = io.BytesIO()
     strio.write(buffer.data())
