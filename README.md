@@ -4,7 +4,7 @@ audio-visualizer-python
 This is a little GUI tool which creates an audio visualization video from an input audio.
 You can also give it a background image and set a title text.
 
-It works on Linux (Ubuntu 20.04) and Windows (Windows 11). It should also work on macOS. If you encounter problems running it, or have other bug reports or features that you wish to see implemented, please fork the project and make a pull request and/or file an issue on this project.
+It works on Linux (Ubuntu 22.04) and Windows (Windows 11). It should also work on macOS. If you encounter problems running it, or have other bug reports or features that you wish to see implemented, please fork the project and make a pull request and/or file an issue on this project.
 
 We also need a good name that is not as generic as "audio-visualizer-python"!
 
@@ -14,7 +14,7 @@ You need Python 3, PyQt5, Pillow, NumPy and the program FFmpeg, which is used to
 
 Installation
 ------------
-### Manual installation on Ubuntu 20.04
+### Manual installation on Ubuntu 22.04
 * Get all the python stuff: `sudo apt install python3 python3-pyqt5 python3-pil python3-numpy`
 * Get FFmpeg: `sudo apt install ffmpeg`
 
