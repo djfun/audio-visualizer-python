@@ -1,6 +1,6 @@
 import sys, io, os
-from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtGui import QPainter, QColor
+from PyQt5 import QtCore, QtGui, uic
+from PyQt5.QtGui import QPainter, QColor
 from os.path import expanduser
 import subprocess as sp
 import numpy
@@ -71,7 +71,7 @@ class Core():
     if alignment == 0:      #Left
        xPosition = xOffset
     if alignment == 1:      #Middle
-       xPosition = xOffset - fm.width(titleText)/2
+       xPosition = xOffset - int(fm.width(titleText)/2)
     if alignment == 2:      #Right
        xPosition = xOffset - fm.width(titleText)
     painter.drawText(xPosition, yPosition, titleText)

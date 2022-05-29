@@ -1,5 +1,5 @@
-from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtCore import pyqtSignal, pyqtSlot
+from PyQt5 import QtCore, QtGui, uic
+from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
 import core
@@ -40,7 +40,9 @@ class Worker(QtCore.QObject):
     self.progressBarSetText.emit('Loading background image…')
 
     backgroundFrames = self.core.parseBaseImage(backgroundImage)
-    if len(backgroundFrames) < 2:
+    if not backgroundFrames:
+        imBackground = Image.new("RGB", (1280, 720), "#000000")
+    elif len(backgroundFrames) < 2:
         # the base image is not a video so we can draw it now
         imBackground = getBackgroundAtIndex(0)
     else:
@@ -64,9 +66,9 @@ class Worker(QtCore.QObject):
        '-s', '1280x720', # size of one frame
        '-pix_fmt', 'rgb24',
        '-r', '30', # frames per second
-       '-i', '-', # The input comes from a pipe
-       '-an',
-       '-i', inputFile,
+       '-an', # The video input has no audio
+       '-i', '-', # The video input comes from a pipe
+       '-i', inputFile, # audio input comes from selected file
        '-acodec', acodec, # output audio codec
        '-b:a', "192k",
        '-vcodec', "libx264",
@@ -114,7 +116,7 @@ class Worker(QtCore.QObject):
 
       # increase progress bar value
       if progressBarValue + 1 <= (i / len(completeAudioArray)) * 100:
-        progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100)
+        progressBarValue = numpy.floor((i / len(completeAudioArray)) * 100).astype(int)
         self.progressBarUpdate.emit(progressBarValue)
         self.progressBarSetText.emit('%s%%' % str(int(progressBarValue)))
 

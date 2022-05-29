@@ -1,6 +1,6 @@
 import sys, io, os
-from PyQt4 import QtCore, QtGui, uic
-from PyQt4.QtGui import QPainter, QColor, QFont
+from PyQt5 import QtCore, QtGui, QtWidgets, uic
+from PyQt5.QtGui import QPainter, QColor, QFont
 from os.path import expanduser
 import subprocess as sp
 import numpy
@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
 import atexit
 from queue import Queue
-from PyQt4.QtCore import QSettings
+from PyQt5.QtCore import QSettings
 import signal
 
 import preview_thread, core, video_thread
@@ -221,32 +221,32 @@ class Main(QtCore.QObject):
   def openInputFileDialog(self):
     inputDir = self.settings.value("inputDir", expanduser("~"))
 
-    fileName = QtGui.QFileDialog.getOpenFileName(self.window,
+    fileName = QtWidgets.QFileDialog.getOpenFileName(self.window,
        "Open Music File", inputDir, "Music Files (*.mp3 *.wav *.ogg *.flac)");
 
     if not fileName == "": 
-      self.settings.setValue("inputDir", os.path.dirname(fileName))
-      self.window.label_input.setText(fileName)
+      self.settings.setValue("inputDir", os.path.dirname(fileName[0]))
+      self.window.label_input.setText(fileName[0])
 
   def openOutputFileDialog(self):
     outputDir = self.settings.value("outputDir", expanduser("~"))
 
-    fileName = QtGui.QFileDialog.getSaveFileName(self.window,
+    fileName = QtWidgets.QFileDialog.getSaveFileName(self.window,
        "Set Output Video File", outputDir, "Video Files (*.mkv)");
 
     if not fileName == "": 
-      self.settings.setValue("outputDir", os.path.dirname(fileName))
-      self.window.label_output.setText(fileName)
+      self.settings.setValue("outputDir", os.path.dirname(fileName[0]))
+      self.window.label_output.setText(fileName[0])
 
   def openBackgroundFileDialog(self):
     backgroundDir = self.settings.value("backgroundDir", expanduser("~"))
 
-    fileName = QtGui.QFileDialog.getOpenFileName(self.window,
+    fileName = QtWidgets.QFileDialog.getOpenFileName(self.window,
        "Open Background Image", backgroundDir, "Image Files (*.jpg *.png);; Video Files (*.mp4)");
 
     if not fileName == "": 
-      self.settings.setValue("backgroundDir", os.path.dirname(fileName))
-      self.window.label_background.setText(fileName)
+      self.settings.setValue("backgroundDir", os.path.dirname(fileName[0]))
+      self.window.label_background.setText(fileName[0])
     self.drawPreview()
 
   def createAudioVisualisation(self):
@@ -303,7 +303,7 @@ class Main(QtCore.QObject):
     self.window.label_preview.setPixmap(self._previewPixmap)
 
   def pickColor(self, colorTarget):
-    color = QtGui.QColorDialog.getColor()
+    color = QtWidgets.QColorDialog.getColor()
     if color.isValid():
        RGBstring = '%s,%s,%s' % (str(color.red()), str(color.green()), str(color.blue()))
        btnStyle = "QPushButton { background-color : %s; outline: none; }" % color.name()
@@ -316,21 +316,21 @@ class Main(QtCore.QObject):
 
 if len(sys.argv) > 1:
   # command line mode
-  app = QtGui.QApplication(sys.argv, False)
+  app = QtWidgets.QApplication(sys.argv, False)
   command = Command()
   signal.signal(signal.SIGINT, command.cleanUp)
   sys.exit(app.exec_())
 else:
   # gui mode
   if __name__ == "__main__":
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     window = uic.loadUi("main.ui")
     # window.adjustSize()
-    desc = QtGui.QDesktopWidget()
+    desc = QtWidgets.QDesktopWidget()
     dpi = desc.physicalDpiX()
     topMargin = 0 if (dpi == 96) else int(10 * (dpi / 96))
 
-    window.resize(window.width() * (dpi / 96), window.height() * (dpi / 96))
+    #window.resize(int(window.width() * (dpi / 96)), int(window.height() * (dpi / 96)))
     window.verticalLayout_2.setContentsMargins(0, topMargin, 0, 0)
   
     main = Main(window)
