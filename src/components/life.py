@@ -117,6 +117,10 @@ class Component(Component):
         return self.drawGrid(self.startingGrid)
 
     def preFrameRender(self, *args, **kwargs):
+        '''
+        Evolution must be computed before frameRender begins
+        because frameRender may be called non-sequentially.
+        '''
         super().preFrameRender(*args, **kwargs)
         self.progressBarSetText.emit("Computing evolution...")
         self.tickGrids = {0: self.startingGrid}
@@ -351,7 +355,11 @@ class Component(Component):
         return frame
 
     def gridForTick(self, tick):
-        '''Given a tick number over 0, returns a new grid set of tuples'''
+        '''
+        Given a tick number over 0, returns a new grid (a set of tuples).
+        This depends on the previous tick's grid already being computed,
+        so it must be called sequentially.
+        '''
         lastGrid = self.tickGrids[tick - 1]
 
         def neighbours(x, y):
@@ -361,16 +369,21 @@ class Component(Component):
             }
 
         newGrid = set()
+        # Copy cells from the previous grid if they have 2 or 3 neighbouring cells
         for x, y in lastGrid:
             surrounding = len(neighbours(x, y))
             if surrounding == 2 or surrounding == 3:
                 newGrid.add((x, y))
+
+        # Find positions around living cells which must be checked for reproduction
         potentialNewCells = {
             coordTup for origin in lastGrid
             for coordTup in list(self.nearbyCoords(*origin))
         }
+        # Check for reproduction
         for x, y in potentialNewCells:
             if (x, y) in newGrid:
+                # Ignore non-empty cell
                 continue
             surrounding = len(neighbours(x, y))
             if surrounding == 3:
