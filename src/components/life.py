@@ -29,6 +29,10 @@ class Component(Component):
             (23, 6), (23, 7),
             (24, 6), (24, 7)
         ])
+
+        # Amount of 'bleed' (off-canvas coordinates) on each side of the grid
+        self.bleedSize = 40
+
         self.page.pushButton_pickImage.clicked.connect(self.pickImage)
         self.trackWidgets({
             'tickRate': self.page.spinBox_tickRate,
@@ -370,7 +374,14 @@ class Component(Component):
 
         newGrid = set()
         # Copy cells from the previous grid if they have 2 or 3 neighbouring cells
+        # and if they are within the grid or its bleed area (off-canvas area)
         for x, y in lastGrid:
+            if (
+                    -self.bleedSize > x > self.gridWidth + self.bleedSize
+                    or
+                    -self.bleedSize > y > self.gridHeight + self.bleedSize
+                ):
+                continue
             surrounding = len(neighbours(x, y))
             if surrounding == 2 or surrounding == 3:
                 newGrid.add((x, y))
