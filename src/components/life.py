@@ -121,30 +121,8 @@ class Component(Component):
         return self.drawGrid(self.startingGrid)
 
     def preFrameRender(self, *args, **kwargs):
-        '''
-        Evolution must be computed before frameRender begins
-        because frameRender may be called non-sequentially.
-        '''
         super().preFrameRender(*args, **kwargs)
-        self.progressBarSetText.emit("Computing evolution...")
         self.tickGrids = {0: self.startingGrid}
-        tick = 0
-        for frameNo in range(
-                self.tickRate, self.audioArrayLen, self.sampleSize
-                ):
-            if self.parent.canceled:
-                break
-            if frameNo % self.tickRate == 0:
-                tick += 1
-                self.tickGrids[tick] = self.gridForTick(tick)
-
-                # update progress bar
-                progress = int(100*(frameNo/self.audioArrayLen))
-                if progress >= 100:
-                    progress = 100
-                pStr = "Computing evolution: "+str(progress)+'%'
-                self.progressBarSetText.emit(pStr)
-                self.progressBarUpdate.emit(int(progress))
 
     def properties(self):
         if self.customImg and (
@@ -158,7 +136,15 @@ class Component(Component):
 
     def frameRender(self, frameNo):
         tick = math.floor(frameNo / self.tickRate)
+
+        # Compute grid evolution on this frame if it hasn't been computed yet
+        if tick not in self.tickGrids:
+            self.tickGrids[tick] = self.gridForTick(tick)
         grid = self.tickGrids[tick]
+
+        # Delete old evolution data which we shouldn't need anymore
+        if tick - 60 in self.tickGrids:
+            del self.tickGrids[tick - 60]
         return self.drawGrid(grid)
 
     def drawGrid(self, grid):
@@ -361,9 +347,11 @@ class Component(Component):
     def gridForTick(self, tick):
         '''
         Given a tick number over 0, returns a new grid (a set of tuples).
-        This depends on the previous tick's grid already being computed,
-        so it must be called sequentially.
+        This must compute the previous ticks' grids if not already computed
         '''
+        if tick - 1 not in self.tickGrids:
+            self.tickGrids[tick - 1] = self.gridForTick(tick - 1)
+        
         lastGrid = self.tickGrids[tick - 1]
 
         def neighbours(x, y):
