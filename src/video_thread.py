@@ -188,7 +188,7 @@ class Worker(QtCore.QObject):
 
     def frameRender(self, audioI):
         '''
-        Renders a frame composited together from the framse returned by each component
+        Renders a frame composited together from the frames returned by each component
         audioI is a multiple of self.sampleSize, which can be divided to determine frameNo
         '''
         def err():
