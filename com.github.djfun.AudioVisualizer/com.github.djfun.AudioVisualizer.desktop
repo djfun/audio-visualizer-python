@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Audio Visualizer
+Exec=avp
+Type=Application
+Icon=system-run
+Categories=Audio;Video

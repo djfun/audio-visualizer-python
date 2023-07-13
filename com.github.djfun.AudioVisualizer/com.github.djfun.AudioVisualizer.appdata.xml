@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application>
+  <id type="desktop">com.github.djfun.AudioVisualizer.desktop</id>
+  <name>Audio Visualizer</name>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0</project_license>
+  <summary>A little GUI tool to render visualization videos of audio files</summary>
+  <description>
+    <p>This is a little GUI tool which creates an audio visualization video from an input audio file. Different components can be added and layered to change the resulting video and add images, videos, gradients, text, etc. Encoding options can be changed with a variety of different output containers.</p>
+  </description>
+  <url type="homepage">https://github.com/djfun/audio-visualizer-python</url>
+  <url type="bugtracker">https://github.com/djfun/audio-visualizer-python/issues</url>
+  <url type="help">https://github.com/djfun/audio-visualizer-python/blob/master/README.md</url>
+</application>

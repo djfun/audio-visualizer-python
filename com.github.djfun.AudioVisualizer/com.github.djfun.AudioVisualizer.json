@@ -1,0 +1,173 @@
+{
+    "app-id": "com.github.djfun.AudioVisualizer",
+    "runtime": "org.kde.Platform",
+    "runtime-version": "5.15-22.08",
+    "sdk": "org.kde.Sdk",
+    "base": "com.riverbankcomputing.PyQt.BaseApp",
+    "base-version": "5.15-22.08",
+    "cleanup-commands": [
+        "/app/cleanup-BaseApp.sh"
+    ],
+    "command": "avp",
+    "finish-args": [
+        "--filesystem=xdg-run/gvfs",
+        "--share=ipc",
+        "--device=dri",
+        "--socket=fallback-x11",
+        "--socket=wayland",
+        "--share=network",
+        "--socket=pulseaudio",
+        "--filesystem=home:rw",
+        "--persist=.config/audio-visualizer"
+    ],
+    "modules": [
+        {
+            "name": "avp",
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/djfun/audio-visualizer-python/archive/refs/tags/v2.0.0.tar.gz",
+                    "sha256": "bf0140a6969a239e8726a67d84565409e86f7e803249e50f38e354ecd2562e7c"
+                },
+                {
+                    "type": "file",
+                    "path": "com.github.djfun.AudioVisualizer.appdata.xml"
+                },
+                {
+                    "type": "file",
+                    "path": "com.github.djfun.AudioVisualizer.desktop"
+                }
+            ],
+            "buildsystem": "simple",
+            "build-commands": [
+                "pip install --no-deps --no-build-isolation --prefix=/app --verbose ."
+            ],
+            "post-install": [
+                "install -Dm644 com.github.djfun.AudioVisualizer.appdata.xml /app/share/appdata/metainfo/com.github.djfun.AudioVisualizer.appdata.xml",
+                "install -Dm755 com.github.djfun.AudioVisualizer.desktop /app/share/applications/com.github.djfun.AudioVisualizer.desktop"
+            ]
+        },
+        {
+            "name": "ffmpeg",
+            "config-opts": [
+                "--enable-shared",
+                "--disable-static",
+                "--disable-doc",
+                "--disable-ffplay",
+                "--disable-ffprobe",
+                "--disable-devices",
+                "--enable-gnutls",
+                "--enable-gpl",
+                "--enable-libfreetype",
+                "--enable-libmp3lame",
+                "--enable-libvorbis",
+                "--enable-libvpx",
+                "--enable-libx264",
+                "--enable-libxcb",
+                "--enable-libxvid",
+                "--disable-cuda",
+                "--disable-cuvid"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://ffmpeg.org/releases/ffmpeg-4.4.2.tar.xz",
+                    "sha256": "af419a7f88adbc56c758ab19b4c708afbcae15ef09606b82b855291f6a6faa93"
+                }
+            ],
+            "cleanup": [
+                "/share"
+            ],
+            "modules": [
+                {
+                    "name": "lame",
+                    "config-opts": [
+                        "--disable-static",
+                        "--disable-frontend",
+                        "--datarootdir=/"
+                    ],
+                    "sources": [
+                        {
+                            "type": "archive",
+                            "url": "https://downloads.sourceforge.net/lame/lame-3.100.tar.gz",
+                            "sha256": "ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e"
+                        }
+                    ]
+                },
+                {
+                    "name": "libx264",
+                    "config-opts": [
+                        "--enable-shared",
+                        "--disable-cli"
+                    ],
+                    "sources": [
+                        {
+                            "type": "git",
+                            "url": "https://git.videolan.org/git/x264.git",
+                            "branch": "stable",
+                            "commit": "baee400fa9ced6f5481a728138fed6e867b0ff7f"
+                        }
+                    ]
+                },
+                {
+                    "name": "xvid",
+                    "subdir": "build/generic",
+                    "sources": [
+                        {
+                            "type": "archive",
+                            "url": "http://downloads.xvid.org/downloads/xvidcore-1.3.4.tar.bz2",
+                            "sha256": "5faf6380b828db8ad29f0b69f030edf86d0fe26d1f9c5427030c6accd3ad8bf7"
+                        }
+                    ],
+                    "cleanup": [
+                        "/lib/libxvidcore.a"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "numpy",
+            "buildsystem": "simple",
+            "build-commands": [
+                "pip install --no-deps --no-use-pep517 --prefix=/app --verbose ."
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/numpy/numpy/releases/download/v1.25.1/numpy-1.25.1.tar.gz",
+                    "sha256": "9a3a9f3a61480cc086117b426a8bd86869c213fc4072e606f01c4e4b66eb92bf"
+                }
+            ]
+        },
+        {
+            "name": "pillow-simd",
+            "buildsystem": "simple",
+            "build-commands": [
+                "python3 setup.py install --prefix=/app --root=/ --optimize=1"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://files.pythonhosted.org/packages/4e/f1/452523b163a2ca604df47aaeec4621a0a47df4c7ea6b80373777b92d3aef/Pillow-SIMD-9.0.0.post1.tar.gz",
+                    "sha256": "918541cfaa90ba3c0e1bae5da31ba1b1f52b09c0009bd90183b787af4e018263"
+                }
+            ],
+            "modules": [
+                {
+                    "name": "olefile",
+                    "buildsystem": "simple",
+                    "build-commands": [
+                        "python3 setup.py install --prefix=/app --root=/ --optimize=1"
+                    ],
+                    "sources": [
+                        {
+                            "type": "archive",
+                            "url": "https://github.com/decalage2/olefile/releases/download/v0.46/olefile-0.46.tar.gz",
+                            "sha256": "f50079e44034aae8623daa51b987db1e0292bf63096d2727be3014931f815dce"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
