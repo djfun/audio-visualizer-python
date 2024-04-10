@@ -17,12 +17,10 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 
 
 # Installation
-## Installation on Ubuntu 22.04
-* Install dependencies: `sudo apt install ffmpeg python3-pip python3-pyqt5`
-    * You may wish to install the app within an isolated Python environment so it doesn't affect other Python packages on your system. You can do this easily using [Pipx](https://pypi.org/project/pipx/): replace `python3-pip` with `pipx` in the apt command above, then use `pipx` instead of `pip` to automatially install Python apps in isolated environments.
-* Download this repo and run `pip install .` in this directory (or use `pipx` for isolation)
+## Installation on Ubuntu 24.04
+* Install dependencies: `sudo apt install ffmpeg pipx python3-pyqt5`
+* Download this repo and run `pipx install .` in this directory
 * Run the program with `avp` from terminal
-* Or try double-clicking the graphical shortcut ("run" or "execute" the file if asked)
 
 
 ## Installation on Windows
@@ -35,22 +33,8 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 * Open command prompt, `cd` into the repo directory, and run: `pip install .`
 * Now run `avp` or `python -m avp` from a command prompt window to start the app
 
-
-## Manual installation on macOS
-* **[Outdated]**: No one has updated these instructions for a while.
-* Install [Homebrew](http://brew.sh/)
-* Use the following commands to install the needed dependencies:
-```
-brew install python3
-brew install ffmpeg --with-fdk-aac --with-ffplay --with-freetype --with-libass --with-libquvi --with-libvorbis --with-libvpx --with-opus --with-x265
-brew install qt
-brew install sip --with-python3
-brew install pyqt --with-python3
-pip3 install --upgrade pip
-```
-* Download this repository and install it using Pip: `pip3 install .` (or use `pipx` for isolation)
-* Start the app with `avp` or `python3 -m avp`
-
+## Installation on macOS
+* We need help writing instructions for macOS, but the program should work in theory.
 
 # [Keyboard Shortcuts](https://github.com/djfun/audio-visualizer-python/wiki/Keyboard-Shortcuts)
 | Key Combo                 | Effect                                             |
