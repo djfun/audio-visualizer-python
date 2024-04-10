@@ -49,7 +49,7 @@ setup(
     package_dir={PACKAGE_NAME: SOURCE_DIRECTORY},
     include_package_data=True,
     install_requires=[
-        'Pillow',
+        'Pillow==9.1.1',
         'PyQt5',
         'numpy',
         'pytest',
