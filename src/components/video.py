@@ -63,16 +63,16 @@ class Component(Component):
 
     def properties(self):
         props = []
+        outputFile = None
         if hasattr(self.parent, 'lineEdit_outputFile'):
+            # check only happens in GUI mode
             outputFile = self.parent.lineEdit_outputFile.text()
-        else:
-            outputFile = str(self.parent.args.output)
 
         if not self.videoPath:
             self.lockError("There is no video selected.")
         elif not os.path.exists(self.videoPath):
             self.lockError("The video selected does not exist!")
-        elif os.path.realpath(self.videoPath) == os.path.realpath(outputFile):
+        elif outputFile and os.path.realpath(self.videoPath) == os.path.realpath(outputFile):
             self.lockError("Input and output paths match.")
 
         if self.useAudio:

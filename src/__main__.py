@@ -21,6 +21,9 @@ def main() -> int:
             mode = 'commandline'
         else:
             # remove unsafe punctuation characters such as \/?*&^%$#
+            if sys.argv[1].endswith('.avp'):
+                # remove file extension
+                sys.argv[1] = sys.argv[1][:-4]
             sys.argv[1] = re.sub(f'[{re.escape(string.punctuation)}]', '', sys.argv[1])
             # opening a project file with gui
             proj = sys.argv[1]
