@@ -1,25 +1,27 @@
-'''
-    Common tools for drawing compatible frames in a Component's frameRender()
-'''
-from PyQt5 import QtGui
+"""
+Common tools for drawing compatible frames in a Component's frameRender()
+"""
+
+from PyQt6 import QtGui
 from PIL import Image
 from PIL.ImageQt import ImageQt
+from PyQt6 import QtCore
 import sys
 import os
 import math
 import logging
-
 from .. import core
 
 
-log = logging.getLogger('AVP.Toolkit.Frame')
+log = logging.getLogger("AVP.Toolkit.Frame")
 
 
 class FramePainter(QtGui.QPainter):
-    '''
-        A QPainter for a blank frame, which can be converted into a
-        Pillow image with finalize()
-    '''
+    """
+    A QPainter for a blank frame, which can be converted into a
+    Pillow image with finalize()
+    """
+
     def __init__(self, width, height):
         image = BlankFrame(width, height)
         log.debug("Creating QImage from PIL image object")
@@ -34,21 +36,33 @@ class FramePainter(QtGui.QPainter):
 
     def finalize(self):
         log.verbose("Finalizing FramePainter")
+        buffer = QtCore.QBuffer()
+        buffer.open(QtCore.QBuffer.OpenModeFlag.ReadWrite)
+        self.image.save(buffer, "PNG")
+        import io
+
+        frame = Image.open(io.BytesIO(buffer.data()))
+        buffer.close()
+        self.end()
+        return frame
         imBytes = self.image.bits().asstring(self.image.byteCount())
-        frame =  Image.frombytes(
-            'RGBA', (self.image.width(), self.image.height()), imBytes
+        frame = Image.frombytes(
+            "RGBA", (self.image.width(), self.image.height()), imBytes
         )
         self.end()
         return frame
 
 
 class PaintColor(QtGui.QColor):
-    '''Reverse the painter colour if the hardware stores RGB values backward'''
+    """
+    Subclass of QtGui.QColor with an added scale() method
+    Previously this class reversed the painter colour to solve
+    hardware issues related to endianness,
+    but Qt appears to deal with this itself nowadays
+    """
+
     def __init__(self, r, g, b, a=255):
-        if sys.byteorder == 'big':
-            super().__init__(r, g, b, a)
-        else:
-            super().__init__(b, g, r, a)
+        super().__init__(r, g, b, a)
 
 
 def scale(scalePercent, width, height, returntype=None):
@@ -63,7 +77,8 @@ def scale(scalePercent, width, height, returntype=None):
 
 
 def defaultSize(framefunc):
-    '''Makes width/height arguments optional'''
+    """Makes width/height arguments optional"""
+
     def decorator(*args):
         if len(args) < 2:
             newArgs = list(args)
@@ -75,6 +90,7 @@ def defaultSize(framefunc):
                 newArgs.insert(0, width)
             args = tuple(newArgs)
         return framefunc(*args)
+
     return decorator
 
 
@@ -84,21 +100,18 @@ def FloodFrame(width, height, RgbaTuple):
 
 @defaultSize
 def BlankFrame(width, height):
-    '''The base frame used by each component to start drawing.'''
+    """The base frame used by each component to start drawing."""
     return FloodFrame(width, height, (0, 0, 0, 0))
 
 
 @defaultSize
 def Checkerboard(width, height):
-    '''
-        A checkerboard to represent transparency to the user.
-        TODO: Would be cool to generate this image with numpy instead.
-    '''
-    log.debug('Creating new %s*%s checkerboard' % (width, height))
+    """
+    A checkerboard to represent transparency to the user.
+    """
+    # TODO: Would be cool to generate this image with numpy instead.
+    log.debug("Creating new %s*%s checkerboard" % (width, height))
     image = FloodFrame(1920, 1080, (0, 0, 0, 0))
-    image.paste(Image.open(
-        os.path.join(core.Core.wd, 'gui', "background.png")),
-        (0, 0)
-    )
+    image.paste(Image.open(os.path.join(core.Core.wd, "gui", "background.png")), (0, 0))
     image = image.resize((width, height))
     return image

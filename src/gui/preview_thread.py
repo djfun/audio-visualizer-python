@@ -1,9 +1,10 @@
-'''
-    Thread that runs to create QImages for MainWindow's preview label.
-    Processes a queue of component lists.
-'''
-from PyQt5 import QtCore, QtGui, uic
-from PyQt5.QtCore import pyqtSignal, pyqtSlot
+"""
+Thread that runs to create QImages for MainWindow's preview label.
+Processes a queue of component lists.
+"""
+
+from PyQt6 import QtCore, QtGui, uic
+from PyQt6.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from queue import Queue, Empty
@@ -26,8 +27,8 @@ class Worker(QtCore.QObject):
         super().__init__()
         self.core = core
         self.settings = settings
-        width = int(self.settings.value('outputWidth'))
-        height = int(self.settings.value('outputHeight'))
+        width = int(self.settings.value("outputWidth"))
+        height = int(self.settings.value("outputHeight"))
         self.queue = queue
         self.background = Checkerboard(width, height)
 
@@ -35,10 +36,10 @@ class Worker(QtCore.QObject):
     @pyqtSlot(list)
     def createPreviewImage(self, components):
         dic = {
-          "components": components,
+            "components": components,
         }
         self.queue.put(dic)
-        log.debug('Preview thread id: {}'.format(int(QtCore.QThread.currentThreadId())))
+        log.debug("Preview thread id: {}".format(int(QtCore.QThread.currentThreadId())))
 
     @pyqtSlot()
     def process(self):
@@ -49,31 +50,34 @@ class Worker(QtCore.QObject):
                     self.queue.get(block=False)
                 except Empty:
                     continue
-            width = int(self.settings.value('outputWidth'))
-            height = int(self.settings.value('outputHeight'))
-            if self.background.width != width \
-                    or self.background.height != height:
+            width = int(self.settings.value("outputWidth"))
+            height = int(self.settings.value("outputHeight"))
+            if self.background.width != width or self.background.height != height:
                 self.background = Checkerboard(width, height)
 
             frame = self.background.copy()
-            log.info('Creating new preview frame')
+            log.info("Creating new preview frame")
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
                     component.lockSize(width, height)
                     newFrame = component.previewRender()
                     component.unlockSize()
-                    frame = Image.alpha_composite(
-                        frame, newFrame
-                    )
+                    frame = Image.alpha_composite(frame, newFrame)
 
                 except ValueError as e:
-                    errMsg = "Bad frame returned by %s's preview renderer. " \
-                        "%s. New frame size was %s*%s; should be %s*%s." % (
-                            str(component), str(e).capitalize(),
-                            newFrame.width, newFrame.height,
-                            width, height
+                    errMsg = (
+                        "Bad frame returned by %s's preview renderer. "
+                        "%s. New frame size was %s*%s; should be %s*%s."
+                        % (
+                            str(component),
+                            str(e).capitalize(),
+                            newFrame.width,
+                            newFrame.height,
+                            width,
+                            height,
                         )
+                    )
                     log.critical(errMsg)
                     self.error.emit(errMsg)
                     break

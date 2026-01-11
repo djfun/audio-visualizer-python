@@ -1,53 +1,61 @@
-'''
-    QCommand classes for every undoable user action performed in the MainWindow
-'''
-from PyQt5.QtWidgets import QUndoCommand
+"""
+QCommand classes for every undoable user action performed in the MainWindow
+"""
+
+from PyQt6.QtGui import QUndoCommand
 import os
+import logging
 from copy import copy
 
 from ..core import Core
+
+
+log = logging.getLogger("AVP.Gui.Actions")
 
 
 # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 # COMPONENT ACTIONS
 # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+
 class AddComponent(QUndoCommand):
     def __init__(self, parent, compI, moduleI):
         super().__init__(
-            "create new %s component" %
-            parent.core.modules[moduleI].Component.name
+            "create new %s component" % parent.core.modules[moduleI].Component.name
         )
         self.parent = parent
         self.moduleI = moduleI
         self.compI = compI
         self.comp = None
+        self.valid = True
 
     def redo(self):
         if self.comp is None:
-            self.parent.core.insertComponent(
-                self.compI, self.moduleI, self.parent)
+            i = self.parent.core.insertComponent(self.compI, self.moduleI, self.parent)
+            if i != self.compI:
+                self.valid = False
+                if i is not None:
+                    log.error(
+                        f"Expected new component index to be {self.compI} but received {i}"
+                    )
         else:
             # inserting previously-created component
-            self.parent.core.insertComponent(
-                self.compI, self.comp, self.parent)
+            self.parent.core.insertComponent(self.compI, self.comp, self.parent)
 
     def undo(self):
+        if not self.valid:
+            return
         self.comp = self.parent.core.selectedComponents[self.compI]
         self.parent._removeComponent(self.compI)
 
 
 class RemoveComponent(QUndoCommand):
     def __init__(self, parent, selectedRows):
-        super().__init__('remove component')
+        super().__init__("remove component")
         self.parent = parent
         componentList = self.parent.listWidget_componentList
-        self.selectedRows = [
-            componentList.row(selected) for selected in selectedRows
-        ]
-        self.components = [
-            parent.core.selectedComponents[i] for i in self.selectedRows
-        ]
+        self.selectedRows = [componentList.row(selected) for selected in selectedRows]
+        self.components = [parent.core.selectedComponents[i] for i in self.selectedRows]
 
     def redo(self):
         self.parent._removeComponent(self.selectedRows[0])
@@ -55,9 +63,7 @@ class RemoveComponent(QUndoCommand):
     def undo(self):
         componentList = self.parent.listWidget_componentList
         for index, comp in zip(self.selectedRows, self.components):
-            self.parent.core.insertComponent(
-                index, comp, self.parent
-            )
+            self.parent.core.insertComponent(index, comp, self.parent)
         self.parent.drawPreview()
 
 
@@ -70,7 +76,7 @@ class MoveComponent(QUndoCommand):
         self.id_ = ord(tag[0])
 
     def id(self):
-        '''If 2 consecutive updates have same id, Qt will call mergeWith()'''
+        """If 2 consecutive updates have same id, Qt will call mergeWith()"""
         return self.id_
 
     def mergeWith(self, other):
@@ -105,6 +111,7 @@ class MoveComponent(QUndoCommand):
 # PRESET ACTIONS
 # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+
 class ClearPreset(QUndoCommand):
     def __init__(self, parent, compI):
         super().__init__("clear preset")
@@ -112,7 +119,7 @@ class ClearPreset(QUndoCommand):
         self.compI = compI
         self.component = self.parent.core.selectedComponents[compI]
         self.store = self.component.savePreset()
-        self.store['preset'] = self.component.currentPreset
+        self.store["preset"] = self.component.currentPreset
 
     def redo(self):
         self.parent.core.clearPreset(self.compI)
@@ -132,20 +139,19 @@ class OpenPreset(QUndoCommand):
 
         comp = self.parent.core.selectedComponents[compI]
         self.store = comp.savePreset()
-        self.store['preset'] = copy(comp.currentPreset)
+        self.store["preset"] = copy(comp.currentPreset)
 
     def redo(self):
         self.parent._openPreset(self.presetName, self.compI)
 
     def undo(self):
-        self.parent.core.selectedComponents[self.compI].loadPreset(
-            self.store)
+        self.parent.core.selectedComponents[self.compI].loadPreset(self.store)
         self.parent.parent.updateComponentTitle(self.compI, self.store)
 
 
 class RenamePreset(QUndoCommand):
     def __init__(self, parent, path, oldName, newName):
-        super().__init__('rename preset')
+        super().__init__("rename preset")
         self.parent = parent
         self.path = path
         self.oldName = oldName
@@ -162,14 +168,13 @@ class DeletePreset(QUndoCommand):
     def __init__(self, parent, compName, vers, presetFile):
         self.parent = parent
         self.preset = (compName, vers, presetFile)
-        self.path = os.path.join(
-            Core.presetDir, compName, str(vers), presetFile
-        )
+        self.path = os.path.join(Core.presetDir, compName, str(vers), presetFile)
         self.store = self.parent.core.getPreset(self.path)
-        self.presetName = self.store['preset']
-        super().__init__('delete %s preset (%s)' % (self.presetName, compName))
+        self.presetName = self.store["preset"]
+        super().__init__("delete %s preset (%s)" % (self.presetName, compName))
         self.loadedPresets = [
-            i for i, comp in enumerate(self.parent.core.selectedComponents)
+            i
+            for i, comp in enumerate(self.parent.core.selectedComponents)
             if self.presetName == str(comp.currentPreset)
         ]
 

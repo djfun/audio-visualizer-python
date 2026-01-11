@@ -372,7 +372,7 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;- A cell with more than 3 neighbours will die from overpopulation.&lt;/p&gt;
 &lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;- An empty space surrounded by 3 live cells will cause reproduction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
-       <property name="tabStopWidth">
+       <property name="tabStopDistance">
         <number>80</number>
        </property>
        <property name="textInteractionFlags">

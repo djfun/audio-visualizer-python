@@ -1,9 +1,5 @@
 import numpy
 from PIL import Image, ImageDraw
-from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.QtGui import QColor
-import os
-import time
 from copy import copy
 
 from ..component import Component
@@ -11,14 +7,14 @@ from ..toolkit.frame import BlankFrame
 
 
 class Component(Component):
-    name = 'Classic Visualizer'
-    version = '1.0.0'
+    name = "Classic Visualizer"
+    version = "1.0.0"
 
     def names(*args):
-        return ['Original Audio Visualization']
+        return ["Original Audio Visualization"]
 
     def properties(self):
-        return ['pcm']
+        return ["pcm"]
 
     def widget(self, *args):
         self.scale = 20
@@ -31,23 +27,30 @@ class Component(Component):
         self.page.comboBox_visLayout.addItem("Top")
         self.page.comboBox_visLayout.setCurrentIndex(0)
 
-        self.page.lineEdit_visColor.setText('255,255,255')
+        self.page.lineEdit_visColor.setText("255,255,255")
 
-        self.trackWidgets({
-            'visColor': self.page.lineEdit_visColor,
-            'layout': self.page.comboBox_visLayout,
-            'scale': self.page.spinBox_scale,
-            'y': self.page.spinBox_y,
-            'smooth': self.page.spinBox_smooth,
-        }, colorWidgets={
-            'visColor': self.page.pushButton_visColor,
-        }, relativeWidgets=[
-            'y',
-        ])
+        self.trackWidgets(
+            {
+                "visColor": self.page.lineEdit_visColor,
+                "layout": self.page.comboBox_visLayout,
+                "scale": self.page.spinBox_scale,
+                "y": self.page.spinBox_y,
+                "smooth": self.page.spinBox_smooth,
+            },
+            colorWidgets={
+                "visColor": self.page.pushButton_visColor,
+            },
+            relativeWidgets=[
+                "y",
+            ],
+        )
 
     def previewRender(self):
         spectrum = numpy.fromfunction(
-            lambda x: float(self.scale)/2500*(x-128)**2, (255,), dtype="int16")
+            lambda x: float(self.scale) / 2500 * (x - 128) ** 2,
+            (255,),
+            dtype="int16",
+        )
         return self.drawBars(
             self.width, self.height, spectrum, self.visColor, self.layout
         )
@@ -63,41 +66,53 @@ class Component(Component):
             if self.canceled:
                 break
             self.lastSpectrum = self.transformData(
-                i, self.completeAudioArray, self.sampleSize,
-                self.smoothConstantDown, self.smoothConstantUp,
-                self.lastSpectrum)
+                i,
+                self.completeAudioArray,
+                self.sampleSize,
+                self.smoothConstantDown,
+                self.smoothConstantUp,
+                self.lastSpectrum,
+            )
             self.spectrumArray[i] = copy(self.lastSpectrum)
 
-            progress = int(100*(i/len(self.completeAudioArray)))
+            progress = int(100 * (i / len(self.completeAudioArray)))
             if progress >= 100:
                 progress = 100
-            pStr = "Analyzing audio: "+str(progress)+'%'
+            pStr = "Analyzing audio: " + str(progress) + "%"
             self.progressBarSetText.emit(pStr)
             self.progressBarUpdate.emit(int(progress))
 
     def frameRender(self, frameNo):
         arrayNo = frameNo * self.sampleSize
         return self.drawBars(
-            self.width, self.height,
+            self.width,
+            self.height,
             self.spectrumArray[arrayNo],
-            self.visColor, self.layout)
+            self.visColor,
+            self.layout,
+        )
 
     def transformData(
-      self, i, completeAudioArray, sampleSize,
-      smoothConstantDown, smoothConstantUp, lastSpectrum):
+        self,
+        i,
+        completeAudioArray,
+        sampleSize,
+        smoothConstantDown,
+        smoothConstantUp,
+        lastSpectrum,
+    ):
         if len(completeAudioArray) < (i + sampleSize):
             sampleSize = len(completeAudioArray) - i
 
         window = numpy.hanning(sampleSize)
-        data = completeAudioArray[i:i+sampleSize][::1] * window
+        data = completeAudioArray[i : i + sampleSize][::1] * window
         paddedSampleSize = 2048
-        paddedData = numpy.pad(
-            data, (0, paddedSampleSize - sampleSize), 'constant')
+        paddedData = numpy.pad(data, (0, paddedSampleSize - sampleSize), "constant")
         spectrum = numpy.fft.fft(paddedData)
         sample_rate = 44100
-        frequencies = numpy.fft.fftfreq(len(spectrum), 1./sample_rate)
+        frequencies = numpy.fft.fftfreq(len(spectrum), 1.0 / sample_rate)
 
-        y = abs(spectrum[0:int(paddedSampleSize/2) - 1])
+        y = abs(spectrum[0 : int(paddedSampleSize / 2) - 1])
 
         # filter the noise away
         # y[y<80] = 0
@@ -106,22 +121,26 @@ class Component(Component):
         y[numpy.isinf(y)] = 0
 
         if lastSpectrum is not None:
-            lastSpectrum[y < lastSpectrum] = \
-                y[y < lastSpectrum] * smoothConstantDown + \
-                lastSpectrum[y < lastSpectrum] * (1 - smoothConstantDown)
+            lastSpectrum[y < lastSpectrum] = y[
+                y < lastSpectrum
+            ] * smoothConstantDown + lastSpectrum[y < lastSpectrum] * (
+                1 - smoothConstantDown
+            )
 
-            lastSpectrum[y >= lastSpectrum] = \
-                y[y >= lastSpectrum] * smoothConstantUp + \
-                lastSpectrum[y >= lastSpectrum] * (1 - smoothConstantUp)
+            lastSpectrum[y >= lastSpectrum] = y[
+                y >= lastSpectrum
+            ] * smoothConstantUp + lastSpectrum[y >= lastSpectrum] * (
+                1 - smoothConstantUp
+            )
         else:
             lastSpectrum = y
 
-        x = frequencies[0:int(paddedSampleSize/2) - 1]
+        x = frequencies[0 : int(paddedSampleSize / 2) - 1]
 
         return lastSpectrum
 
     def drawBars(self, width, height, spectrum, color, layout):
-        vH = height-height/8
+        vH = height - height / 8
         bF = width / 64
         bH = bF / 2
         bQ = bF / 4
@@ -133,72 +152,92 @@ class Component(Component):
         bP = height / 1200
 
         for j in range(0, 63):
-            draw.rectangle((
-                bH + j * bF, vH+bQ, bH + j * bF + bF, vH + bQ -
-                spectrum[j * 4] * bP - bH), fill=color2)
+            x0 = bH + j * bF
+            y0 = vH + bQ
+            y1 = vH + bQ - spectrum[j * 4] * bP - bH
+            x1 = bH + j * bF + bF
+            draw.rectangle(
+                (
+                    x0,
+                    y0 if y0 < y1 else y1,
+                    x1 if x1 > x0 else x0,
+                    y1 if y0 < y1 else y0,
+                ),
+                fill=color2,
+            )
 
-            draw.rectangle((
-                bH + bQ + j * bF, vH, bH + bQ + j * bF + bH, vH -
-                spectrum[j * 4] * bP), fill=color)
+            x0 = bH + bQ + j * bF
+            y0 = vH
+            x1 = bH + bQ + j * bF + bH
+            y1 = vH - spectrum[j * 4] * bP
+            draw.rectangle(
+                (
+                    x0,
+                    y0 if y0 < y1 else y1,
+                    x1 if x1 > x0 else x0,
+                    y1 if y0 < y1 else y0,
+                ),
+                fill=color,
+            )
 
-        imBottom = imTop.transpose(Image.FLIP_TOP_BOTTOM)
+        imBottom = imTop.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
 
         im = BlankFrame(width, height)
 
         if layout == 0:  # Classic
-            y = self.y - int(height/100*43)
+            y = self.y - int(height / 100 * 43)
             im.paste(imTop, (0, y), mask=imTop)
-            y = self.y + int(height/100*43)
+            y = self.y + int(height / 100 * 43)
             im.paste(imBottom, (0, y), mask=imBottom)
 
         if layout == 1:  # Split
-            y = self.y + int(height/100*10)
+            y = self.y + int(height / 100 * 10)
             im.paste(imTop, (0, y), mask=imTop)
-            y = self.y - int(height/100*10)
+            y = self.y - int(height / 100 * 10)
             im.paste(imBottom, (0, y), mask=imBottom)
 
         if layout == 2:  # Bottom
-            y = self.y + int(height/100*10)
+            y = self.y + int(height / 100 * 10)
             im.paste(imTop, (0, y), mask=imTop)
 
         if layout == 3:  # Top
-            y = self.y - int(height/100*10)
+            y = self.y - int(height / 100 * 10)
             im.paste(imBottom, (0, y), mask=imBottom)
 
         return im
 
     def command(self, arg):
-        if '=' in arg:
-            key, arg = arg.split('=', 1)
+        if "=" in arg:
+            key, arg = arg.split("=", 1)
             try:
-                if key == 'color':
+                if key == "color":
                     self.page.lineEdit_visColor.setText(arg)
                     return
-                elif key == 'layout':
-                    if arg == 'classic':
+                elif key == "layout":
+                    if arg == "classic":
                         self.page.comboBox_visLayout.setCurrentIndex(0)
-                    elif arg == 'split':
+                    elif arg == "split":
                         self.page.comboBox_visLayout.setCurrentIndex(1)
-                    elif arg == 'bottom':
+                    elif arg == "bottom":
                         self.page.comboBox_visLayout.setCurrentIndex(2)
-                    elif arg == 'top':
+                    elif arg == "top":
                         self.page.comboBox_visLayout.setCurrentIndex(3)
                     return
-                elif key == 'scale':
+                elif key == "scale":
                     arg = int(arg)
                     self.page.spinBox_scale.setValue(arg)
                     return
-                elif key == 'y':
+                elif key == "y":
                     arg = int(arg)
                     self.page.spinBox_y.setValue(arg)
                     return
             except ValueError:
-                print('You must enter a number.')
+                print("You must enter a number.")
                 quit(1)
         super().command(arg)
 
     def commandHelp(self):
-        print('Give a layout name:\n    layout=[classic/split/bottom/top]')
-        print('Specify a color:\n    color=255,255,255')
-        print('Visualizer scale (20 is default):\n    scale=number')
-        print('Y position:\n    y=number')
+        print("Give a layout name:\n    layout=[classic/split/bottom/top]")
+        print("Specify a color:\n    color=255,255,255")
+        print("Visualizer scale (20 is default):\n    scale=number")
+        print("Y position:\n    y=number")

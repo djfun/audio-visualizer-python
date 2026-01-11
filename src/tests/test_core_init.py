@@ -4,15 +4,15 @@ from ..core import Core
 def test_component_names():
     core = Core()
     assert core.compNames == [
-        'Classic Visualizer',
-        'Color',
+        "Classic Visualizer",
+        "Color",
         "Conway's Game of Life",
-        'Image',
-        'Sound',
-        'Spectrum',
-        'Title Text',
-        'Video',
-        'Waveform',
+        "Image",
+        "Sound",
+        "Spectrum",
+        "Title Text",
+        "Video",
+        "Waveform",
     ]
 
 
