@@ -25,8 +25,7 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 - Install system dependencies: `sudo apt install ffmpeg`
 - Make a virtual environment: `python -m venv env`
 - Activate it: `source env/bin/activate`
-- Install Python dependencies: `pip install pyqt6 pillow numpy`
-- Install this program: `pip install .` in this directory
+- Install program: `pip install pyqt6 pillow numpy .`
 - Run the program with `avp` from terminal
 
 ## Installation on Windows
@@ -81,14 +80,14 @@ Projects can be created with the GUI then loaded from the commandline for easy a
 ## Known Working Versions of Dependencies
 
 - Python 3.13
-- FFmpeg 8.0.1
+- FFmpeg 4.4.1 - 8.0.1
 - PyQt6 v6.10.2 (Qt v6.10.1)
 - Pillow 12.1.0
 - NumPy 2.4.1
 
 ## Getting Faster Export Times
 
-- [Pillow-SIMD](https://github.com/uploadcare/pillow-simd) may be used as a drop-in replacement for Pillow if you desire faster video export times, but it must be compiled from source. For help installing dependencies to compile Pillow-SIMD, see the [Pillow installation guide](https://pillow.readthedocs.io/en/stable/installation.html).
+- [Pillow-SIMD](https://github.com/uploadcare/pillow-simd) may be used as a drop-in replacement for Pillow if you desire faster video export times, but it must be compiled from source. For help installing dependencies to compile Pillow-SIMD, see the [Pillow installation guide](https://pillow.readthedocs.io/en/stable/installation/building-from-source.html).
 
 ## Developing a New Component
 
