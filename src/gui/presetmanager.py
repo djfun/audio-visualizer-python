@@ -35,8 +35,7 @@ class PresetManager(QtWidgets.QDialog):
         self.lastFilter = "*"
         self.presetRows = []  # list of (comp, vers, name) tuples
 
-        # FIXME
-        # self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
 
         # connect button signals
         self.pushButton_delete.clicked.connect(self.openDeletePresetDialog)

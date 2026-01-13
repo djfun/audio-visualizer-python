@@ -179,7 +179,7 @@ class Component(Component):
                 img = Image.open(self.image)
             except Exception:
                 return
-            img = img.resize((self.pxWidth, self.pxHeight), Image.ANTIALIAS)
+            img = img.resize((self.pxWidth, self.pxHeight), Image.Resampling.LANCZOS)
             frame.paste(img, box=(drawPtX, drawPtY))
 
         def drawShape():
