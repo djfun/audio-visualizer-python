@@ -1,4 +1,4 @@
-from ..core import Core
+from avp.core import Core
 
 
 def test_component_names():

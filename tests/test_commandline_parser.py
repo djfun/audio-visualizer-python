@@ -1,6 +1,6 @@
 import sys
 import pytest
-from ..command import Command
+from avp.command import Command
 
 
 def test_commandline_help():

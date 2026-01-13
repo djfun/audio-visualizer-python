@@ -1,7 +1,7 @@
 import sys
 import os
 import tempfile
-from ..command import Command
+from avp.command import Command
 from . import getTestDataPath
 from pytestqt import qtbot
 
