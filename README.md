@@ -6,29 +6,44 @@ This is a little GUI tool which creates an audio visualization video from an inp
 
 The program works on **Linux**, **macOS**, and **Windows**. If you encounter problems running it or have other bug reports or features that you wish to see implemented, please fork the project and submit a pull request and/or file an [issue](https://github.com/djfun/audio-visualizer-python/issues) on this project.
 
-# Screenshots & Videos
+## Screenshots & Videos
 
 [<img title="AVP running on Windows" alt="Screenshot of program on Windows" src="screenshot.png" width="707">](/screenshot.png?raw=true)
 
-## A video created by this app
+### A video created by this app
 
 - **[YouTube: A day in spring](https://www.youtube.com/watch?v=-M3jR1NuJHM)** 🎥
 
-## Video demonstration of the app features
+### Video demonstration of the app features
 
 - [YouTube: Audio Visualizer Python v2.0.0 demonstration](https://www.youtube.com/watch?v=EVt2ckQs1Yg) 🎥
 
-# Installation
+## Installation on Linux
 
-## Installation on Ubuntu 24.04
+### System dependencies
 
-- Install system dependencies: `sudo apt install ffmpeg`
+- Install FFmpeg:
+    - On Ubuntu: `sudo apt install ffmpeg`
+    - On Arch: `sudo pacman -S ffmpeg`
+
+### Using pipx
+
+- **This is a good method if you just want to use the program**
+- Install `pipx` tool if you don't have it:
+    - On Ubuntu: `sudo apt install python-pipx`
+    - On Arch: `sudo pacman -S python-pipx`
+- Install this program: `pipx install git+https://github.com/djfun/audio-visualizer-python`
+- Run this program with `avp` or `python -m avp` from terminal
+
+### Using a Python virtual environment
+
+- **This is a good method if you want to edit the code**
 - Make a virtual environment: `python -m venv env`
 - Activate it: `source env/bin/activate`
-- Install Python dependencies: `pip install uv`
-- Install this program: `uv sync` in this directory
-- Run the program with `python -m avp` from terminal
-- Optional: Unit tests can be run with `uv run pytest`
+- Install uv: `pip install uv`
+- Install this program by running `uv sync` in this directory
+- Run program with `avp` or `python -m avp` or `uv run avp`
+- Optional: Tests can be run with `uv run pytest`
 
 ## Installation on Windows
 
@@ -38,14 +53,14 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 - Download and install [FFmpeg](https://www.ffmpeg.org/download.html). Use the GPL-licensed static builds.
 - Add FFmpeg to the system PATH as well (program will then work anywhere)
     - Alternatively, copy ffmpeg.exe into the folder that you want to run the program within
-- Open command prompt, `cd` into the repo directory, and run: `pip install pyqt6 pillow numpy .`
+- Open command prompt, `cd` into the repo directory, and run: `pip install .`
 - Now run `avp` or `python -m avp` from a command prompt window to start the app
 
 ## Installation on macOS
 
 - We need help writing instructions for macOS, but the program should work in theory.
 
-# [Keyboard Shortcuts](https://github.com/djfun/audio-visualizer-python/wiki/Keyboard-Shortcuts)
+## [Keyboard Shortcuts](https://github.com/djfun/audio-visualizer-python/wiki/Keyboard-Shortcuts)
 
 | Key Combo                | Effect                                        |
 | ------------------------ | --------------------------------------------- |
@@ -67,19 +82,19 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 | Ctrl+Shift+U             | Open Undo History                             |
 | Ctrl+Shift+F             | Show FFmpeg Command                           |
 
-# Commandline Mode
+## Using commandline interface
 
 Projects can be created with the GUI then loaded from the commandline for easy automation of video production. Some components have commandline options for extra customization, and you can save "presets" with settings to load if the commandline option doesn't exist.
 
-## Example/test command
+### Example command
 
 - Create a video with a grey "classic visualizer", background image, and text:
     - `avp -c 0 image path=src/tests/data/test.jpg -c 1 classic color=180,180,180 -c 2 text "title=Episode 371" -i src/tests/data/test.ogg -o output.mp4`
 - [See more about commandline mode in the wiki!](https://github.com/djfun/audio-visualizer-python/wiki/Commandline-Mode)
 
-# Developer Information
+## Developer Information
 
-## Known Working Versions of Dependencies
+### Dependencies
 
 - Python 3.13
 - FFmpeg 4.4.1 - 8.0.1
@@ -87,16 +102,16 @@ Projects can be created with the GUI then loaded from the commandline for easy a
 - Pillow 12.1.0
 - NumPy 2.4.1
 
-## Getting Faster Export Times
+### Getting Faster Export Times
 
 - [Pillow-SIMD](https://github.com/uploadcare/pillow-simd) may be used as a drop-in replacement for Pillow if you desire faster video export times, but it must be compiled from source. For help installing dependencies to compile Pillow-SIMD, see the [Pillow installation guide](https://pillow.readthedocs.io/en/stable/installation/building-from-source.html).
 
-## Developing a New Component
+### Developing a New Component
 
 - Information for developing a component is in our wiki: [How a Component Works](https://github.com/djfun/audio-visualizer-python/wiki/How-a-Component-Works)
 - File an issue on GitHub if you need help fitting your visualizer into our component system; we would be happy to collaborate
 
-# License
+## License
 
 Source code of audio-visualizer-python is licensed under the MIT license.
 
