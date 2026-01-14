@@ -25,13 +25,16 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 - Install FFmpeg:
     - On Ubuntu: `sudo apt install ffmpeg`
     - On Arch: `sudo pacman -S ffmpeg`
+- If using X11 (Ubuntu 24.04 default):
+    - `sudo apt install libxcb-cursor0`
 
 ### Using pipx
 
 - **This is a good method if you just want to use the program**
 - Install `pipx` tool if you don't have it:
-    - On Ubuntu: `sudo apt install python-pipx`
+    - On Ubuntu: `sudo apt install pipx`
     - On Arch: `sudo pacman -S python-pipx`
+- Run `pipx ensurepath` then close and reopen the terminal
 - Install this program: `pipx install git+https://github.com/djfun/audio-visualizer-python`
 - Run this program with `avp` or `python -m avp` from terminal
 
@@ -96,9 +99,9 @@ Projects can be created with the GUI then loaded from the commandline for easy a
 
 ### Dependencies
 
-- Python 3.13
-- FFmpeg 4.4.1 - 8.0.1
-- PyQt6 v6.10.2 (Qt v6.10.1)
+- Python 3.12 or higher
+- FFmpeg 4.4.1 or higher
+- PyQt6 6.10.2
 - Pillow 12.1.0
 - NumPy 2.4.1
 

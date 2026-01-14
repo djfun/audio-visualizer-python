@@ -5,8 +5,8 @@ build-backend = "uv_build"
 [project]
 name = "audio-visualizer-python"
 description = "Create audio visualization videos from a GUI or commandline"
-version = "2.1.0"
-requires-python = ">= 3.13"
+version = "2.1.1"
+requires-python = ">= 3.12"
 license = "MIT"
 classifiers=[
   "Development Status :: 4 - Beta",

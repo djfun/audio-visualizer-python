@@ -2,4 +2,4 @@ numpy==2.4.1
 pillow==12.1.0
 PyQt6==6.10.2
 PyQt6-Qt6==6.10.1
-PyQt6_sip==13.10.3
+PyQt6_sip==13.11.0
