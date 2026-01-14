@@ -17,16 +17,16 @@ def test_commandline_help_if_bad_args():
         command.parseArgs()
 
 
-def test_commandline_launches_gui_if_debug():
+def test_commandline_launches_gui_if_verbose():
     command = Command()
-    sys.argv = ["", "--debug"]
+    sys.argv = ["", "--verbose"]
     mode = command.parseArgs()
     assert mode == "GUI"
 
 
-def test_commandline_launches_gui_if_debug_with_project():
+def test_commandline_launches_gui_if_verbose_with_project():
     command = Command()
-    sys.argv = ["", "test", "--debug"]
+    sys.argv = ["", "test", "--verbose"]
     mode = command.parseArgs()
     assert mode == "GUI"
 
