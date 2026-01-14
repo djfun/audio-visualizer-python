@@ -14,7 +14,7 @@ import signal
 import shutil
 import logging
 
-from . import core
+from . import core, __version__
 
 
 log = logging.getLogger("AVP.Commandline")
@@ -48,6 +48,10 @@ class Command(QtCore.QObject):
             '-c 1 video "preset=My Logo" -c 2 vis layout=classic',
         )
 
+        parser.add_argument(
+            "--version", "-V", action="version", version=f"%(prog)s {__version__}"
+        )
+
         # input/output automatic-export commands
         parser.add_argument("-i", "--input", metavar="SOUND", help="input audio file")
         parser.add_argument(
@@ -62,12 +66,12 @@ class Command(QtCore.QObject):
         # mutually exclusive debug options
         debugCommands = parser.add_mutually_exclusive_group()
         debugCommands.add_argument(
-            "--test",
+            "--log",
             action="store_true",
-            help="run tests and create a report full of debugging info",
+            help="copy and shorten recent log files into ~/avp_log.txt",
         )
         debugCommands.add_argument(
-            "--debug",
+            "--verbose", "-v",
             action="store_true",
             help="create bigger logfiles while program is running",
         )
@@ -96,13 +100,13 @@ class Command(QtCore.QObject):
 
         args = parser.parse_args()
 
-        if args.debug:
+        if args.verbose:
             core.FILE_LOGLVL = logging.DEBUG
             core.STDOUT_LOGLVL = logging.DEBUG
             core.Core.makeLogger()
 
-        if args.test:
-            self.runTests()
+        if args.log:
+            self.createLogFile()
             quit(0)
 
         if args.projpath:
@@ -170,8 +174,9 @@ class Command(QtCore.QObject):
         elif (
             args.projpath is None
             and "help" not in sys.argv
-            and "--debug" not in sys.argv
-            and "--test" not in sys.argv
+            and "--verbose" not in sys.argv
+            and "-v" not in sys.argv
+            and "--log" not in sys.argv
         ):
             parser.print_help()
             quit(1)
@@ -256,19 +261,14 @@ class Command(QtCore.QObject):
 
         return None
 
-    def runTests(self):
-        from . import tests
-
-        test_report = os.path.join(core.Core.logDir, "test_report.log")
-        tests.run(test_report)
-
+    def createLogFile(self):
         # Choose a numbered location to put the output file
         logNumber = 0
 
         def getFilename():
             """Get a numbered filename for the final test report"""
             nonlocal logNumber
-            name = os.path.join(os.path.expanduser("~"), "avp_test_report")
+            name = os.path.join(os.path.expanduser("~"), "avp_log")
             while True:
                 possibleName = f"{name}{logNumber:0>2}.txt"
                 if os.path.exists(possibleName) and logNumber < 100:
@@ -305,12 +305,4 @@ class Command(QtCore.QObject):
 
         concatenateLogs("render_*.log")
         concatenateLogs("preview_*.log")
-
-        # Append actual test report to debug log
-        with open(test_report, "r") as f:
-            output = f.readlines()
-        test_output = "".join(output)
-        print(test_output)
-        with open(filename, "a") as f:
-            f.write(test_output)
-        print(f"Test Report created at {filename}")
+        print(f"Log file created at {filename}")
