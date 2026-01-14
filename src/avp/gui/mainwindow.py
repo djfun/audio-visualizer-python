@@ -325,6 +325,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.drawPreview(True)
 
         log.info("Pillow version %s", Image.__version__)
+        log.info("PyQt version %s (Qt version %s)", QtCore.PYQT_VERSION_STR, QtCore.QT_VERSION_STR)
 
         # verify Ffmpeg version
         if not self.core.FFMPEG_BIN:
@@ -341,7 +342,10 @@ class MainWindow(QtWidgets.QMainWindow):
                         ffmpegVers = checkOutput(
                             [self.core.FFMPEG_BIN, "-version"], stderr=f
                         )
-                    goodVersion = str(ffmpegVers).split()[2].startswith("4")
+                    ffmpegVers = str(ffmpegVers).split()[2].split(".", 1)[0]
+                    if ffmpegVers.startswith("n"):
+                        ffmpegVers = ffmpegVers[1:]
+                    goodVersion = int(ffmpegVers) > 3
                 except Exception:
                     goodVersion = False
             else:
