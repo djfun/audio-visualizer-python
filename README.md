@@ -25,8 +25,10 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 - Install system dependencies: `sudo apt install ffmpeg`
 - Make a virtual environment: `python -m venv env`
 - Activate it: `source env/bin/activate`
-- Install program: `pip install pyqt6 pillow numpy .`
-- Run the program with `avp` from terminal
+- Install Python dependencies: `pip install uv`
+- Install this program: `uv sync` in this directory
+- Run the program with `python -m avp` from terminal
+- Optional: Unit tests can be run with `uv run pytest`
 
 ## Installation on Windows
 

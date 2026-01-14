@@ -1,11 +1,11 @@
 import pytest
 import os
 import sys
-from ..core import Core
 
 
 def getTestDataPath(filename):
-    return os.path.join(Core.wd, "tests", "data", filename)
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(tests_dir, "data", filename)
 
 
 def run(logFile):
