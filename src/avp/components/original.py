@@ -140,22 +140,22 @@ class Component(Component):
         return lastSpectrum
 
     def drawBars(self, width, height, spectrum, color, layout):
-        vH = height - height / 8
-        bF = width / 64
-        bH = bF / 2
-        bQ = bF / 4
+        bigYCoord = height - height / 8
+        smallYCoord = height / 1200
+        bigXCoord = width / 64
+        middleXCoord = bigXCoord / 2
+        smallXCoord = bigXCoord / 4
+
         imTop = BlankFrame(width, height)
         draw = ImageDraw.Draw(imTop)
         r, g, b = color
         color2 = (r, g, b, 125)
 
-        bP = height / 1200
-
-        for j in range(0, 63):
-            x0 = bH + j * bF
-            y0 = vH + bQ
-            y1 = vH + bQ - spectrum[j * 4] * bP - bH
-            x1 = bH + j * bF + bF
+        for i in range(0, 63):
+            x0 = middleXCoord + i * bigXCoord
+            y0 = bigYCoord + smallXCoord
+            y1 = bigYCoord + smallXCoord - spectrum[i * 4] * smallYCoord - middleXCoord
+            x1 = middleXCoord + i * bigXCoord + bigXCoord
             draw.rectangle(
                 (
                     x0,
@@ -166,10 +166,10 @@ class Component(Component):
                 fill=color2,
             )
 
-            x0 = bH + bQ + j * bF
-            y0 = vH
-            x1 = bH + bQ + j * bF + bH
-            y1 = vH - spectrum[j * 4] * bP
+            x0 = middleXCoord + smallXCoord + i * bigXCoord
+            y0 = bigYCoord
+            x1 = middleXCoord + smallXCoord + i * bigXCoord + middleXCoord
+            y1 = bigYCoord - spectrum[i * 4] * smallYCoord
             draw.rectangle(
                 (
                     x0,
