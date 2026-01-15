@@ -35,7 +35,8 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
     - On Ubuntu: `sudo apt install pipx`
     - On Arch: `sudo pacman -S python-pipx`
 - Run `pipx ensurepath` then close and reopen the terminal
-- Install this program: `pipx install git+https://github.com/djfun/audio-visualizer-python`
+- Download and install this program: `pipx install git+https://github.com/djfun/audio-visualizer-python`
+    - Or you can [download manually](https://github.com/djfun/audio-visualizer-python/releases/latest) and run `pipx install .` in this directory
 - Run this program with `avp` or `python -m avp` from terminal
 
 ### Using a Python virtual environment
@@ -52,6 +53,7 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 
 - Install Python from the Windows Store
 - Add Python to your system PATH (it should ask during the installation process)
+    - [PATH](<https://en.wikipedia.org/wiki/PATH_(variable)>) is where your computer looks for programs
 - Download this repo (extract from zip if needed)
 - Download and install [FFmpeg](https://www.ffmpeg.org/download.html). Use the GPL-licensed static builds.
 - Add FFmpeg to the system PATH as well (program will then work anywhere)
