@@ -5,6 +5,8 @@ __pycache__
 build/
 dist/
 env/
+.venv/
+.env/
 .vscode/
 *.mkv
 *.mp4
@@ -20,3 +22,5 @@ ffmpeg
 *.bak
 *~
 *.goutput*
+*.kate-swp
+*.code-workspace
