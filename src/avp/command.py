@@ -101,9 +101,8 @@ class Command(QtCore.QObject):
         args = parser.parse_args()
 
         if args.verbose:
-            core.FILE_LOGLVL = logging.DEBUG
             core.STDOUT_LOGLVL = logging.DEBUG
-            core.Core.makeLogger()
+            core.Core.makeLogger(deleteOldLogs=False, fileLogLvl=logging.DEBUG)
 
         if args.log:
             self.createLogFile()

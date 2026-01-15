@@ -15,8 +15,6 @@ from . import toolkit
 
 log = logging.getLogger("AVP.Core")
 STDOUT_LOGLVL = logging.WARNING
-FILE_LIBLOGLVL = logging.WARNING
-FILE_LOGLVL = logging.INFO
 
 
 class Core:
@@ -555,7 +553,7 @@ class Core:
             cls.settings.setValue(key, val)
 
     @staticmethod
-    def makeLogger(deleteOldLogs=False):
+    def makeLogger(deleteOldLogs=False, fileLogLvl=None):
         # send critical log messages to stdout
         logStream = logging.StreamHandler()
         logStream.setLevel(STDOUT_LOGLVL)
@@ -564,7 +562,7 @@ class Core:
         log = logging.getLogger("AVP")
         log.addHandler(logStream)
 
-        if FILE_LOGLVL is not None:
+        if fileLogLvl is not None:
             # write log files as well!
             Core.logEnabled = True
             logFilename = os.path.join(Core.logDir, "avp_debug.log")
@@ -576,9 +574,9 @@ class Core:
                         os.remove(log_)
 
             logFile = logging.FileHandler(logFilename, delay=True)
-            logFile.setLevel(FILE_LOGLVL)
+            logFile.setLevel(fileLogLvl)
             libLogFile = logging.FileHandler(libLogFilename, delay=True)
-            libLogFile.setLevel(FILE_LIBLOGLVL)
+            libLogFile.setLevel(fileLogLvl)
             fileFormatter = logging.Formatter(
                 "[%(asctime)s] %(threadName)-10.10s %(name)-23.23s %(levelname)s: "
                 "%(message)s"
