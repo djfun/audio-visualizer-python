@@ -265,7 +265,7 @@ class Command(QtCore.QObject):
         logNumber = 0
 
         def getFilename():
-            """Get a numbered filename for the final test report"""
+            """Get a numbered filename for the final log file"""
             nonlocal logNumber
             name = os.path.join(os.path.expanduser("~"), "avp_log")
             while True:
@@ -276,10 +276,10 @@ class Command(QtCore.QObject):
                 break
             return possibleName
 
-        # Copy latest debug log to chosen test report location
+        # Copy latest debug log to chosen log file location
         filename = getFilename()
         if logNumber == 100:
-            print("Test Report could not be created.")
+            print("Log file could not be created (too many exist).")
             return
         try:
             shutil.copy(os.path.join(core.Core.logDir, "avp_debug.log"), filename)
