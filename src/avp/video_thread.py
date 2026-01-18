@@ -253,18 +253,16 @@ class Worker(QtCore.QObject):
     @pyqtSlot()
     def createVideo(self):
         """
-        1. Numpy is set to ignore division errors during this method
-        2. Determine length of final video
-        3. Call preFrameRender on each component
-        4. Create the main FFmpeg command
-        5. Open the out_pipe to FFmpeg process
-        6. Iterate over the audio data array and call frameRender on the components to get frames
-        7. Close the out_pipe
-        8. Call postFrameRender on each component
+        1. Determine length of final video
+        2. Call preFrameRender on each component
+        3. Create the main FFmpeg command
+        4. Open the out_pipe to FFmpeg process
+        5. Iterate over the audio data array and call frameRender on the components to get frames
+        6. Close the out_pipe
+        7. Call postFrameRender on each component
         """
         log.debug("Video worker received signal to createVideo")
         log.debug("Video thread id: {}".format(int(QtCore.QThread.currentThreadId())))
-        numpy.seterr(divide="ignore")
         self.encoding.emit(True)
         self.extraAudio = []
         self.width = int(self.settings.value("outputWidth"))

@@ -117,7 +117,9 @@ class Component(Component):
         # filter the noise away
         # y[y<80] = 0
 
-        y = self.scale * numpy.log10(y)
+        with numpy.errstate(divide="ignore"):
+            y = self.scale * numpy.log10(y)
+
         y[numpy.isinf(y)] = 0
 
         if lastSpectrum is not None:
