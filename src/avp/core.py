@@ -71,7 +71,7 @@ class Core:
     def insertComponent(self, compPos, component, loader):
         """
         Creates a new component using these args:
-        (compPos, component obj or moduleIndex, MWindow/Command/Core obj)
+        (compPos, component obj or moduleIndex, MWindow/Command obj)
         """
         if compPos < 0 or compPos > len(self.selectedComponents):
             compPos = len(self.selectedComponents)
