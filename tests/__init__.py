@@ -1,6 +1,5 @@
-import pytest
 import os
-import sys
+from pytest import fixture
 
 
 def getTestDataPath(filename):
@@ -8,20 +7,14 @@ def getTestDataPath(filename):
     return os.path.join(tests_dir, "data", filename)
 
 
-def run(logFile):
-    """Run Pytest, which then imports and runs all tests in this module."""
-    os.environ["PYTEST_QT_API"] = "PyQt6"
-    with open(logFile, "w") as f:
-        # temporarily redirect stdout to a text file so we capture pytest's output
-        sys.stdout = f
-        try:
-            val = pytest.main(
-                [
-                    os.path.dirname(__file__),
-                    "-s",  # disable pytest's internal capturing of stdout etc.
-                ]
-            )
-        finally:
-            sys.stdout = sys.__stdout__
+@fixture
+def audioData():
+    from avp.toolkit.ffmpeg import readAudioFile
 
-        return val
+    soundFile = getTestDataPath("test.ogg")
+    yield readAudioFile(soundFile, None)
+
+
+class mockSignal:
+    def emit(self, *args):
+        pass
