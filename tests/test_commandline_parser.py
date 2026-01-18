@@ -44,3 +44,13 @@ def test_commandline_tries_to_export(qtbot):
     command.createAudioVisualization = captureFunction
     command.parseArgs()
     assert didCallFunction
+
+
+def test_commandline_parses_classic_by_alias(qtbot):
+    command = Command()
+    assert command.parseCompName("original") == "Classic Visualizer"
+
+
+def test_commandline_parses_conway_by_name(qtbot):
+    command = Command()
+    assert command.parseCompName("conway") == "Conway's Game of Life"
