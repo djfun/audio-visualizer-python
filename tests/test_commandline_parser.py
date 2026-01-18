@@ -1,37 +1,38 @@
 import sys
 import pytest
 from avp.command import Command
+from pytestqt import qtbot
 
 
-def test_commandline_help():
+def test_commandline_help(qtbot):
     command = Command()
     sys.argv = ["", "--help"]
     with pytest.raises(SystemExit):
         command.parseArgs()
 
 
-def test_commandline_help_if_bad_args():
+def test_commandline_help_if_bad_args(qtbot):
     command = Command()
     sys.argv = ["", "--junk"]
     with pytest.raises(SystemExit):
         command.parseArgs()
 
 
-def test_commandline_launches_gui_if_verbose():
+def test_commandline_launches_gui_if_verbose(qtbot):
     command = Command()
     sys.argv = ["", "--verbose"]
     mode = command.parseArgs()
     assert mode == "GUI"
 
 
-def test_commandline_launches_gui_if_verbose_with_project():
+def test_commandline_launches_gui_if_verbose_with_project(qtbot):
     command = Command()
     sys.argv = ["", "test", "--verbose"]
     mode = command.parseArgs()
     assert mode == "GUI"
 
 
-def test_commandline_tries_to_export():
+def test_commandline_tries_to_export(qtbot):
     command = Command()
     didCallFunction = False
 
