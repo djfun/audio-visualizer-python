@@ -1,13 +1,19 @@
+from pytest import fixture
 from pytestqt import qtbot
 from avp.gui.mainwindow import MainWindow
 from . import getTestDataPath
 
 
-def test_undo_image_scale(qtbot):
-    """Undo Image component scale setting should undo multiple merged actions."""
+@fixture
+def window(qtbot):
     qtbot.addWidget(window := MainWindow(None, None))
     window.settings.setValue("outputWidth", 1920)
     window.settings.setValue("outputHeight", 1080)
+    yield window
+
+
+def test_undo_image_scale(window, qtbot):
+    """Undo Image component scale setting should undo multiple merged actions."""
     window.core.insertComponent(0, window.core.moduleIndexFor("Image"), window)
     comp = window.core.selectedComponents[0]
     comp.imagePath = getTestDataPath("test.jpg")
@@ -21,10 +27,9 @@ def test_undo_image_scale(qtbot):
     assert comp.scale == 100
 
 
-def test_undo_classic_visualizer_sensitivity(qtbot):
+def test_undo_classic_visualizer_sensitivity(window, qtbot):
     """Undo Classic Visualizer component sensitivity setting
     should undo multiple merged actions."""
-    qtbot.addWidget(window := MainWindow(None, None))
     window.core.insertComponent(
         0, window.core.moduleIndexFor("Classic Visualizer"), window
     )
@@ -35,3 +40,24 @@ def test_undo_classic_visualizer_sensitivity(qtbot):
     assert comp.scale == 99
     window.undoStack.undo()
     assert comp.scale == 20
+
+
+def test_undo_title_text_merged(window, qtbot):
+    """Undoing title text change should undo all recent changes."""
+    window.core.insertComponent(0, window.core.moduleIndexFor("Title Text"), window)
+    comp = window.core.selectedComponents[0]
+    comp.page.lineEdit_title.setText("avp")
+    comp.page.lineEdit_title.setText("test")
+    window.undoStack.undo()
+    assert comp.title == "Text"
+
+
+def test_undo_title_text_not_merged(window, qtbot):
+    """Undoing title text change should undo up to previous different action"""
+    window.core.insertComponent(0, window.core.moduleIndexFor("Title Text"), window)
+    comp = window.core.selectedComponents[0]
+    comp.page.lineEdit_title.setText("avp")
+    comp.page.spinBox_xTextAlign.setValue(0)
+    comp.page.lineEdit_title.setText("test")
+    window.undoStack.undo()
+    assert comp.title == "avp"
