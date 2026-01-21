@@ -6,10 +6,26 @@ from . import getTestDataPath
 
 @fixture
 def window(qtbot):
-    qtbot.addWidget(window := MainWindow(None, None))
+    window = MainWindow(None, None)
+    qtbot.addWidget(window)
     window.settings.setValue("outputWidth", 1920)
     window.settings.setValue("outputHeight", 1080)
     yield window
+
+
+def test_undo_classic_visualizer_sensitivity(window, qtbot):
+    """Undo Classic Visualizer component sensitivity setting
+    should undo multiple merged actions."""
+    window.core.insertComponent(
+        0, window.core.moduleIndexFor("Classic Visualizer"), window
+    )
+    comp = window.core.selectedComponents[0]
+    comp.imagePath = getTestDataPath("test.jpg")
+    for i in range(1, 100):
+        comp.page.spinBox_scale.setValue(i)
+    assert comp.scale == 99
+    window.undoStack.undo()
+    assert comp.scale == 20
 
 
 def test_undo_image_scale(window, qtbot):
@@ -27,19 +43,13 @@ def test_undo_image_scale(window, qtbot):
     assert comp.scale == 100
 
 
-def test_undo_classic_visualizer_sensitivity(window, qtbot):
-    """Undo Classic Visualizer component sensitivity setting
-    should undo multiple merged actions."""
-    window.core.insertComponent(
-        0, window.core.moduleIndexFor("Classic Visualizer"), window
-    )
+def test_undo_image_resizeMode(window, qtbot):
+    window.core.insertComponent(0, window.core.moduleIndexFor("Image"), window)
     comp = window.core.selectedComponents[0]
-    comp.imagePath = getTestDataPath("test.jpg")
-    for i in range(1, 100):
-        comp.page.spinBox_scale.setValue(i)
-    assert comp.scale == 99
+    comp.page.comboBox_resizeMode.setCurrentIndex(1)
+    assert not comp.page.spinBox_scale.isEnabled()
     window.undoStack.undo()
-    assert comp.scale == 20
+    assert comp.page.spinBox_scale.isEnabled()
 
 
 def test_undo_title_text_merged(window, qtbot):

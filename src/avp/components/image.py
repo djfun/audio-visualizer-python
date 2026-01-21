@@ -1,5 +1,5 @@
-from PIL import Image, ImageDraw, ImageEnhance
-from PyQt6 import QtGui, QtCore, QtWidgets
+from PIL import Image, ImageOps, ImageEnhance
+from PyQt6 import QtWidgets
 import os
 
 from ..component import Component
@@ -8,11 +8,15 @@ from ..toolkit.frame import BlankFrame
 
 class Component(Component):
     name = "Image"
-    version = "1.0.1"
+    version = "2.0.0"
 
     def widget(self, *args):
         super().widget(*args)
         self.page.pushButton_image.clicked.connect(self.pickImage)
+        self.page.comboBox_resizeMode.addItem("Scale")
+        self.page.comboBox_resizeMode.addItem("Cover")
+        self.page.comboBox_resizeMode.addItem("Stretch")
+        self.page.comboBox_resizeMode.setCurrentIndex(0)
         self.trackWidgets(
             {
                 "imagePath": self.page.lineEdit_image,
@@ -21,7 +25,7 @@ class Component(Component):
                 "color": self.page.spinBox_color,
                 "xPosition": self.page.spinBox_x,
                 "yPosition": self.page.spinBox_y,
-                "stretched": self.page.checkBox_stretch,
+                "resizeMode": self.page.comboBox_resizeMode,
                 "mirror": self.page.checkBox_mirror,
             },
             presetNames={
@@ -33,10 +37,10 @@ class Component(Component):
         )
 
     def update(self):
-        if self.page.checkBox_stretch.isChecked():
-            self.page.spinBox_scale.setEnabled(False)
-        else:
+        if self.page.comboBox_resizeMode.currentIndex() == 0:
             self.page.spinBox_scale.setEnabled(True)
+        else:
+            self.page.spinBox_scale.setEnabled(False)
 
     def previewRender(self):
         return self.drawFrame(self.width, self.height)
@@ -66,9 +70,11 @@ class Component(Component):
                 image = ImageEnhance.Color(image).enhance(float(self.color / 100))
             if self.mirror:
                 image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-            if self.stretched and image.size != (width, height):
+            if self.resizeMode == 1:  # Cover
+                image = ImageOps.fit(image, (width, height), Image.Resampling.LANCZOS)
+            elif self.resizeMode == 2:  # Stretch
                 image = image.resize((width, height), Image.Resampling.LANCZOS)
-            elif self.scale != 100:
+            elif self.scale != 100:  # Scale
                 newHeight = int((image.height / 100) * self.scale)
                 newWidth = int((image.width / 100) * self.scale)
                 image = image.resize((newWidth, newHeight), Image.Resampling.LANCZOS)
