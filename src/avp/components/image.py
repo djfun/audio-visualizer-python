@@ -32,6 +32,12 @@ class Component(Component):
             relativeWidgets=["xPosition", "yPosition", "scale"],
         )
 
+    def update(self):
+        if self.page.checkBox_stretch.isChecked():
+            self.page.spinBox_scale.setEnabled(False)
+        else:
+            self.page.spinBox_scale.setEnabled(True)
+
     def previewRender(self):
         return self.drawFrame(self.width, self.height)
 
@@ -62,7 +68,7 @@ class Component(Component):
                 image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
             if self.stretched and image.size != (width, height):
                 image = image.resize((width, height), Image.Resampling.LANCZOS)
-            if self.scale != 100:
+            elif self.scale != 100:
                 newHeight = int((image.height / 100) * self.scale)
                 newWidth = int((image.width / 100) * self.scale)
                 image = image.resize((newWidth, newHeight), Image.Resampling.LANCZOS)
