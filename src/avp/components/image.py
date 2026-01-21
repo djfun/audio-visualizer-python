@@ -17,7 +17,6 @@ class Component(Component):
             {
                 "imagePath": self.page.lineEdit_image,
                 "scale": self.page.spinBox_scale,
-                "stretchScale": self.page.spinBox_scale_stretch,
                 "rotate": self.page.spinBox_rotate,
                 "color": self.page.spinBox_color,
                 "xPosition": self.page.spinBox_x,
@@ -54,7 +53,6 @@ class Component(Component):
     def drawFrame(self, width, height):
         frame = BlankFrame(width, height)
         if self.imagePath and os.path.exists(self.imagePath):
-            scale = self.scale if not self.stretched else self.stretchScale
             image = Image.open(self.imagePath)
 
             # Modify image's appearance
@@ -64,9 +62,9 @@ class Component(Component):
                 image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
             if self.stretched and image.size != (width, height):
                 image = image.resize((width, height), Image.Resampling.LANCZOS)
-            if scale != 100:
-                newHeight = int((image.height / 100) * scale)
-                newWidth = int((image.width / 100) * scale)
+            if self.scale != 100:
+                newHeight = int((image.height / 100) * self.scale)
+                newWidth = int((image.width / 100) * self.scale)
                 image = image.resize((newWidth, newHeight), Image.Resampling.LANCZOS)
 
             # Paste image at correct position
@@ -106,24 +104,3 @@ class Component(Component):
 
     def commandHelp(self):
         print("Load an image:\n    path=/filepath/to/image.png")
-
-    def savePreset(self):
-        # Maintain the illusion that the scale spinbox is one widget
-        scaleBox = self.page.spinBox_scale
-        stretchScaleBox = self.page.spinBox_scale_stretch
-        if self.page.checkBox_stretch.isChecked():
-            scaleBox.setValue(stretchScaleBox.value())
-        else:
-            stretchScaleBox.setValue(scaleBox.value())
-        return super().savePreset()
-
-    def update(self):
-        # Maintain the illusion that the scale spinbox is one widget
-        scaleBox = self.page.spinBox_scale
-        stretchScaleBox = self.page.spinBox_scale_stretch
-        if self.page.checkBox_stretch.isChecked():
-            scaleBox.setVisible(False)
-            stretchScaleBox.setVisible(True)
-        else:
-            scaleBox.setVisible(True)
-            stretchScaleBox.setVisible(False)
