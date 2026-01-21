@@ -36,4 +36,4 @@ class MockVideoWorker:
 
 def imageDataSum(image):
     """Get sum of raw data of a Pillow Image object"""
-    return numpy.asarray(image, dtype="int32").sum()
+    return numpy.asarray(image, dtype="int32").sum(dtype="int32")
