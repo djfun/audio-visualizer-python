@@ -72,6 +72,9 @@ class Component(Component):
         if not self.respondToAudio:
             return
 
+        # Trigger creation of new base image
+        self.existingImage = None
+
         smoothConstantDown = 0.08 + 0
         smoothConstantUp = 0.8 - 0
         self.lastSpectrum = None
@@ -112,7 +115,7 @@ class Component(Component):
     def drawFrame(self, width, height, dynamicScale):
         frame = BlankFrame(width, height)
         if self.imagePath and os.path.exists(self.imagePath):
-            if self.existingImage:
+            if dynamicScale is not None and self.existingImage:
                 image = self.existingImage
             else:
                 image = Image.open(self.imagePath)
