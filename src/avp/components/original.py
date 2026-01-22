@@ -57,8 +57,8 @@ class Component(Component):
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
-        self.smoothConstantDown = 0.08 + 0 if not self.smooth else self.smooth / 15
-        self.smoothConstantUp = 0.8 - 0 if not self.smooth else self.smooth / 15
+        smoothConstantDown = 0.08 if not self.smooth else self.smooth / 15
+        smoothConstantUp = 0.8 if not self.smooth else self.smooth / 15
         self.lastSpectrum = None
         self.spectrumArray = {}
 
@@ -69,9 +69,10 @@ class Component(Component):
                 i,
                 self.completeAudioArray,
                 self.sampleSize,
-                self.smoothConstantDown,
-                self.smoothConstantUp,
+                smoothConstantDown,
+                smoothConstantUp,
                 self.lastSpectrum,
+                self.scale,
             )
             self.spectrumArray[i] = copy(self.lastSpectrum)
 
@@ -92,14 +93,15 @@ class Component(Component):
             self.layout,
         )
 
+    @staticmethod
     def transformData(
-        self,
         i,
         completeAudioArray,
         sampleSize,
         smoothConstantDown,
         smoothConstantUp,
         lastSpectrum,
+        scale,
     ):
         if len(completeAudioArray) < (i + sampleSize):
             sampleSize = len(completeAudioArray) - i
@@ -118,7 +120,7 @@ class Component(Component):
         # y[y<80] = 0
 
         with numpy.errstate(divide="ignore"):
-            y = self.scale * numpy.log10(y)
+            y = scale * numpy.log10(y)
 
         y[numpy.isinf(y)] = 0
 

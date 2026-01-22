@@ -33,12 +33,18 @@ def test_comp_classic_drawBars(coreWithClassicComp, audioData):
 
     spectrumArray = {
         0: coreWithClassicComp.selectedComponents[0].transformData(
-            0, audioData[0], sampleSize, 0.08, 0.8, None
+            0, audioData[0], sampleSize, 0.08, 0.8, None, 20
         )
     }
     for i in range(sampleSize, len(audioData[0]), sampleSize):
         spectrumArray[i] = coreWithClassicComp.selectedComponents[0].transformData(
-            i, audioData[0], sampleSize, 0.08, 0.8, spectrumArray[i - sampleSize].copy()
+            i,
+            audioData[0],
+            sampleSize,
+            0.08,
+            0.8,
+            spectrumArray[i - sampleSize].copy(),
+            20,
         )
     image = coreWithClassicComp.selectedComponents[0].drawBars(
         1920, 1080, spectrumArray[sampleSize * 4], (0, 0, 0), 0
