@@ -5,21 +5,21 @@ build-backend = "uv_build"
 [project]
 name = "audio-visualizer-python"
 description = "Create audio visualization videos from a GUI or commandline"
-version = "2.1.2"
+readme = "README.md"
+version = "2.2.0"
 requires-python = ">= 3.12"
 license = "MIT"
 classifiers=[
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3 :: Only",
   "Intended Audience :: End Users/Desktop",
-  "Topic :: Multimedia :: Video :: Non-Linear Editor",
+  "Topic :: Multimedia :: Video",
 ]
 keywords = [
   "visualizer",
   "visualization",
-  "commandline video",
-  "video editor",
+  "fft",
   "ffmpeg",
   "podcast",
 ]
@@ -30,10 +30,13 @@ authors = [
   {name = "HunterwolfAT", email = "hunterwolf0815@gmail.com"},
   {name = "rikai"},
 ]
+maintainers = [
+  {name = "Brianna Rainey", email = "brianna@tassaron.com"},
+]
 dependencies = [
-    "numpy>=2.4.1",
-    "pillow>=12.1.0",
-    "pyqt6>=6.10.2",
+  "numpy>=2.4.1",
+  "pillow>=12.1.0",
+  "pyqt6>=6.10.2",
 ]
 
 [dependency-groups]

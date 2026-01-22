@@ -8,7 +8,7 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 
 ## Screenshots & Videos
 
-[<img title="AVP running on Windows" alt="Screenshot of program on Windows" src="screenshot.png" width="707">](/screenshot.png?raw=true)
+[![Screenshot of AVP running on Windows](/screenshot.png?raw=true)](https://tassaron.com/img/avp/screenshot-v2.0.0.png)
 
 ### A video created by this app
 
@@ -35,30 +35,27 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
     - On Ubuntu: `sudo apt install pipx`
     - On Arch: `sudo pacman -S python-pipx`
 - Run `pipx ensurepath` then close and reopen the terminal
-- Download and install this program: `pipx install git+https://github.com/djfun/audio-visualizer-python`
-    - Or you can [download manually](https://github.com/djfun/audio-visualizer-python/releases/latest) and run `pipx install .` in this directory
+- Install latest stable version: `pipx install audio-visualizer-python`
 - Run this program with `avp` or `python -m avp` from terminal
 
 ### Using a Python virtual environment
 
 - **This is a good method if you want to edit the code**
-- Make a virtual environment: `python -m venv env`
-- Activate it: `source env/bin/activate`
+- Make a virtual environment: `python -m venv .venv`
+- Activate it: `source .venv/bin/activate`
 - Install uv: `pip install uv`
-- Install this program by running `uv sync` in this directory
-- Run program with `avp` or `python -m avp` or `uv run avp`
-- Optional: Tests can be run with `uv run pytest`
+- Install this program: `uv sync` in this directory
+- Run program with `avp` or `python -m avp`
 
 ## Installation on Windows
 
 - Install Python from the Windows Store
 - Add Python to your system PATH (it should ask during the installation process)
     - [PATH](<https://en.wikipedia.org/wiki/PATH_(variable)>) is where your computer looks for programs
-- Download this repo (extract from zip if needed)
 - Download and install [FFmpeg](https://www.ffmpeg.org/download.html). Use the GPL-licensed static builds.
 - Add FFmpeg to the system PATH as well (program will then work anywhere)
     - Alternatively, copy ffmpeg.exe into the folder that you want to run the program within
-- Open command prompt, `cd` into the repo directory, and run: `pip install .`
+- Open command prompt and run `pip install audio-visualizer-python`
 - Now run `avp` or `python -m avp` from a command prompt window to start the app
 
 ## Installation on macOS
@@ -87,11 +84,11 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 | Ctrl+Shift+U             | Open Undo History                             |
 | Ctrl+Shift+F             | Show FFmpeg Command                           |
 
-## Using commandline interface
+## Using Commandline Interface
 
 Projects can be created with the GUI then loaded from the commandline for easy automation of video production. Some components have commandline options for extra customization, and you can save "presets" with settings to load if the commandline option doesn't exist.
 
-### Example command
+### Example Command
 
 - Create a video with a grey "classic visualizer", background image, and text:
     - `avp -c 0 image path=src/tests/data/test.jpg -c 1 classic color=180,180,180 -c 2 text "title=Episode 371" -i src/tests/data/test.ogg -o output.mp4`
@@ -106,6 +103,15 @@ Projects can be created with the GUI then loaded from the commandline for easy a
 - PyQt6 6.10.2
 - Pillow 12.1.0
 - NumPy 2.4.1
+
+### Running Automatic Tests
+Run unit and integration tests with `pytest`.
+  * First you will need to install with `pip install pytest pytest-qt`
+  * You may omit the slowest test with `pytest -k "not commandline_export"`
+
+### Installing from TestPyPI
+Because some dependencies (namely numpy) are not always on TestPyPI, you must specify when installing that these dependencies should come from the real PyPI.
+* `pip install -i https://test.pypi.org/simple/ audio-visualizer-python==x.x.x --extra-index-url https://pypi.org/simple numpy`
 
 ### Getting Faster Export Times
 
