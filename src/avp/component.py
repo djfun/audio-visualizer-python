@@ -910,11 +910,12 @@ class ComponentUpdate(QUndoCommand):
 
         # Determine if this update is mergeable
         self.id_ = -1
-        if len(self.modifiedVals) == 1 and self.parent.mergeUndo:
-            attr, val = self.modifiedVals.popitem()
-            self.id_ = sum([ord(letter) for letter in attr[-14:]])
-            self.modifiedVals[attr] = val
-        else:
+        if self.parent.mergeUndo:
+            if len(self.modifiedVals) == 1:
+                attr, val = self.modifiedVals.popitem()
+                self.id_ = sum([ord(letter) for letter in attr[-14:]])
+                self.modifiedVals[attr] = val
+                return
             log.warning(
                 "%s component settings changed at once. (%s)",
                 len(self.modifiedVals),

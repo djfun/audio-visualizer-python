@@ -1,27 +1,39 @@
-import pytest
 import os
-import sys
+import numpy
+
+# core always has to be imported first
+import avp.core
+from avp.toolkit.ffmpeg import readAudioFile
+from pytest import fixture
+
+
+@fixture
+def audioData():
+    """Fixture that gives a tuple of (completeAudioArray, duration)"""
+    soundFile = getTestDataPath("test.ogg")
+    yield readAudioFile(soundFile, MockVideoWorker())
 
 
 def getTestDataPath(filename):
+    """Get path to a file in the ./data directory"""
     tests_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(tests_dir, "data", filename)
 
 
-def run(logFile):
-    """Run Pytest, which then imports and runs all tests in this module."""
-    os.environ["PYTEST_QT_API"] = "PyQt6"
-    with open(logFile, "w") as f:
-        # temporarily redirect stdout to a text file so we capture pytest's output
-        sys.stdout = f
-        try:
-            val = pytest.main(
-                [
-                    os.path.dirname(__file__),
-                    "-s",  # disable pytest's internal capturing of stdout etc.
-                ]
-            )
-        finally:
-            sys.stdout = sys.__stdout__
+class MockSignal:
+    """Pretends to be a pyqtSignal"""
 
-        return val
+    def emit(self, *args):
+        pass
+
+
+class MockVideoWorker:
+    """Pretends to be a video thread worker"""
+
+    progressBarSetText = MockSignal()
+    progressBarUpdate = MockSignal()
+
+
+def imageDataSum(image):
+    """Get sum of raw data of a Pillow Image object"""
+    return numpy.asarray(image, dtype="int32").sum(dtype="int32")

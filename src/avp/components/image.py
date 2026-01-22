@@ -1,29 +1,40 @@
-from PIL import Image, ImageDraw, ImageEnhance
-from PyQt6 import QtGui, QtCore, QtWidgets
+from PIL import Image, ImageOps, ImageEnhance
+from PyQt6 import QtWidgets
 import os
+from copy import copy
 
 from ..component import Component
 from ..toolkit.frame import BlankFrame
+from .original import Component as Visualizer
 
 
 class Component(Component):
     name = "Image"
-    version = "1.0.1"
+    version = "2.0.0"
 
     def widget(self, *args):
         super().widget(*args)
+
+        # cache a modified image object in case we are rendering beyond frame 1
+        self.existingImage = None
+
         self.page.pushButton_image.clicked.connect(self.pickImage)
+        self.page.comboBox_resizeMode.addItem("Scale")
+        self.page.comboBox_resizeMode.addItem("Cover")
+        self.page.comboBox_resizeMode.addItem("Stretch")
+        self.page.comboBox_resizeMode.setCurrentIndex(0)
         self.trackWidgets(
             {
                 "imagePath": self.page.lineEdit_image,
                 "scale": self.page.spinBox_scale,
-                "stretchScale": self.page.spinBox_scale_stretch,
                 "rotate": self.page.spinBox_rotate,
                 "color": self.page.spinBox_color,
                 "xPosition": self.page.spinBox_x,
                 "yPosition": self.page.spinBox_y,
-                "stretched": self.page.checkBox_stretch,
+                "resizeMode": self.page.comboBox_resizeMode,
                 "mirror": self.page.checkBox_mirror,
+                "respondToAudio": self.page.checkBox_respondToAudio,
+                "sensitivity": self.page.spinBox_sensitivity,
             },
             presetNames={
                 "imagePath": "image",
@@ -33,11 +44,19 @@ class Component(Component):
             relativeWidgets=["xPosition", "yPosition", "scale"],
         )
 
+    def update(self):
+        self.page.spinBox_sensitivity.setEnabled(
+            self.page.checkBox_respondToAudio.isChecked()
+        )
+        self.page.spinBox_scale.setEnabled(
+            self.page.comboBox_resizeMode.currentIndex() == 0
+        )
+
     def previewRender(self):
-        return self.drawFrame(self.width, self.height)
+        return self.drawFrame(self.width, self.height, None)
 
     def properties(self):
-        props = ["static"]
+        props = ["pcm" if self.respondToAudio else "static"]
         if not os.path.exists(self.imagePath):
             props.append("error")
         return props
@@ -48,33 +67,105 @@ class Component(Component):
         if not os.path.exists(self.imagePath):
             return "The image selected does not exist!"
 
-    def frameRender(self, frameNo):
-        return self.drawFrame(self.width, self.height)
+    def preFrameRender(self, **kwargs):
+        super().preFrameRender(**kwargs)
+        if not self.respondToAudio:
+            return
 
-    def drawFrame(self, width, height):
+        # Trigger creation of new base image
+        self.existingImage = None
+
+        smoothConstantDown = 0.08 + 0
+        smoothConstantUp = 0.8 - 0
+        self.lastSpectrum = None
+        self.spectrumArray = {}
+
+        for i in range(0, len(self.completeAudioArray), self.sampleSize):
+            if self.canceled:
+                break
+            self.lastSpectrum = Visualizer.transformData(
+                i,
+                self.completeAudioArray,
+                self.sampleSize,
+                smoothConstantDown,
+                smoothConstantUp,
+                self.lastSpectrum,
+                self.sensitivity,
+            )
+            self.spectrumArray[i] = copy(self.lastSpectrum)
+
+            progress = int(100 * (i / len(self.completeAudioArray)))
+            if progress >= 100:
+                progress = 100
+            pStr = "Analyzing audio: " + str(progress) + "%"
+            self.progressBarSetText.emit(pStr)
+            self.progressBarUpdate.emit(int(progress))
+
+    def frameRender(self, frameNo):
+        return self.drawFrame(
+            self.width,
+            self.height,
+            (
+                None
+                if not self.respondToAudio
+                else self.spectrumArray[frameNo * self.sampleSize]
+            ),
+        )
+
+    def drawFrame(self, width, height, dynamicScale):
         frame = BlankFrame(width, height)
         if self.imagePath and os.path.exists(self.imagePath):
-            scale = self.scale if not self.stretched else self.stretchScale
-            image = Image.open(self.imagePath)
+            if dynamicScale is not None and self.existingImage:
+                image = self.existingImage
+            else:
+                image = Image.open(self.imagePath)
+                # Modify static image appearance
+                if self.color != 100:
+                    image = ImageEnhance.Color(image).enhance(float(self.color / 100))
+                if self.mirror:
+                    image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                if self.resizeMode == 1:  # Cover
+                    image = ImageOps.fit(
+                        image, (width, height), Image.Resampling.LANCZOS
+                    )
+                elif self.resizeMode == 2:  # Stretch
+                    image = image.resize((width, height), Image.Resampling.LANCZOS)
+                elif self.scale != 100:  # Scale
+                    newHeight = int((image.height / 100) * self.scale)
+                    newWidth = int((image.width / 100) * self.scale)
+                    image = image.resize(
+                        (newWidth, newHeight), Image.Resampling.LANCZOS
+                    )
+                self.existingImage = image
 
-            # Modify image's appearance
-            if self.color != 100:
-                image = ImageEnhance.Color(image).enhance(float(self.color / 100))
-            if self.mirror:
-                image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-            if self.stretched and image.size != (width, height):
-                image = image.resize((width, height), Image.Resampling.LANCZOS)
-            if scale != 100:
-                newHeight = int((image.height / 100) * scale)
-                newWidth = int((image.width / 100) * scale)
-                image = image.resize((newWidth, newHeight), Image.Resampling.LANCZOS)
+            # Respond to audio
+            scale = 0
+            if dynamicScale is not None:
+                scale = dynamicScale[36 * 4] / 4
+                image = ImageOps.contain(
+                    image,
+                    (
+                        image.width + int(scale / 2),
+                        image.height + int(scale / 2),
+                    ),
+                    Image.Resampling.LANCZOS,
+                )
 
             # Paste image at correct position
-            frame.paste(image, box=(self.xPosition, self.yPosition))
+            frame.paste(
+                image,
+                box=(
+                    self.xPosition - (0 if not self.respondToAudio else int(scale / 2)),
+                    self.yPosition - (0 if not self.respondToAudio else int(scale / 2)),
+                ),
+            )
             if self.rotate != 0:
                 frame = frame.rotate(self.rotate)
 
         return frame
+
+    def postFrameRender(self):
+        self.existingImage = None
 
     def pickImage(self):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
@@ -106,24 +197,3 @@ class Component(Component):
 
     def commandHelp(self):
         print("Load an image:\n    path=/filepath/to/image.png")
-
-    def savePreset(self):
-        # Maintain the illusion that the scale spinbox is one widget
-        scaleBox = self.page.spinBox_scale
-        stretchScaleBox = self.page.spinBox_scale_stretch
-        if self.page.checkBox_stretch.isChecked():
-            scaleBox.setValue(stretchScaleBox.value())
-        else:
-            stretchScaleBox.setValue(scaleBox.value())
-        return super().savePreset()
-
-    def update(self):
-        # Maintain the illusion that the scale spinbox is one widget
-        scaleBox = self.page.spinBox_scale
-        stretchScaleBox = self.page.spinBox_scale_stretch
-        if self.page.checkBox_stretch.isChecked():
-            scaleBox.setVisible(False)
-            stretchScaleBox.setVisible(True)
-        else:
-            scaleBox.setVisible(True)
-            stretchScaleBox.setVisible(False)
