@@ -15,6 +15,9 @@ class Component(Component):
     def widget(self, *args):
         super().widget(*args)
 
+        # cache a modified image object in case we are rendering beyond frame 1
+        self.existingImage = None
+
         self.page.pushButton_image.clicked.connect(self.pickImage)
         self.page.comboBox_resizeMode.addItem("Scale")
         self.page.comboBox_resizeMode.addItem("Cover")
@@ -109,21 +112,28 @@ class Component(Component):
     def drawFrame(self, width, height, dynamicScale):
         frame = BlankFrame(width, height)
         if self.imagePath and os.path.exists(self.imagePath):
-            image = Image.open(self.imagePath)
-
-            # Modify image's appearance
-            if self.color != 100:
-                image = ImageEnhance.Color(image).enhance(float(self.color / 100))
-            if self.mirror:
-                image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-            if self.resizeMode == 1:  # Cover
-                image = ImageOps.fit(image, (width, height), Image.Resampling.LANCZOS)
-            elif self.resizeMode == 2:  # Stretch
-                image = image.resize((width, height), Image.Resampling.LANCZOS)
-            elif self.scale != 100:  # Scale
-                newHeight = int((image.height / 100) * self.scale)
-                newWidth = int((image.width / 100) * self.scale)
-                image = image.resize((newWidth, newHeight), Image.Resampling.LANCZOS)
+            if self.existingImage:
+                image = self.existingImage
+            else:
+                image = Image.open(self.imagePath)
+                # Modify static image appearance
+                if self.color != 100:
+                    image = ImageEnhance.Color(image).enhance(float(self.color / 100))
+                if self.mirror:
+                    image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                if self.resizeMode == 1:  # Cover
+                    image = ImageOps.fit(
+                        image, (width, height), Image.Resampling.LANCZOS
+                    )
+                elif self.resizeMode == 2:  # Stretch
+                    image = image.resize((width, height), Image.Resampling.LANCZOS)
+                elif self.scale != 100:  # Scale
+                    newHeight = int((image.height / 100) * self.scale)
+                    newWidth = int((image.width / 100) * self.scale)
+                    image = image.resize(
+                        (newWidth, newHeight), Image.Resampling.LANCZOS
+                    )
+                self.existingImage = image
 
             # Respond to audio
             scale = 0
@@ -150,6 +160,9 @@ class Component(Component):
                 frame = frame.rotate(self.rotate)
 
         return frame
+
+    def postFrameRender(self):
+        self.existingImage = None
 
     def pickImage(self):
         imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
