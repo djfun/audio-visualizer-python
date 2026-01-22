@@ -1,13 +1,15 @@
-from PyQt6 import QtGui, QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QUndoCommand
-from PIL import Image, ImageDraw, ImageEnhance, ImageChops, ImageFilter
+from PIL import Image, ImageDraw, ImageEnhance, ImageChops, ImageFilter, ImageOps
 import os
+from copy import copy
 import math
 import logging
 
 
 from ..component import Component
 from ..toolkit.frame import BlankFrame, scale
+from .original import Component as Visualizer
 
 
 log = logging.getLogger("AVP.Component.Life")
@@ -15,7 +17,7 @@ log = logging.getLogger("AVP.Component.Life")
 
 class Component(Component):
     name = "Conway's Game of Life"
-    version = "1.0.0"
+    version = "2.0.0"
 
     def widget(self, *args):
         super().widget(*args)
@@ -62,6 +64,8 @@ class Component(Component):
                 "customImg": self.page.checkBox_customImg,
                 "showGrid": self.page.checkBox_showGrid,
                 "image": self.page.lineEdit_image,
+                "kaleidoscope": self.page.checkBox_kaleidoscope,
+                "sensitivity": self.page.spinBox_sensitivity,
             },
             colorWidgets={
                 "color": self.page.pushButton_color,
@@ -106,6 +110,8 @@ class Component(Component):
 
     def update(self):
         self.updateGridSize()
+
+        # Hide/show widgets depending on state of "custom image" checkbox
         if self.page.checkBox_customImg.isChecked():
             self.page.label_color.setVisible(False)
             self.page.lineEdit_color.setVisible(False)
@@ -124,6 +130,17 @@ class Component(Component):
             self.page.label_image.setVisible(False)
             self.page.lineEdit_image.setVisible(False)
             self.page.pushButton_pickImage.setVisible(False)
+
+        # Disable audio sensitivity spinbox if not relevant
+        if (
+            self.page.comboBox_shapeType.currentIndex() < 4
+            or self.page.checkBox_customImg.isChecked()
+        ):
+            self.page.spinBox_sensitivity.setEnabled(True)
+        else:
+            self.page.spinBox_sensitivity.setEnabled(False)
+
+        # Disable arrow buttons to shift the grid if the grid is empty
         enabled = len(self.startingGrid) > 0
         for widget in self.shiftButtons:
             widget.setEnabled(enabled)
@@ -144,16 +161,48 @@ class Component(Component):
         self.pxHeight = math.ceil(self.height / self.gridHeight)
 
     def previewRender(self):
-        return self.drawGrid(self.startingGrid)
+        image = self.drawGrid(self.startingGrid, self.color)
+        image = self.addKaleidoscopeEffect(image)
+        image = self.addShadow(image)
+        image = self.addGridLines(image)
+        return image
 
     def preFrameRender(self, *args, **kwargs):
         super().preFrameRender(*args, **kwargs)
         self.tickGrids = {0: self.startingGrid}
 
+        smoothConstantDown = 0.08 + 0
+        smoothConstantUp = 0.8 - 0
+        self.lastSpectrum = None
+        self.spectrumArray = {}
+        if self.sensitivity == 0:
+            return
+
+        for i in range(0, len(self.completeAudioArray), self.sampleSize):
+            if self.canceled:
+                break
+            self.lastSpectrum = Visualizer.transformData(
+                i,
+                self.completeAudioArray,
+                self.sampleSize,
+                smoothConstantDown,
+                smoothConstantUp,
+                self.lastSpectrum,
+                self.sensitivity,
+            )
+            self.spectrumArray[i] = copy(self.lastSpectrum)
+
+            progress = int(100 * (i / len(self.completeAudioArray)))
+            if progress >= 100:
+                progress = 100
+            pStr = "Analyzing audio: " + str(progress) + "%"
+            self.progressBarSetText.emit(pStr)
+            self.progressBarUpdate.emit(int(progress))
+
     def properties(self):
         if self.customImg and (not self.image or not os.path.exists(self.image)):
             return ["error"]
-        return []
+        return ["pcm"] if self.sensitivity > 0 else []
 
     def error(self):
         return "No image selected to represent life."
@@ -169,65 +218,181 @@ class Component(Component):
         # Delete old evolution data which we shouldn't need anymore
         if tick - 60 in self.tickGrids:
             del self.tickGrids[tick - 60]
-        return self.drawGrid(grid)
 
-    def drawGrid(self, grid):
+        # Fade difference between previous and current grid
+        previousGrid = self.tickGrids.get(tick - 1, set())
+        newColor = self.color
+        if not self.customImg:
+            r, g, b = self.color
+            decay = 255 / self.tickRate
+            decayAmount = int(decay * (frameNo % self.tickRate))
+            decayColor = (
+                r,
+                g,
+                b,
+                255 - decayAmount,
+            )
+            newColor = (r, g, b, min(255, decayAmount * 2))
+            previousGridImage = self.drawGrid(
+                previousGrid,
+                decayColor,
+                (
+                    None
+                    if (not self.customImg and self.shapeType > 3)
+                    or self.sensitivity < 1
+                    else self.spectrumArray[frameNo * self.sampleSize]
+                ),
+            )
+        image = self.drawGrid(
+            grid,
+            newColor,
+            (
+                None
+                if (not self.customImg and self.shapeType > 3) or self.sensitivity < 1
+                else self.spectrumArray[frameNo * self.sampleSize]
+            ),
+            grid.intersection(previousGrid),
+        )
+        if not self.customImg:
+            image = Image.alpha_composite(previousGridImage, image)
+        image = self.addKaleidoscopeEffect(image)
+        image = self.addShadow(image)
+        image = self.addGridLines(image)
+        return image
+
+    def addShadow(self, frame):
+        if not self.shadow:
+            return frame
+
+        shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
+        shadImg = shadImg.filter(ImageFilter.GaussianBlur(5.00))
+        shadImg = ImageChops.offset(shadImg, -2, 2)
+        shadImg.paste(frame, box=(0, 0), mask=frame)
+        frame = shadImg
+        return frame
+
+    def addGridLines(self, frame):
+        if not self.showGrid:
+            return frame
+
+        drawer = ImageDraw.Draw(frame)
+        w, h = scale(0.05, self.width, self.height, int)
+        for x in range(self.pxWidth, self.width, self.pxWidth):
+            drawer.rectangle(
+                ((x, 0), (x + w, self.height)),
+                fill=self.color,
+            )
+        for y in range(self.pxHeight, self.height, self.pxHeight):
+            drawer.rectangle(
+                ((0, y), (self.width, y + h)),
+                fill=self.color,
+            )
+        return frame
+
+    def addKaleidoscopeEffect(self, frame):
+        if not self.kaleidoscope:
+            return frame
+
+        flippedImage = frame.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+        frame.paste(flippedImage, (0, 0), mask=flippedImage)
+
+        flippedImage = frame.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        frame.paste(flippedImage, (0, 0), mask=flippedImage)
+
+        flippedImage = frame.transpose(Image.Transpose.ROTATE_90)
+        frame.paste(flippedImage, (0, 0), mask=flippedImage)
+
+        flippedImage = frame.transpose(Image.Transpose.ROTATE_270)
+        frame.paste(flippedImage, (0, 0), mask=flippedImage)
+        return frame
+
+    def drawGrid(self, grid, color, spectrumData=None, didntChange=None):
         frame = BlankFrame(self.width, self.height)
+        if didntChange is None:
+            # this set would contain cell coords that did not change
+            # between the previous grid tick and this one
+            didntChange = set()
 
         def drawCustomImg():
             try:
                 img = Image.open(self.image)
             except Exception:
                 return
-            img = img.resize((self.pxWidth, self.pxHeight), Image.Resampling.LANCZOS)
-            frame.paste(img, box=(drawPtX, drawPtY))
+            img = img.resize(
+                (
+                    (self.pxWidth + audioMorphWidth),
+                    (self.pxHeight + audioMorphHeight),
+                ),
+                Image.Resampling.LANCZOS,
+            )
+            frame.paste(
+                img,
+                box=(
+                    (drawPtX - (audioMorphWidth * 2)),
+                    (drawPtY - (audioMorphHeight * 2)),
+                ),
+            )
 
-        def drawShape():
+        def drawShape(x, y):
             drawer = ImageDraw.Draw(frame)
             rect = (
-                (drawPtX, drawPtY),
-                (drawPtX + self.pxWidth, drawPtY + self.pxHeight),
+                (drawPtX - audioMorphWidth, drawPtY - audioMorphHeight),
+                (
+                    drawPtX + self.pxWidth + audioMorphWidth,
+                    drawPtY + self.pxHeight + audioMorphHeight,
+                ),
             )
             shape = self.page.comboBox_shapeType.currentText().lower()
+            thisCellColor = color if (x, y) not in didntChange else (*color[:3], 255)
 
             # Rectangle
             if shape == "rectangle":
-                drawer.rectangle(rect, fill=self.color)
+                drawer.rectangle(rect, fill=thisCellColor)
 
             # Elliptical
             elif shape == "elliptical":
-                drawer.ellipse(rect, fill=self.color)
+                drawer.ellipse(rect, fill=thisCellColor)
 
             tenthX, tenthY = scale(10, self.pxWidth, self.pxHeight, int)
             smallerShape = (
                 (
-                    drawPtX + tenthX + int(tenthX / 4),
-                    drawPtY + tenthY + int(tenthY / 2),
+                    drawPtX + tenthX + int(tenthX / 4) - int(audioMorphWidth / 2),
+                    drawPtY + tenthY + int(tenthY / 2) - int(audioMorphHeight / 2),
                 ),
                 (
-                    drawPtX + self.pxWidth - tenthX - int(tenthX / 4),
-                    drawPtY + self.pxHeight - (tenthY + int(tenthY / 2)),
+                    drawPtX
+                    + self.pxWidth
+                    - tenthX
+                    - int(tenthX / 4)
+                    + int(audioMorphWidth / 2),
+                    drawPtY
+                    + self.pxHeight
+                    - (tenthY + int(tenthY / 2))
+                    + int(audioMorphHeight / 2),
                 ),
             )
             outlineShape = (
-                (drawPtX + int(tenthX / 4), drawPtY + int(tenthY / 2)),
                 (
-                    drawPtX + self.pxWidth - int(tenthX / 4),
-                    drawPtY + self.pxHeight - int(tenthY / 2),
+                    drawPtX + int(tenthX / 4) - audioMorphWidth,
+                    drawPtY + int(tenthY / 2) - audioMorphHeight,
+                ),
+                (
+                    drawPtX + self.pxWidth - int(tenthX / 4) + audioMorphWidth,
+                    drawPtY + self.pxHeight - int(tenthY / 2) + audioMorphHeight,
                 ),
             )
             # Circle
             if shape == "circle":
-                drawer.ellipse(outlineShape, fill=self.color)
+                drawer.ellipse(outlineShape, fill=thisCellColor)
                 drawer.ellipse(smallerShape, fill=(0, 0, 0, 0))
 
             # Lilypad
             elif shape == "lilypad":
-                drawer.pieslice(smallerShape, 290, 250, fill=self.color)
+                drawer.pieslice(smallerShape, 290, 250, fill=thisCellColor)
 
             # Pie
             elif shape == "pie":
-                drawer.pieslice(outlineShape, 35, 320, fill=self.color)
+                drawer.pieslice(outlineShape, 35, 320, fill=thisCellColor)
 
             hX, hY = scale(50, self.pxWidth, self.pxHeight, int)  # halfline
             tX, tY = scale(33, self.pxWidth, self.pxHeight, int)  # thirdline
@@ -235,7 +400,7 @@ class Component(Component):
 
             # Path
             if shape == "path":
-                drawer.ellipse(rect, fill=self.color)
+                drawer.ellipse(rect, fill=thisCellColor)
                 rects = {
                     direction: False
                     for direction in (
@@ -287,7 +452,7 @@ class Component(Component):
                                     drawPtY + self.pxHeight,
                                 ),
                             )
-                        drawer.rectangle(sect, fill=self.color)
+                        drawer.rectangle(sect, fill=thisCellColor)
 
             # Duck
             elif shape == "duck":
@@ -304,10 +469,10 @@ class Component(Component):
                     (drawPtX + int(qX / 4), drawPtY + int(qY * 3)),
                     (drawPtX + int(tX * 2), drawPtY + self.pxHeight),
                 )
-                drawer.ellipse(duckBody, fill=self.color)
-                drawer.ellipse(duckHead, fill=self.color)
-                drawer.pieslice(duckWing, 130, 200, fill=self.color)
-                drawer.pieslice(duckBeak, 145, 200, fill=self.color)
+                drawer.ellipse(duckBody, fill=thisCellColor)
+                drawer.ellipse(duckHead, fill=thisCellColor)
+                drawer.pieslice(duckWing, 130, 200, fill=thisCellColor)
+                drawer.pieslice(duckBeak, 145, 200, fill=thisCellColor)
 
             # Peace
             elif shape == "peace":
@@ -321,9 +486,9 @@ class Component(Component):
                         drawPtY + self.pxHeight - int(tenthY / 2),
                     ),
                 )
-                drawer.ellipse(outlineShape, fill=self.color)
+                drawer.ellipse(outlineShape, fill=thisCellColor)
                 drawer.ellipse(smallerShape, fill=(0, 0, 0, 0))
-                drawer.rectangle(line, fill=self.color)
+                drawer.rectangle(line, fill=thisCellColor)
 
                 def slantLine(difference):
                     return (
@@ -334,8 +499,10 @@ class Component(Component):
                         (drawPtY + hY),
                     )
 
-                drawer.line(slantLine(qX), fill=self.color, width=tenthX)
-                drawer.line(slantLine(self.pxWidth - qX), fill=self.color, width=tenthX)
+                drawer.line(slantLine(qX), fill=thisCellColor, width=tenthX)
+                drawer.line(
+                    slantLine(self.pxWidth - qX), fill=thisCellColor, width=tenthX
+                )
 
         for x, y in grid:
             drawPtX = x * self.pxWidth
@@ -345,30 +512,16 @@ class Component(Component):
             if drawPtY > self.height:
                 continue
 
+            audioMorphWidth = (
+                0 if spectrumData is None else int(spectrumData[(drawPtX % 63) * 4] / 4)
+            )
+            audioMorphHeight = (
+                0 if spectrumData is None else int(spectrumData[(drawPtY % 63) * 4] / 4)
+            )
             if self.customImg:
                 drawCustomImg()
             else:
-                drawShape()
-
-        if self.shadow:
-            shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
-            shadImg = shadImg.filter(ImageFilter.GaussianBlur(5.00))
-            shadImg = ImageChops.offset(shadImg, -2, 2)
-            shadImg.paste(frame, box=(0, 0), mask=frame)
-            frame = shadImg
-        if self.showGrid:
-            drawer = ImageDraw.Draw(frame)
-            w, h = scale(0.05, self.width, self.height, int)
-            for x in range(self.pxWidth, self.width, self.pxWidth):
-                drawer.rectangle(
-                    ((x, 0), (x + w, self.height)),
-                    fill=self.color,
-                )
-            for y in range(self.pxHeight, self.height, self.pxHeight):
-                drawer.rectangle(
-                    ((0, y), (self.width, y + h)),
-                    fill=self.color,
-                )
+                drawShape(x, y)
 
         return frame
 
