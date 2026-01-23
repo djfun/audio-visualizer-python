@@ -1,4 +1,5 @@
 from avp.command import Command
+from PyQt6.QtGui import QFont
 from pytestqt import qtbot
 from pytest import fixture
 from . import audioData, MockSignal, imageDataSum
@@ -18,6 +19,7 @@ def test_comp_text_renderFrame_resize(coreWithTextComp):
     comp.parent.settings.setValue("outputWidth", 1920)
     comp.parent.settings.setValue("outputHeight", 1080)
     comp.parent.core.updateComponent(0)
+    comp.titleFont = QFont("Noto Sans")
     image = comp.frameRender(0)
     assert imageDataSum(image) == 2957069
 
