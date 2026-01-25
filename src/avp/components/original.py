@@ -8,7 +8,7 @@ from ..toolkit.frame import BlankFrame
 
 class Component(Component):
     name = "Classic Visualizer"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def names(*args):
         return ["Original Audio Visualization"]
@@ -18,6 +18,7 @@ class Component(Component):
 
     def widget(self, *args):
         self.scale = 20
+        self.bars = 63
         self.y = 0
         super().widget(*args)
 
@@ -35,7 +36,8 @@ class Component(Component):
                 "layout": self.page.comboBox_visLayout,
                 "scale": self.page.spinBox_scale,
                 "y": self.page.spinBox_y,
-                "smooth": self.page.spinBox_smooth,
+                "smooth": self.page.spinBox_sensitivity,
+                "bars": self.page.spinBox_bars,
             },
             colorWidgets={
                 "visColor": self.page.pushButton_visColor,
@@ -146,7 +148,7 @@ class Component(Component):
     def drawBars(self, width, height, spectrum, color, layout):
         bigYCoord = height - height / 8
         smallYCoord = height / 1200
-        bigXCoord = width / 64
+        bigXCoord = width / (self.bars + 1)
         middleXCoord = bigXCoord / 2
         smallXCoord = bigXCoord / 4
 
@@ -155,7 +157,7 @@ class Component(Component):
         r, g, b = color
         color2 = (r, g, b, 125)
 
-        for i in range(0, 63):
+        for i in range(self.bars):
             x0 = middleXCoord + i * bigXCoord
             y0 = bigYCoord + smallXCoord
             y1 = bigYCoord + smallXCoord - spectrum[i * 4] * smallYCoord - middleXCoord
