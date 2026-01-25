@@ -5,6 +5,7 @@ __pycache__
 build/
 dist/
 env/
+prof/
 .venv/
 .env/
 .vscode/
@@ -24,3 +25,5 @@ ffmpeg
 *.goutput*
 *.kate-swp
 *.code-workspace
+.coverage
+htmlcov/
