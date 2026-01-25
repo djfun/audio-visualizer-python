@@ -7,7 +7,7 @@ projects and exporting the video at a later time.
 
 from PyQt6 import QtCore, QtWidgets, uic
 import PyQt6.QtWidgets as QtWidgets
-from PyQt6.QtGui import QUndoStack, QShortcut
+from PyQt6.QtGui import QShortcut
 from PIL import Image
 from queue import Queue
 import sys
@@ -16,12 +16,16 @@ import signal
 import filecmp
 import time
 import logging
+from textwrap import wrap
 
-from ..core import Core
+from ..__init__ import __version__
+from ..core import Core, appName
+from .undostack import UndoStack
 from . import preview_thread
 from .preview_win import PreviewWindow
 from .presetmanager import PresetManager
 from .actions import *
+from ..toolkit.ffmpeg import createFfmpegCommand
 from ..toolkit import (
     disableWhenEncoding,
     disableWhenOpeningProject,
@@ -30,23 +34,7 @@ from ..toolkit import (
 )
 
 
-appName = "Audio Visualizer"
 log = logging.getLogger("AVP.Gui.MainWindow")
-
-
-class MyQUndoStack(QUndoStack):
-    # FIXME move this class
-    @property
-    def encoding(self):
-        return self.parent().encoding
-
-    @disableWhenEncoding
-    def undo(self, *args, **kwargs):
-        super().undo(*args, **kwargs)
-
-    @disableWhenEncoding
-    def redo(self, *args, **kwargs):
-        super().redo(*args, **kwargs)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -91,7 +79,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings = Core.settings
 
         # Create stack of undoable user actions
-        self.undoStack = MyQUndoStack(self)
+        self.undoStack = UndoStack(self)
         undoLimit = self.settings.value("pref_undoLimit")
         self.undoStack.setUndoLimit(undoLimit)
 
@@ -325,7 +313,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.drawPreview(True)
 
         log.info("Pillow version %s", Image.__version__)
-        log.info("PyQt version %s (Qt version %s)", QtCore.PYQT_VERSION_STR, QtCore.QT_VERSION_STR)
+        log.info(
+            "PyQt version %s (Qt version %s)",
+            QtCore.PYQT_VERSION_STR,
+            QtCore.QT_VERSION_STR,
+        )
 
         # verify Ffmpeg version
         if not self.core.FFMPEG_BIN:
@@ -408,6 +400,7 @@ class MainWindow(QtWidgets.QMainWindow):
             activated=lambda: self.moveComponent("bottom"),
         )
 
+        QShortcut("F1", self, self.showHelpWindow)
         QShortcut("Ctrl+Shift+F", self, self.showFfmpegCommand)
         QShortcut("Ctrl+Shift+U", self, self.showUndoStack)
 
@@ -762,10 +755,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def showUndoStack(self):
         self.undoDialog.show()
 
-    def showFfmpegCommand(self):
-        from textwrap import wrap
-        from ..toolkit.ffmpeg import createFfmpegCommand
+    def showHelpWindow(self):
+        self.showMessage(msg=f"{appName} v{__version__}")
 
+    def showFfmpegCommand(self):
         command = createFfmpegCommand(
             self.lineEdit_audioFile.text(),
             self.lineEdit_outputFile.text(),

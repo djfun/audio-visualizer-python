@@ -9,7 +9,7 @@ import os
 import logging
 
 from ..toolkit import badName
-from ..core import Core
+from ..core import Core, appName
 from .actions import *
 
 
@@ -137,7 +137,7 @@ class PresetManager(QtWidgets.QDialog):
             currentPreset = selectedComponents[index].currentPreset
             newName, OK = QtWidgets.QInputDialog.getText(
                 self.parent,
-                "Audio Visualizer",
+                appName,
                 "New Preset Name:",
                 QtWidgets.QLineEdit.EchoMode.Normal,
                 currentPreset,
