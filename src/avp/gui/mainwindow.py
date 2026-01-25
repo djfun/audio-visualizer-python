@@ -90,6 +90,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(undoView)
         self.undoDialog.setLayout(layout)
+        self.undoDialog.setMinimumWidth(int(self.width() / 2))
 
         # Create Preset Manager
         self.presetManager = PresetManager(self)
