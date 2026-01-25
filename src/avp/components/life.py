@@ -17,7 +17,7 @@ log = logging.getLogger("AVP.Component.Life")
 
 class Component(Component):
     name = "Conway's Game of Life"
-    version = "2.0.0"
+    version = "2.0.1"
 
     def widget(self, *args):
         super().widget(*args)
@@ -27,26 +27,26 @@ class Component(Component):
         # https://conwaylife.com/wiki/Queen_bee_shuttle
         self.startingGrid = set(
             [
-                (3, 7),
-                (3, 8),
-                (4, 7),
-                (4, 8),
-                (8, 7),
-                (9, 6),
-                (9, 8),
-                (10, 5),
+                (3, 11),
+                (3, 12),
+                (4, 11),
+                (4, 12),
+                (8, 11),
+                (9, 10),
+                (9, 12),
                 (10, 9),
-                (11, 6),
-                (11, 7),
-                (11, 8),
-                (12, 4),
-                (12, 5),
+                (10, 13),
+                (11, 10),
+                (11, 11),
+                (11, 12),
+                (12, 8),
                 (12, 9),
-                (12, 10),
-                (23, 6),
-                (23, 7),
-                (24, 6),
-                (24, 7),
+                (12, 13),
+                (12, 14),
+                (23, 10),
+                (23, 11),
+                (24, 10),
+                (24, 11),
             ]
         )
 
@@ -299,11 +299,6 @@ class Component(Component):
         flippedImage = frame.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
         frame.paste(flippedImage, (0, 0), mask=flippedImage)
 
-        flippedImage = frame.transpose(Image.Transpose.ROTATE_90)
-        frame.paste(flippedImage, (0, 0), mask=flippedImage)
-
-        flippedImage = frame.transpose(Image.Transpose.ROTATE_270)
-        frame.paste(flippedImage, (0, 0), mask=flippedImage)
         return frame
 
     def drawGrid(self, grid, color, spectrumData=None, didntChange=None):
@@ -506,10 +501,10 @@ class Component(Component):
 
         for x, y in grid:
             drawPtX = x * self.pxWidth
-            if drawPtX > self.width:
+            if drawPtX > self.width or drawPtX + self.pxWidth < 0:
                 continue
             drawPtY = y * self.pxHeight
-            if drawPtY > self.height:
+            if drawPtY > self.height or drawPtY + self.pxHeight < 0:
                 continue
 
             audioMorphWidth = (
