@@ -416,6 +416,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.core.selectedComponents:
             self.core.insertComponent(0, 0, self)
             self.core.insertComponent(1, 1, self)
+            self.core.selectedComponents[0].page.lineEdit_visColor.setText(
+                "255,255,255"
+            )
+            self.core.selectedComponents[1].page.lineEdit_color1.setText("0,0,0")
 
     def __repr__(self):
         return (

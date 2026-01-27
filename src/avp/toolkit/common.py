@@ -4,7 +4,7 @@ Common functions
 
 from PyQt6 import QtWidgets
 import string
-import os
+import random
 import sys
 import subprocess
 import logging
@@ -136,7 +136,8 @@ def rgbFromString(string):
                 raise ValueError
         return tup
     except:
-        return (255, 255, 255)
+        log.warning("Error parsing color. Generated random color.")
+        return randomColor()
 
 
 def formatTraceback(tb=None):
@@ -190,3 +191,7 @@ def getWidgetValue(widget):
         return widget.isChecked()
     elif type(widget) == QtWidgets.QComboBox:
         return widget.currentIndex()
+
+
+def randomColor():
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))

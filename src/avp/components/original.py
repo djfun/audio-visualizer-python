@@ -29,8 +29,6 @@ class Component(Component):
         self.page.comboBox_visLayout.addItem("Top")
         self.page.comboBox_visLayout.setCurrentIndex(0)
 
-        self.page.lineEdit_visColor.setText("255,255,255")
-
         self.trackWidgets(
             {
                 "visColor": self.page.lineEdit_visColor,

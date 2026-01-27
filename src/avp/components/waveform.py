@@ -37,8 +37,6 @@ class Component(Component):
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
 
-        self.page.lineEdit_color.setText("255,255,255")
-
         if hasattr(self.parent, "lineEdit_audioFile"):
             self.parent.lineEdit_audioFile.textChanged.connect(self.update)
 

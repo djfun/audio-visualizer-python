@@ -428,7 +428,7 @@
           <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
-          <string>255,255,255</string>
+          <string></string>
          </property>
         </widget>
        </item>

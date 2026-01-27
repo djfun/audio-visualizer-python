@@ -18,8 +18,9 @@ def test_comp_text_renderFrame_resize(coreWithTextComp):
     comp = coreWithTextComp.selectedComponents[0]
     comp.parent.settings.setValue("outputWidth", 1920)
     comp.parent.settings.setValue("outputHeight", 1080)
-    comp.parent.core.updateComponent(0)
     comp.titleFont = QFont("Noto Sans")
+    comp.parent.core.updateComponent(0)
+    comp.page.lineEdit_textColor.setText("255,255,255")
     image = comp.frameRender(0)
     assert imageDataSum(image) == 2957069
 
