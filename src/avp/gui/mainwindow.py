@@ -416,10 +416,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.core.selectedComponents:
             self.core.insertComponent(0, 0, self)
             self.core.insertComponent(1, 1, self)
+            # set colors to white and black to match classic appearance of program
             self.core.selectedComponents[0].page.lineEdit_visColor.setText(
                 "255,255,255"
             )
             self.core.selectedComponents[1].page.lineEdit_color1.setText("0,0,0")
+            self.undoStack.clear()
 
     def __repr__(self):
         return (
@@ -897,7 +899,9 @@ class MainWindow(QtWidgets.QMainWindow):
     @disableWhenEncoding
     def createNewProject(self, prompt=True):
         if prompt:
-            self.openSaveChangesDialog("starting a new project")
+            ch = self.openSaveChangesDialog("starting a new project")
+        if ch is None:
+            return
 
         self.clear()
         self.currentProject = None
@@ -917,6 +921,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def openSaveChangesDialog(self, phrase):
         success = True
+        ch = True
         if self.autosaveExists(identical=False):
             ch = self.showMessage(
                 msg="You have unsaved changes in project '%s'. "
@@ -926,9 +931,9 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             if ch:
                 success = self.saveProjectChanges()
-
-        if success and os.path.exists(self.autosavePath):
+        if ch is not None and success and os.path.exists(self.autosavePath):
             os.remove(self.autosavePath)
+        return success and ch
 
     def openSaveProjectDialog(self):
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -965,10 +970,12 @@ class MainWindow(QtWidgets.QMainWindow):
         ):
             return
 
-        self.clear()
         # ask to save any changes that are about to get deleted
         if prompt:
-            self.openSaveChangesDialog("opening another project")
+            ch = self.openSaveChangesDialog("opening another project")
+            if ch is None:
+                return
+        self.clear()
 
         self.currentProject = filepath
         self.settings.setValue("currentProject", filepath)
@@ -992,15 +999,21 @@ class MainWindow(QtWidgets.QMainWindow):
         msg.setDetailedText(kwargs["detail"] if "detail" in kwargs else None)
         if "showCancel" in kwargs and kwargs["showCancel"]:
             msg.setStandardButtons(
-                QtWidgets.QMessageBox.StandardButton.Ok
+                QtWidgets.QMessageBox.StandardButton.Save
+                | QtWidgets.QMessageBox.StandardButton.Discard
                 | QtWidgets.QMessageBox.StandardButton.Cancel
             )
         else:
             msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
         ch = msg.exec()
-        if ch == 1024:
+        if ch == 1024 or ch == 2048:
+            # OK or Save
             return True
-        return False
+        elif ch > 8000000:
+            # Discard
+            return False
+        # Cancel
+        return None
 
     @disableWhenEncoding
     def componentContextMenu(self, QPos):
