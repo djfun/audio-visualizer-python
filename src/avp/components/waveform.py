@@ -6,7 +6,7 @@ import logging
 from copy import copy
 
 from ..component import Component
-from .original import Component as Visualizer
+from ..toolkit.visualizer import transformData, createSpectrumArray
 from ..toolkit.frame import BlankFrame, scale
 from ..toolkit import checkOutput
 from ..toolkit.ffmpeg import (
@@ -94,31 +94,16 @@ class Component(Component):
         )
         if self.speed == 100:
             return
-        smoothConstantDown = 0.08
-        smoothConstantUp = 0.8
-        self.lastSpectrum = None
-        self.spectrumArray = {}
-
-        for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            if self.canceled:
-                break
-            self.lastSpectrum = Visualizer.transformData(
-                i,
-                self.completeAudioArray,
-                self.sampleSize,
-                smoothConstantDown,
-                smoothConstantUp,
-                self.lastSpectrum,
-                20,
-            )
-            self.spectrumArray[i] = copy(self.lastSpectrum)
-
-            progress = int(100 * (i / len(self.completeAudioArray)))
-            if progress >= 100:
-                progress = 100
-            pStr = "Analyzing audio: " + str(progress) + "%"
-            self.progressBarSetText.emit(pStr)
-            self.progressBarUpdate.emit(int(progress))
+        self.spectrumArray = createSpectrumArray(
+            self,
+            self.completeAudioArray,
+            self.sampleSize,
+            0.08,
+            0.8,
+            20,
+            self.progressBarUpdate,
+            self.progressBarSetText,
+        )
 
     def frameRender(self, frameNo):
         if FfmpegVideo.threadError is not None:

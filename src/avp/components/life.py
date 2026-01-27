@@ -9,7 +9,7 @@ import logging
 
 from ..component import Component
 from ..toolkit.frame import BlankFrame, scale
-from .original import Component as Visualizer
+from ..toolkit.visualizer import createSpectrumArray
 
 
 log = logging.getLogger("AVP.Component.Life")
@@ -170,34 +170,19 @@ class Component(Component):
     def preFrameRender(self, *args, **kwargs):
         super().preFrameRender(*args, **kwargs)
         self.tickGrids = {0: self.startingGrid}
-
-        smoothConstantDown = 0.08 + 0
-        smoothConstantUp = 0.8 - 0
-        self.lastSpectrum = None
-        self.spectrumArray = {}
         if self.sensitivity == 0:
             return
 
-        for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            if self.canceled:
-                break
-            self.lastSpectrum = Visualizer.transformData(
-                i,
-                self.completeAudioArray,
-                self.sampleSize,
-                smoothConstantDown,
-                smoothConstantUp,
-                self.lastSpectrum,
-                self.sensitivity,
-            )
-            self.spectrumArray[i] = copy(self.lastSpectrum)
-
-            progress = int(100 * (i / len(self.completeAudioArray)))
-            if progress >= 100:
-                progress = 100
-            pStr = "Analyzing audio: " + str(progress) + "%"
-            self.progressBarSetText.emit(pStr)
-            self.progressBarUpdate.emit(int(progress))
+        self.spectrumArray = createSpectrumArray(
+            self,
+            self.completeAudioArray,
+            self.sampleSize,
+            0.08,
+            0.8,
+            20,
+            self.progressBarUpdate,
+            self.progressBarSetText,
+        )
 
     def properties(self):
         if self.customImg and (not self.image or not os.path.exists(self.image)):

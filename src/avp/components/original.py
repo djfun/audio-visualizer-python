@@ -4,6 +4,7 @@ from copy import copy
 
 from ..component import Component
 from ..toolkit.frame import BlankFrame
+from ..toolkit.visualizer import createSpectrumArray
 
 
 class Component(Component):
@@ -61,29 +62,16 @@ class Component(Component):
         super().preFrameRender(**kwargs)
         smoothConstantDown = 0.08 if not self.smooth else self.smooth / 15
         smoothConstantUp = 0.8 if not self.smooth else self.smooth / 15
-        self.lastSpectrum = None
-        self.spectrumArray = {}
-
-        for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            if self.canceled:
-                break
-            self.lastSpectrum = self.transformData(
-                i,
-                self.completeAudioArray,
-                self.sampleSize,
-                smoothConstantDown,
-                smoothConstantUp,
-                self.lastSpectrum,
-                self.scale,
-            )
-            self.spectrumArray[i] = copy(self.lastSpectrum)
-
-            progress = int(100 * (i / len(self.completeAudioArray)))
-            if progress >= 100:
-                progress = 100
-            pStr = "Analyzing audio: " + str(progress) + "%"
-            self.progressBarSetText.emit(pStr)
-            self.progressBarUpdate.emit(int(progress))
+        self.spectrumArray = createSpectrumArray(
+            self,
+            self.completeAudioArray,
+            self.sampleSize,
+            smoothConstantDown,
+            smoothConstantUp,
+            self.scale,
+            self.progressBarUpdate,
+            self.progressBarSetText,
+        )
 
     def frameRender(self, frameNo):
         arrayNo = frameNo * self.sampleSize
@@ -94,56 +82,6 @@ class Component(Component):
             self.visColor,
             self.layout,
         )
-
-    @staticmethod
-    def transformData(
-        i,
-        completeAudioArray,
-        sampleSize,
-        smoothConstantDown,
-        smoothConstantUp,
-        lastSpectrum,
-        scale,
-    ):
-        if len(completeAudioArray) < (i + sampleSize):
-            sampleSize = len(completeAudioArray) - i
-
-        window = numpy.hanning(sampleSize)
-        data = completeAudioArray[i : i + sampleSize][::1] * window
-        paddedSampleSize = 2048
-        paddedData = numpy.pad(data, (0, paddedSampleSize - sampleSize), "constant")
-        spectrum = numpy.fft.fft(paddedData)
-        sample_rate = 44100
-        frequencies = numpy.fft.fftfreq(len(spectrum), 1.0 / sample_rate)
-
-        y = abs(spectrum[0 : int(paddedSampleSize / 2) - 1])
-
-        # filter the noise away
-        # y[y<80] = 0
-
-        with numpy.errstate(divide="ignore"):
-            y = scale * numpy.log10(y)
-
-        y[numpy.isinf(y)] = 0
-
-        if lastSpectrum is not None:
-            lastSpectrum[y < lastSpectrum] = y[
-                y < lastSpectrum
-            ] * smoothConstantDown + lastSpectrum[y < lastSpectrum] * (
-                1 - smoothConstantDown
-            )
-
-            lastSpectrum[y >= lastSpectrum] = y[
-                y >= lastSpectrum
-            ] * smoothConstantUp + lastSpectrum[y >= lastSpectrum] * (
-                1 - smoothConstantUp
-            )
-        else:
-            lastSpectrum = y
-
-        x = frequencies[0 : int(paddedSampleSize / 2) - 1]
-
-        return lastSpectrum
 
     def drawBars(self, width, height, spectrum, color, layout):
         bigYCoord = height - height / 8

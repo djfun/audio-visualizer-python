@@ -1,4 +1,5 @@
 from avp.command import Command
+from avp.toolkit.visualizer import transformData
 from pytestqt import qtbot
 from pytest import fixture
 from . import audioData, MockSignal, imageDataSum
@@ -31,13 +32,9 @@ def test_comp_classic_removed(coreWithClassicComp):
 def test_comp_classic_drawBars(coreWithClassicComp, audioData):
     """Call drawBars after creating audio spectrum data manually."""
 
-    spectrumArray = {
-        0: coreWithClassicComp.selectedComponents[0].transformData(
-            0, audioData[0], sampleSize, 0.08, 0.8, None, 20
-        )
-    }
+    spectrumArray = {0: transformData(0, audioData[0], sampleSize, 0.08, 0.8, None, 20)}
     for i in range(sampleSize, len(audioData[0]), sampleSize):
-        spectrumArray[i] = coreWithClassicComp.selectedComponents[0].transformData(
+        spectrumArray[i] = transformData(
             i,
             audioData[0],
             sampleSize,

@@ -5,7 +5,7 @@ from copy import copy
 
 from ..component import Component
 from ..toolkit.frame import BlankFrame
-from .original import Component as Visualizer
+from ..toolkit.visualizer import createSpectrumArray
 
 
 class Component(Component):
@@ -75,31 +75,16 @@ class Component(Component):
         # Trigger creation of new base image
         self.existingImage = None
 
-        smoothConstantDown = 0.08 + 0
-        smoothConstantUp = 0.8 - 0
-        self.lastSpectrum = None
-        self.spectrumArray = {}
-
-        for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            if self.canceled:
-                break
-            self.lastSpectrum = Visualizer.transformData(
-                i,
-                self.completeAudioArray,
-                self.sampleSize,
-                smoothConstantDown,
-                smoothConstantUp,
-                self.lastSpectrum,
-                self.sensitivity,
-            )
-            self.spectrumArray[i] = copy(self.lastSpectrum)
-
-            progress = int(100 * (i / len(self.completeAudioArray)))
-            if progress >= 100:
-                progress = 100
-            pStr = "Analyzing audio: " + str(progress) + "%"
-            self.progressBarSetText.emit(pStr)
-            self.progressBarUpdate.emit(int(progress))
+        self.spectrumArray = createSpectrumArray(
+            self,
+            self.completeAudioArray,
+            self.sampleSize,
+            0.08,
+            0.8,
+            self.sensitivity,
+            self.progressBarUpdate,
+            self.progressBarSetText,
+        )
 
     def frameRender(self, frameNo):
         return self.drawFrame(
