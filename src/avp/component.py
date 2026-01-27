@@ -642,8 +642,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                         self._trackedWidgets[attr].setText(str(rndColor)[1:-2])
                     self._colorWidgets[attr].clicked.connect(func)
                     self._colorWidgets[attr].setStyleSheet(
-                        "QPushButton { background-color : #%s; outline: none; }"
-                        % QColor(*(rgbFromString(colorText) if colorText else rndColor))
+                        "QPushButton {"
+                        "background-color : %s; outline: none; }"
+                        % QColor(
+                            *rgbFromString(colorText) if colorText else rndColor
+                        ).name()
                     )
 
             if kwarg == "relativeWidgets":
