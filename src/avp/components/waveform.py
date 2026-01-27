@@ -109,9 +109,9 @@ class Component(Component):
         if FfmpegVideo.threadError is not None:
             raise FfmpegVideo.threadError
         newFrame = self.finalizeFrame(self.video.frame(frameNo))
-        frameDiff = (
-            0 if self.speed == 100 or frameNo == 0 else frameNo % self.updateInterval
-        )
+        if self.speed == 100:
+            return newFrame
+        frameDiff = 0 if frameNo == 0 else frameNo % self.updateInterval
         peaks = [
             self.spectrumArray[frameNo * self.sampleSize][i * 4] for i in range(64)
         ]
