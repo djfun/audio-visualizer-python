@@ -30,6 +30,8 @@ def test_comp_text_renderFrame(coreWithTextComp):
     comp = coreWithTextComp.selectedComponents[0]
     comp.parent.settings.setValue("outputWidth", 1280)
     comp.parent.settings.setValue("outputHeight", 720)
+    comp.titleFont = QFont("Noto Sans")
     comp.parent.core.updateComponent(0)
+    comp.page.lineEdit_textColor.setText("255,255,255")
     image = comp.frameRender(0)
-    assert imageDataSum(image) == 1412293 or 1379298
+    assert imageDataSum(image) == 1412293
