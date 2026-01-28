@@ -173,7 +173,7 @@ class Component(Component):
                 path.addText(x, y, font, self.title)
             path = outliner.createStroke(path)
             image.setPen(QtCore.Qt.PenStyle.NoPen)
-            image.setBrush(PaintColor(*self.strokeColor))
+            image.setBrush(QtGui.QColor(*self.strokeColor))
             image.drawPath(path)
 
         image.setFont(font)
