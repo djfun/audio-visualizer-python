@@ -639,7 +639,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                     colorText = self._trackedWidgets[attr].text()
                     if colorText == "":
                         rndColor = randomColor()
-                        self._trackedWidgets[attr].setText(str(rndColor)[1:-2])
+                        self._trackedWidgets[attr].setText(str(rndColor)[1:-1])
                     self._colorWidgets[attr].clicked.connect(func)
                     self._colorWidgets[attr].setStyleSheet(
                         "QPushButton {"
