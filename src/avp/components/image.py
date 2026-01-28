@@ -4,13 +4,13 @@ import os
 from copy import copy
 
 from ..component import Component
-from ..toolkit.frame import BlankFrame
+from ..toolkit.frame import BlankFrame, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
 
 class Component(Component):
     name = "Image"
-    version = "2.0.0"
+    version = "2.1.0"
 
     def widget(self, *args):
         super().widget(*args)
@@ -35,6 +35,7 @@ class Component(Component):
                 "mirror": self.page.checkBox_mirror,
                 "respondToAudio": self.page.checkBox_respondToAudio,
                 "sensitivity": self.page.spinBox_sensitivity,
+                "shadow": self.page.checkBox_shadow,
             },
             presetNames={
                 "imagePath": "image",
@@ -124,9 +125,15 @@ class Component(Component):
                 self.existingImage = image
 
             # Respond to audio
+            shadX = 3
+            shadY = -1
+            shadBlur = 4.00
             scale = 0
             if dynamicScale is not None:
                 scale = dynamicScale[36 * 4] / 4
+                shadX += int(scale / 2)
+                shadY += int(scale / 2)
+                shadBlur += scale / 8
                 image = ImageOps.contain(
                     image,
                     (
@@ -146,6 +153,8 @@ class Component(Component):
             )
             if self.rotate != 0:
                 frame = frame.rotate(self.rotate)
+            if self.shadow:
+                frame = addShadow(frame, shadBlur, shadX, shadY)
 
         return frame
 
