@@ -136,7 +136,11 @@ def rgbFromString(string):
                 raise ValueError
         return tup
     except Exception as e:
-        log.warning("Could not parse '%s' as a color (encountered %s).", string, type(e).__name__)
+        log.warning(
+            "Could not parse '%s' as a color (encountered %s).",
+            string,
+            type(e).__name__,
+        )
         return (255, 255, 255)
 
 
@@ -151,6 +155,7 @@ def formatTraceback(tb=None):
 
 
 def connectWidget(widget, func):
+    unsupportedWidgets = ["QtWidgets.QFontComboBox"]
     if type(widget) == QtWidgets.QLineEdit:
         widget.textChanged.connect(func)
     elif type(widget) == QtWidgets.QSpinBox or type(widget) == QtWidgets.QDoubleSpinBox:
@@ -159,6 +164,10 @@ def connectWidget(widget, func):
         widget.stateChanged.connect(func)
     elif type(widget) == QtWidgets.QComboBox:
         widget.currentIndexChanged.connect(func)
+    elif type(widget) in unsupportedWidgets:
+        log.info(
+            "Could not connect %s using connectWidget()", str(widget.__class__.__name__)
+        )
     else:
         log.warning("Failed to connect %s ", str(widget.__class__.__name__))
         return False
