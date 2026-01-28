@@ -65,17 +65,18 @@ class Worker(QtCore.QObject):
                     component.unlockSize()
                     frame = Image.alpha_composite(frame, newFrame)
 
-                except ValueError as e:
+                except (AttributeError, ValueError) as e:
                     errMsg = (
                         "Bad frame returned by %s's preview renderer. "
-                        "%s. New frame size was %s*%s; should be %s*%s."
+                        "%s. New frame %s."
                         % (
                             str(component),
                             str(e).capitalize(),
-                            newFrame.width,
-                            newFrame.height,
-                            width,
-                            height,
+                            "is None" if newFrame is None else "size was %s*%s; should be %s*%s" % (
+                                newFrame.width,
+                                newFrame.height,
+                                width,
+                                height),
                         )
                     )
                     log.critical(errMsg)
