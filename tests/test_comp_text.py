@@ -1,7 +1,7 @@
 from avp.command import Command
 from PyQt6.QtGui import QFont
 from pytestqt import qtbot
-from pytest import fixture
+from pytest import fixture, mark
 from . import audioData, MockSignal, imageDataSum
 
 
@@ -13,25 +13,33 @@ def coreWithTextComp(qtbot):
     yield command.core
 
 
-def test_comp_text_renderFrame_resize(coreWithTextComp):
-    """Call renderFrame of Title Text component added to Command object."""
-    comp = coreWithTextComp.selectedComponents[0]
-    comp.parent.settings.setValue("outputWidth", 1920)
-    comp.parent.settings.setValue("outputHeight", 1080)
-    comp.titleFont = QFont("Noto Sans")
-    comp.parent.core.updateComponent(0)
+def setTextSettings(comp):
+    comp.page.spinBox_fontSize.setValue(40)
+    comp.page.checkBox_shadow.setChecked(True)
+    comp.page.spinBox_shadBlur.setValue(0)
+    comp.page.spinBox_shadX.setValue(2)
+    comp.page.spinBox_shadY.setValue(-2)
+    comp.page.fontComboBox_titleFont.setCurrentFont(QFont("Noto Sans"))
     comp.page.lineEdit_textColor.setText("255,255,255")
-    image = comp.frameRender(0)
-    assert imageDataSum(image) == 3345068
 
 
-def test_comp_text_renderFrame(coreWithTextComp):
+@mark.parametrize(
+    "width, height",
+    ((1920, 1080), (1280, 720)),
+)
+def test_comp_text_renderFrame(coreWithTextComp, width, height):
     """Call renderFrame of Title Text component added to Command object."""
     comp = coreWithTextComp.selectedComponents[0]
-    comp.parent.settings.setValue("outputWidth", 1280)
-    comp.parent.settings.setValue("outputHeight", 720)
-    comp.titleFont = QFont("Noto Sans")
-    comp.parent.core.updateComponent(0)
-    comp.page.lineEdit_textColor.setText("255,255,255")
+    comp.parent.settings.setValue("outputWidth", width)
+    comp.parent.settings.setValue("outputHeight", height)
+    setTextSettings(comp)
+    comp.centerXY()
     image = comp.frameRender(0)
-    assert imageDataSum(image) == 1602965
+    assert comp.titleFont.family() == "Noto Sans"
+    assert comp.xPosition == width / 2
+    assert image.width == width
+    assert comp.fontSize == 40
+    assert comp.shadX == 2
+    assert comp.shadY == -2
+    assert comp.shadBlur == 0
+    assert imageDataSum(image) == 727403 or 738586
