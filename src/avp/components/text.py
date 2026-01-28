@@ -5,7 +5,7 @@ import os
 import logging
 
 from ..component import Component
-from ..toolkit.frame import FramePainter, PaintColor
+from ..toolkit.frame import FramePainter, addShadow
 
 log = logging.getLogger("AVP.Components.Text")
 
@@ -183,11 +183,7 @@ class Component(Component):
         # turn QImage into Pillow frame
         frame = image.finalize()
         if self.shadow:
-            shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
-            shadImg = shadImg.filter(ImageFilter.GaussianBlur(self.shadBlur))
-            shadImg = ImageChops.offset(shadImg, self.shadX, self.shadY)
-            shadImg.paste(frame, box=(0, 0), mask=frame)
-            frame = shadImg
+            frame = addShadow(frame, self.shadBlur, self.shadX, self.shadY)
 
         return frame
 

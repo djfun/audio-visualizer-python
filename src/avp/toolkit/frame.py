@@ -3,7 +3,7 @@ Common tools for drawing compatible frames in a Component's frameRender()
 """
 
 from PyQt6 import QtGui
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageChops, ImageFilter
 from PIL.ImageQt import ImageQt
 from PyQt6 import QtCore
 import sys
@@ -47,6 +47,13 @@ class FramePainter(QtGui.QPainter):
         return frame
 
 
+def addShadow(frame, blurRadius, blurOffsetX, blurOffsetY):
+    shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
+    shadImg = shadImg.filter(ImageFilter.GaussianBlur(blurRadius))
+    shadImg = ImageChops.offset(shadImg, blurOffsetX, blurOffsetY)
+    frame = shadImg.paste(frame, box=(0, 0), mask=frame)
+    frame = shadImg
+    return frame
 
 
 def scale(scalePercent, width, height, returntype=None):

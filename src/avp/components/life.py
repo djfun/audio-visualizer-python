@@ -8,7 +8,7 @@ import logging
 
 
 from ..component import Component
-from ..toolkit.frame import BlankFrame, scale
+from ..toolkit.frame import BlankFrame, scale, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
 
@@ -163,7 +163,8 @@ class Component(Component):
     def previewRender(self):
         image = self.drawGrid(self.startingGrid, self.color)
         image = self.addKaleidoscopeEffect(image)
-        image = self.addShadow(image)
+        if self.shadow:
+            image = addShadow(image, 5.00, -2, 2)
         image = self.addGridLines(image)
         return image
 
@@ -241,20 +242,10 @@ class Component(Component):
         if not self.customImg:
             image = Image.alpha_composite(previousGridImage, image)
         image = self.addKaleidoscopeEffect(image)
-        image = self.addShadow(image)
+        if self.shadow:
+            image = addShadow(image, 5.00, -2, 2)
         image = self.addGridLines(image)
         return image
-
-    def addShadow(self, frame):
-        if not self.shadow:
-            return frame
-
-        shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
-        shadImg = shadImg.filter(ImageFilter.GaussianBlur(5.00))
-        shadImg = ImageChops.offset(shadImg, -2, 2)
-        shadImg.paste(frame, box=(0, 0), mask=frame)
-        frame = shadImg
-        return frame
 
     def addGridLines(self, frame):
         if not self.showGrid:
