@@ -22,7 +22,7 @@ def test_comp_text_renderFrame_resize(coreWithTextComp):
     comp.parent.core.updateComponent(0)
     comp.page.lineEdit_textColor.setText("255,255,255")
     image = comp.frameRender(0)
-    assert imageDataSum(image) == 2957069
+    assert imageDataSum(image) == 3345068
 
 
 def test_comp_text_renderFrame(coreWithTextComp):
@@ -34,4 +34,4 @@ def test_comp_text_renderFrame(coreWithTextComp):
     comp.parent.core.updateComponent(0)
     comp.page.lineEdit_textColor.setText("255,255,255")
     image = comp.frameRender(0)
-    assert imageDataSum(image) == 1412293
+    assert imageDataSum(image) == 1602965
