@@ -125,15 +125,16 @@ class Component(Component):
                 self.existingImage = image
 
             # Respond to audio
-            shadX = 3
-            shadY = -1
-            shadBlur = 4.00
+            resolutionFactor = height / 1080
+            shadX = int(resolutionFactor * 1)
+            shadY = int(resolutionFactor * -1)
+            shadBlur = resolutionFactor * 3.50
             scale = 0
             if dynamicScale is not None:
                 scale = dynamicScale[36 * 4] / 4
-                shadX += int(scale / 2)
-                shadY += int(scale / 2)
-                shadBlur += scale / 8
+                shadX += int((scale / 4) * resolutionFactor)
+                shadY += int((scale / 2) * resolutionFactor)
+                shadBlur += (scale / 8) * resolutionFactor
                 image = ImageOps.contain(
                     image,
                     (
