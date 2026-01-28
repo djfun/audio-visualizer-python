@@ -4,7 +4,7 @@ Common functions
 
 from PyQt6 import QtWidgets
 import string
-import os
+import random
 import sys
 import subprocess
 import logging
@@ -135,7 +135,12 @@ def rgbFromString(string):
             if i > 255 or i < 0:
                 raise ValueError
         return tup
-    except:
+    except Exception as e:
+        log.warning(
+            "Could not parse '%s' as a color (encountered %s).",
+            string,
+            type(e).__name__,
+        )
         return (255, 255, 255)
 
 
@@ -150,6 +155,7 @@ def formatTraceback(tb=None):
 
 
 def connectWidget(widget, func):
+    unsupportedWidgets = ["QtWidgets.QFontComboBox"]
     if type(widget) == QtWidgets.QLineEdit:
         widget.textChanged.connect(func)
     elif type(widget) == QtWidgets.QSpinBox or type(widget) == QtWidgets.QDoubleSpinBox:
@@ -158,6 +164,10 @@ def connectWidget(widget, func):
         widget.stateChanged.connect(func)
     elif type(widget) == QtWidgets.QComboBox:
         widget.currentIndexChanged.connect(func)
+    elif type(widget) in unsupportedWidgets:
+        log.info(
+            "Could not connect %s using connectWidget()", str(widget.__class__.__name__)
+        )
     else:
         log.warning("Failed to connect %s ", str(widget.__class__.__name__))
         return False
@@ -190,3 +200,7 @@ def getWidgetValue(widget):
         return widget.isChecked()
     elif type(widget) == QtWidgets.QComboBox:
         return widget.currentIndex()
+
+
+def randomColor():
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))

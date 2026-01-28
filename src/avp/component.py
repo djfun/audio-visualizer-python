@@ -18,6 +18,7 @@ from .toolkit import (
     setWidgetValue,
     connectWidget,
     rgbFromString,
+    randomColor,
     blockSignals,
 )
 
@@ -635,9 +636,17 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
                 self._colorFuncs = {attr: makeColorFunc(attr) for attr in kwargs[kwarg]}
                 for attr, func in self._colorFuncs.items():
+                    colorText = self._trackedWidgets[attr].text()
+                    if colorText == "":
+                        rndColor = randomColor()
+                        self._trackedWidgets[attr].setText(str(rndColor)[1:-1])
                     self._colorWidgets[attr].clicked.connect(func)
                     self._colorWidgets[attr].setStyleSheet(
-                        "QPushButton {" "background-color : #FFFFFF; outline: none; }"
+                        "QPushButton {"
+                        "background-color : %s; outline: none; }"
+                        % QColor(
+                            *rgbFromString(colorText) if colorText else rndColor
+                        ).name()
                     )
 
             if kwarg == "relativeWidgets":
@@ -798,6 +807,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             if oldUserValue == newUserValue and oldRelativeVal != newRelativeVal:
                 # Float changed without pixel value changing, which
                 # means the pixel value needs to be updated
+                # TODO QDoubleSpinBox doesn't work with relativeWidgets because of this
                 log.debug(
                     "Updating %s #%s's relative widget: %s",
                     self.__class__.name,

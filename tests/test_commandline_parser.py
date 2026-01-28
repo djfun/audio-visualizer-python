@@ -51,6 +51,11 @@ def test_commandline_parses_classic_by_alias(qtbot):
     assert command.parseCompName("original") == "Classic Visualizer"
 
 
-def test_commandline_parses_conway_by_name(qtbot):
+def test_commandline_parses_conway_by_short_name(qtbot):
     command = Command()
     assert command.parseCompName("conway") == "Conway's Game of Life"
+
+
+def test_commandline_parses_image_by_name(qtbot):
+    command = Command()
+    assert command.parseCompName("image") == "Image"

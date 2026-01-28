@@ -1,12 +1,12 @@
-from PIL import Image
-from PyQt6 import QtGui, QtCore, QtWidgets
+from PIL import Image, ImageChops
 from PyQt6.QtGui import QColor
 import os
-import math
 import subprocess
 import logging
+from copy import copy
 
 from ..component import Component
+from ..toolkit.visualizer import transformData, createSpectrumArray
 from ..toolkit.frame import BlankFrame, scale
 from ..toolkit import checkOutput
 from ..toolkit.ffmpeg import (
@@ -23,13 +23,19 @@ log = logging.getLogger("AVP.Components.Waveform")
 
 class Component(Component):
     name = "Waveform"
-    version = "1.0.0"
+    version = "2.0.0"
+
+    @property
+    def updateInterval(self):
+        """How many frames from FFmpeg are ignored between each final frame"""
+        return 100 - self.speed
+
+    def properties(self):
+        return [] if self.speed == 100 else ["pcm"]
 
     def widget(self, *args):
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
-
-        self.page.lineEdit_color.setText("255,255,255")
 
         if hasattr(self.parent, "lineEdit_audioFile"):
             self.parent.lineEdit_audioFile.textChanged.connect(self.update)
@@ -46,6 +52,7 @@ class Component(Component):
                 "opacity": self.page.spinBox_opacity,
                 "compress": self.page.checkBox_compress,
                 "mono": self.page.checkBox_mono,
+                "speed": self.page.spinBox_speed,
             },
             colorWidgets={
                 "color": self.page.pushButton_color,
@@ -65,6 +72,10 @@ class Component(Component):
             return frame
 
     def preFrameRender(self, **kwargs):
+        self._fadingImage = None
+        self._prevImage = None
+        self._currImage = None
+        self._lastUpdatedFrame = 0
         super().preFrameRender(**kwargs)
         self.updateChunksize()
         w, h = scale(self.scale, self.width, self.height, str)
@@ -79,11 +90,64 @@ class Component(Component):
             component=self,
             debug=True,
         )
+        if self.speed == 100:
+            return
+        self.spectrumArray = createSpectrumArray(
+            self,
+            self.completeAudioArray,
+            self.sampleSize,
+            0.08,
+            0.8,
+            20,
+            self.progressBarUpdate,
+            self.progressBarSetText,
+        )
 
     def frameRender(self, frameNo):
         if FfmpegVideo.threadError is not None:
             raise FfmpegVideo.threadError
-        return self.finalizeFrame(self.video.frame(frameNo))
+        newFrame = self.finalizeFrame(self.video.frame(frameNo))
+        if self.speed == 100:
+            return newFrame
+        frameDiff = 0 if frameNo == 0 else frameNo % self.updateInterval
+        peaks = [
+            self.spectrumArray[frameNo * self.sampleSize][i * 4] for i in range(64)
+        ]
+        peakValue = 70 - (max(*peaks) - min(*peaks))
+        isValidPeak = (
+            peakValue > 27
+            and frameNo - self._lastUpdatedFrame > self.updateInterval / 2
+        )
+        if frameDiff == 0 or isValidPeak:
+            self._lastUpdatedFrame = frameNo
+            self._fadingImage = self._prevImage
+            self._prevImage = self._image
+            self._currImage = newFrame
+        usualAlpha = 0.0 + (1 / self.updateInterval) * frameDiff
+        alpha = max(
+            0.1
+            + (
+                1
+                / max(
+                    10,
+                    peakValue,
+                )
+            ),
+            usualAlpha,
+        )
+        baseImage = self._prevImage
+        if self._fadingImage is not None:
+            # fade away the old previous frame from ages ago
+            baseImage = ImageChops.blend(
+                self._prevImage, self._fadingImage, max(0.0, 0.9 - usualAlpha)
+            )
+        blendedImage = ImageChops.blend(
+            baseImage,
+            ImageChops.lighter(self._prevImage, newFrame),
+            alpha,
+        )
+        baseImage.paste(blendedImage, (0, 0), mask=blendedImage)
+        return Image.alpha_composite(self._currImage, baseImage)
 
     def postFrameRender(self):
         closePipe(self.video.pipe)
@@ -162,17 +226,17 @@ class Component(Component):
     def makeFfmpegFilter(self, preview=False, startPt=0):
         w, h = scale(self.scale, self.width, self.height, str)
         if self.amplitude == 0:
-            amplitude = "lin"
-        elif self.amplitude == 1:
             amplitude = "log"
-        elif self.amplitude == 2:
+        elif self.amplitude == 1:
             amplitude = "sqrt"
-        elif self.amplitude == 3:
+        elif self.amplitude == 2:
             amplitude = "cbrt"
+        elif self.amplitude == 3:
+            amplitude = "lin"
         hexcolor = QColor(*self.color).name()
         opacity = "{0:.1f}".format(self.opacity / 100)
         genericPreview = self.settings.value("pref_genericPreview")
-        if self.mode < 3:
+        if self.mode > 1:
             filter_ = (
                 "showwaves="
                 f'r={str(self.settings.value("outputFrameRate"))}:'
@@ -180,10 +244,10 @@ class Component(Component):
                 f'mode={self.page.comboBox_mode.currentText().lower() if self.mode != 3 else "p2p"}:'
                 f"colors={hexcolor}@{opacity}:scale={amplitude}"
             )
-        elif self.mode > 2:
+        elif self.mode < 2:
             filter_ = (
                 f'showfreqs=s={str(self.settings.value("outputWidth"))}x{str(self.settings.value("outputHeight"))}:'
-                f'mode={"line" if self.mode == 4 else "bar"}:'
+                f'mode={"line" if self.mode == 0 else "bar"}:'
                 f"colors={hexcolor}@{opacity}"
                 f":ascale={amplitude}:fscale={'log' if self.mono else 'lin'}"
             )

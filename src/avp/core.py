@@ -12,7 +12,7 @@ import logging
 
 from . import toolkit
 
-
+appName = "Audio Visualizer Python"
 log = logging.getLogger("AVP.Core")
 STDOUT_LOGLVL = logging.WARNING
 

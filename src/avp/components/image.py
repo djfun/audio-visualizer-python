@@ -4,13 +4,13 @@ import os
 from copy import copy
 
 from ..component import Component
-from ..toolkit.frame import BlankFrame
-from .original import Component as Visualizer
+from ..toolkit.frame import BlankFrame, addShadow
+from ..toolkit.visualizer import createSpectrumArray
 
 
 class Component(Component):
     name = "Image"
-    version = "2.0.0"
+    version = "2.1.0"
 
     def widget(self, *args):
         super().widget(*args)
@@ -35,6 +35,7 @@ class Component(Component):
                 "mirror": self.page.checkBox_mirror,
                 "respondToAudio": self.page.checkBox_respondToAudio,
                 "sensitivity": self.page.spinBox_sensitivity,
+                "shadow": self.page.checkBox_shadow,
             },
             presetNames={
                 "imagePath": "image",
@@ -75,31 +76,16 @@ class Component(Component):
         # Trigger creation of new base image
         self.existingImage = None
 
-        smoothConstantDown = 0.08 + 0
-        smoothConstantUp = 0.8 - 0
-        self.lastSpectrum = None
-        self.spectrumArray = {}
-
-        for i in range(0, len(self.completeAudioArray), self.sampleSize):
-            if self.canceled:
-                break
-            self.lastSpectrum = Visualizer.transformData(
-                i,
-                self.completeAudioArray,
-                self.sampleSize,
-                smoothConstantDown,
-                smoothConstantUp,
-                self.lastSpectrum,
-                self.sensitivity,
-            )
-            self.spectrumArray[i] = copy(self.lastSpectrum)
-
-            progress = int(100 * (i / len(self.completeAudioArray)))
-            if progress >= 100:
-                progress = 100
-            pStr = "Analyzing audio: " + str(progress) + "%"
-            self.progressBarSetText.emit(pStr)
-            self.progressBarUpdate.emit(int(progress))
+        self.spectrumArray = createSpectrumArray(
+            self,
+            self.completeAudioArray,
+            self.sampleSize,
+            0.08,
+            0.8,
+            self.sensitivity,
+            self.progressBarUpdate,
+            self.progressBarSetText,
+        )
 
     def frameRender(self, frameNo):
         return self.drawFrame(
@@ -139,9 +125,16 @@ class Component(Component):
                 self.existingImage = image
 
             # Respond to audio
+            resolutionFactor = height / 1080
+            shadX = int(resolutionFactor * 1)
+            shadY = int(resolutionFactor * -1)
+            shadBlur = resolutionFactor * 3.50
             scale = 0
             if dynamicScale is not None:
                 scale = dynamicScale[36 * 4] / 4
+                shadX += int((scale / 4) * resolutionFactor)
+                shadY += int((scale / 2) * resolutionFactor)
+                shadBlur += (scale / 8) * resolutionFactor
                 image = ImageOps.contain(
                     image,
                     (
@@ -161,6 +154,8 @@ class Component(Component):
             )
             if self.rotate != 0:
                 frame = frame.rotate(self.rotate)
+            if self.shadow:
+                frame = addShadow(frame, shadBlur, shadX, shadY)
 
         return frame
 

@@ -2,7 +2,7 @@ from PyQt6 import QtGui
 import logging
 
 from ..component import Component
-from ..toolkit.frame import BlankFrame, FloodFrame, FramePainter, PaintColor
+from ..toolkit.frame import BlankFrame, FloodFrame, FramePainter
 
 
 log = logging.getLogger("AVP.Components.Color")
@@ -152,13 +152,13 @@ class Component(Component):
         elif self.spread == 2:
             spread = QtGui.QGradient.Spread.RepeatSpread
         brush.setSpread(spread)
-        brush.setColorAt(0.0, PaintColor(*self.color1))
+        brush.setColorAt(0.0, QtGui.QColor(*self.color1))
         if self.trans:
-            brush.setColorAt(1.0, PaintColor(0, 0, 0, 0))
+            brush.setColorAt(1.0, QtGui.QColor(0, 0, 0, 0))
         elif self.fillType == 1 and self.stretch:
-            brush.setColorAt(0.2, PaintColor(*self.color2))
+            brush.setColorAt(0.2, QtGui.QColor(*self.color2))
         else:
-            brush.setColorAt(1.0, PaintColor(*self.color2))
+            brush.setColorAt(1.0, QtGui.QColor(*self.color2))
         image.setBrush(brush)
         image.drawRect(self.x, self.y, self.sizeWidth, self.sizeHeight)
 

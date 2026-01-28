@@ -3,7 +3,7 @@ Common tools for drawing compatible frames in a Component's frameRender()
 """
 
 from PyQt6 import QtGui
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageChops, ImageFilter
 from PIL.ImageQt import ImageQt
 from PyQt6 import QtCore
 import sys
@@ -30,7 +30,7 @@ class FramePainter(QtGui.QPainter):
 
     def setPen(self, penStyle):
         if type(penStyle) is tuple:
-            super().setPen(PaintColor(*penStyle))
+            super().setPen(QtGui.QColor(*penStyle))
         else:
             super().setPen(penStyle)
 
@@ -45,24 +45,14 @@ class FramePainter(QtGui.QPainter):
         buffer.close()
         self.end()
         return frame
-        imBytes = self.image.bits().asstring(self.image.byteCount())
-        frame = Image.frombytes(
-            "RGBA", (self.image.width(), self.image.height()), imBytes
-        )
-        self.end()
-        return frame
 
 
-class PaintColor(QtGui.QColor):
-    """
-    Subclass of QtGui.QColor with an added scale() method
-    Previously this class reversed the painter colour to solve
-    hardware issues related to endianness,
-    but Qt appears to deal with this itself nowadays
-    """
-
-    def __init__(self, r, g, b, a=255):
-        super().__init__(r, g, b, a)
+def addShadow(frame, blurRadius, blurOffsetX, blurOffsetY):
+    shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
+    shadImg = shadImg.filter(ImageFilter.GaussianBlur(blurRadius))
+    frame = shadImg.paste(frame, box=(-blurOffsetX, -blurOffsetY), mask=frame)
+    frame = shadImg
+    return frame
 
 
 def scale(scalePercent, width, height, returntype=None):

@@ -5,7 +5,7 @@ import os
 import logging
 
 from ..component import Component
-from ..toolkit.frame import FramePainter, PaintColor
+from ..toolkit.frame import FramePainter, addShadow
 
 log = logging.getLogger("AVP.Components.Text")
 
@@ -26,7 +26,6 @@ class Component(Component):
         self.page.comboBox_textAlign.addItem("Right")
         self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
-        self.page.lineEdit_title.setText(self.title)
         self.page.pushButton_center.clicked.connect(self.centerXY)
 
         self.page.fontComboBox_titleFont.currentFontChanged.connect(
@@ -35,7 +34,7 @@ class Component(Component):
         # The QFontComboBox must be connected directly to the Qt Signal
         # which triggers the preview to update.
         # This unfortunately makes changing the font into a non-undoable action.
-        # Must be something broken in the conversion to a ComponentAction
+        # Fix requires updating ComponentAction to handle fonts
 
         self.trackWidgets(
             {
@@ -173,7 +172,7 @@ class Component(Component):
                 path.addText(x, y, font, self.title)
             path = outliner.createStroke(path)
             image.setPen(QtCore.Qt.PenStyle.NoPen)
-            image.setBrush(PaintColor(*self.strokeColor))
+            image.setBrush(QtGui.QColor(*self.strokeColor))
             image.drawPath(path)
 
         image.setFont(font)
@@ -183,11 +182,7 @@ class Component(Component):
         # turn QImage into Pillow frame
         frame = image.finalize()
         if self.shadow:
-            shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
-            shadImg = shadImg.filter(ImageFilter.GaussianBlur(self.shadBlur))
-            shadImg = ImageChops.offset(shadImg, self.shadX, self.shadY)
-            shadImg.paste(frame, box=(0, 0), mask=frame)
-            frame = shadImg
+            frame = addShadow(frame, self.shadBlur / 10, self.shadX, self.shadY)
 
         return frame
 
