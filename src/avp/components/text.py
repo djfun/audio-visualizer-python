@@ -26,7 +26,6 @@ class Component(Component):
         self.page.comboBox_textAlign.addItem("Right")
         self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
-        self.page.lineEdit_title.setText(self.title)
         self.page.pushButton_center.clicked.connect(self.centerXY)
 
         self.page.fontComboBox_titleFont.currentFontChanged.connect(
@@ -35,7 +34,7 @@ class Component(Component):
         # The QFontComboBox must be connected directly to the Qt Signal
         # which triggers the preview to update.
         # This unfortunately makes changing the font into a non-undoable action.
-        # Must be something broken in the conversion to a ComponentAction
+        # Fix requires updating ComponentAction to handle fonts
 
         self.trackWidgets(
             {
@@ -183,7 +182,7 @@ class Component(Component):
         # turn QImage into Pillow frame
         frame = image.finalize()
         if self.shadow:
-            frame = addShadow(frame, self.shadBlur, self.shadX, self.shadY)
+            frame = addShadow(frame, self.shadBlur / 10, self.shadX, self.shadY)
 
         return frame
 

@@ -807,6 +807,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             if oldUserValue == newUserValue and oldRelativeVal != newRelativeVal:
                 # Float changed without pixel value changing, which
                 # means the pixel value needs to be updated
+                # TODO QDoubleSpinBox doesn't work with relativeWidgets because of this
                 log.debug(
                     "Updating %s #%s's relative widget: %s",
                     self.__class__.name,
