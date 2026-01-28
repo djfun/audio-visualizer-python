@@ -927,7 +927,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 msg="You have unsaved changes in project '%s'. "
                 "Save before %s?"
                 % (os.path.basename(self.currentProject)[:-4], phrase),
-                showCancel=True,
+                showDiscard=True,
             )
             if ch:
                 success = self.saveProjectChanges()
@@ -997,10 +997,15 @@ class MainWindow(QtWidgets.QMainWindow):
             else QtWidgets.QMessageBox.Icon.Information
         )
         msg.setDetailedText(kwargs["detail"] if "detail" in kwargs else None)
-        if "showCancel" in kwargs and kwargs["showCancel"]:
+        if "showDiscard" in kwargs and kwargs["showDiscard"]:
             msg.setStandardButtons(
                 QtWidgets.QMessageBox.StandardButton.Save
                 | QtWidgets.QMessageBox.StandardButton.Discard
+                | QtWidgets.QMessageBox.StandardButton.Cancel
+            )
+        elif "showCancel" in kwargs and kwargs["showCancel"]:
+            msg.setStandardButtons(
+                QtWidgets.QMessageBox.StandardButton.Ok
                 | QtWidgets.QMessageBox.StandardButton.Cancel
             )
         else:
