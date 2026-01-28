@@ -50,8 +50,7 @@ class FramePainter(QtGui.QPainter):
 def addShadow(frame, blurRadius, blurOffsetX, blurOffsetY):
     shadImg = ImageEnhance.Contrast(frame).enhance(0.0)
     shadImg = shadImg.filter(ImageFilter.GaussianBlur(blurRadius))
-    shadImg = ImageChops.offset(shadImg, blurOffsetX, blurOffsetY)
-    frame = shadImg.paste(frame, box=(0, 0), mask=frame)
+    frame = shadImg.paste(frame, box=(-blurOffsetX, -blurOffsetY), mask=frame)
     frame = shadImg
     return frame
 
