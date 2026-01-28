@@ -135,9 +135,9 @@ def rgbFromString(string):
             if i > 255 or i < 0:
                 raise ValueError
         return tup
-    except:
-        log.warning("Error parsing color. Generated random color.")
-        return randomColor()
+    except Exception as e:
+        log.warning("Could not parse '%s' as a color (encountered %s).", string, type(e).__name__)
+        return (255, 255, 255)
 
 
 def formatTraceback(tb=None):
