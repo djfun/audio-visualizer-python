@@ -1,13 +1,12 @@
 from avp.command import Command
 from pytestqt import qtbot
 from pytest import fixture
-from . import imageDataSum
+from . import imageDataSum, command
 
 
 @fixture
-def coreWithSpectrumComp(qtbot):
+def coreWithSpectrumComp(qtbot, command):
     """Fixture providing a Command object with Spectrum component added"""
-    command = Command()
     command.settings.setValue("outputHeight", 1080)
     command.settings.setValue("outputWidth", 1920)
     command.core.insertComponent(0, command.core.moduleIndexFor("Spectrum"), command)

@@ -1,14 +1,13 @@
 import sys
 import os
 import tempfile
-from avp.command import Command
-from . import getTestDataPath
+from . import command, getTestDataPath, MockSignal
 from pytestqt import qtbot
 
 
-def test_commandline_classic_export(qtbot):
+def test_commandline_classic_export(qtbot, command):
     """Run Qt event loop and create a video in the system /tmp or /temp"""
-    soundFile = getTestDataPath("test.ogg")
+    soundFile = getTestDataPath("inputfiles/test.ogg")
     outputDir = tempfile.mkdtemp(prefix="avp-test-")
     outputFilename = os.path.join(outputDir, "output.mp4")
     sys.argv = [
@@ -21,9 +20,6 @@ def test_commandline_classic_export(qtbot):
         "-o",
         outputFilename,
     ]
-
-    command = Command()
-    command.quit = lambda _: None
     command.parseArgs()
     # Command object now has a video_thread Worker which is exporting the video
 

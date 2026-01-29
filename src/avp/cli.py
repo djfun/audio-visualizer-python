@@ -5,6 +5,11 @@ import re
 import string
 
 
+from .core import Core
+
+# Core class must store settings as class variables
+# before we can use many things in AVP
+Core.storeSettings()
 log = logging.getLogger("AVP.Main")
 
 

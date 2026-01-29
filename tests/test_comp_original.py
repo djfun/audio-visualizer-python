@@ -2,16 +2,15 @@ from avp.command import Command
 from avp.toolkit.visualizer import transformData
 from pytestqt import qtbot
 from pytest import fixture
-from . import audioData, MockSignal, imageDataSum
+from . import audioData, command, MockSignal, imageDataSum
 
 
 sampleSize = 1470  # 44100 / 30 = 1470
 
 
 @fixture
-def coreWithClassicComp(qtbot):
+def coreWithClassicComp(qtbot, command):
     """Fixture providing a Command object with Classic Visualizer component added"""
-    command = Command()
     command.core.insertComponent(
         0, command.core.moduleIndexFor("Classic Visualizer"), command
     )

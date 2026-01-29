@@ -2,13 +2,12 @@ from avp.command import Command
 from PyQt6.QtGui import QFont
 from pytestqt import qtbot
 from pytest import fixture, mark
-from . import audioData, MockSignal, imageDataSum
+from . import audioData, command, MockSignal, imageDataSum
 
 
 @fixture
-def coreWithTextComp(qtbot):
+def coreWithTextComp(qtbot, command):
     """Fixture providing a Command object with Title Text component added"""
-    command = Command()
     command.core.insertComponent(0, command.core.moduleIndexFor("Title Text"), command)
     yield command.core
 

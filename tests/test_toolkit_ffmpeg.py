@@ -1,7 +1,8 @@
 import pytest
+from avp.core import Core
 from avp.command import Command
 from avp.toolkit.ffmpeg import createFfmpegCommand
-from . import audioData
+from . import audioData, getTestDataPath, initCore
 
 
 def test_readAudioFile_data(audioData):
@@ -14,6 +15,7 @@ def test_readAudioFile_duration(audioData):
 
 @pytest.mark.parametrize("width, height", ((1920, 1080), (1280, 720)))
 def test_createFfmpegCommand(width, height):
+    initCore()
     command = Command()
     command.settings.setValue("outputWidth", width)
     command.settings.setValue("outputHeight", height)

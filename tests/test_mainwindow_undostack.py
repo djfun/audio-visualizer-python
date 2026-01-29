@@ -1,16 +1,7 @@
 from pytest import fixture
 from pytestqt import qtbot
 from avp.gui.mainwindow import MainWindow
-from . import getTestDataPath
-
-
-@fixture
-def window(qtbot):
-    window = MainWindow(None, None)
-    qtbot.addWidget(window)
-    window.settings.setValue("outputWidth", 1920)
-    window.settings.setValue("outputHeight", 1080)
-    yield window
+from . import getTestDataPath, window
 
 
 def test_undo_classic_visualizer_sensitivity(window, qtbot):
@@ -20,7 +11,7 @@ def test_undo_classic_visualizer_sensitivity(window, qtbot):
         0, window.core.moduleIndexFor("Classic Visualizer"), window
     )
     comp = window.core.selectedComponents[0]
-    comp.imagePath = getTestDataPath("test.jpg")
+    comp.imagePath = getTestDataPath("inputfiles/test.jpg")
     for i in range(1, 100):
         comp.page.spinBox_scale.setValue(i)
     assert comp.scale == 99
@@ -32,7 +23,7 @@ def test_undo_image_scale(window, qtbot):
     """Undo Image component scale setting should undo multiple merged actions."""
     window.core.insertComponent(0, window.core.moduleIndexFor("Image"), window)
     comp = window.core.selectedComponents[0]
-    comp.imagePath = getTestDataPath("test.jpg")
+    comp.imagePath = getTestDataPath("inputfiles/test.jpg")
     comp.page.spinBox_scale.setValue(100)
     for i in range(10, 401):
         comp.page.spinBox_scale.setValue(i)

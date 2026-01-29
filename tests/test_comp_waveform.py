@@ -1,12 +1,11 @@
-from avp.command import Command
 from pytestqt import qtbot
 from pytest import fixture
+from . import command
 
 
 @fixture
-def coreWithWaveformComp(qtbot):
+def coreWithWaveformComp(qtbot, command):
     """Fixture providing a Command object with Waveform component added"""
-    command = Command()
     command.core.insertComponent(0, command.core.moduleIndexFor("Waveform"), command)
     yield command.core
 
