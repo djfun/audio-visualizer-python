@@ -1,7 +1,10 @@
+import os
 from avp.core import Core
+from . import getTestDataPath, initCore
 
 
 def test_component_names():
+    initCore()
     core = Core()
     assert core.compNames == [
         "Classic Visualizer",
@@ -17,5 +20,15 @@ def test_component_names():
 
 
 def test_moduleindex():
+    initCore()
     core = Core()
     assert core.moduleIndexFor("Classic Visualizer") == 0
+
+
+def test_configPath_default():
+    configPath = Core.getConfigPath(None)
+    assert os.path.basename(configPath) == "audio-visualizer"
+
+
+def test_configPath_nonstandard():
+    assert Core.getConfigPath(getTestDataPath("config")) == getTestDataPath("config")

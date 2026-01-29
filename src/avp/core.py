@@ -426,13 +426,7 @@ class Core:
         from .toolkit.ffmpeg import findFfmpeg
 
         cls.wd = wd
-        dataDir = (
-            QtCore.QStandardPaths.writableLocation(
-                QtCore.QStandardPaths.StandardLocation.AppConfigLocation
-            )
-            if dataDir is None
-            else dataDir
-        )
+        dataDir = cls.getConfigPath(dataDir)
         # Windows: C:/Users/<USER>/AppData/Local/audio-visualizer
         # macOS: ~/Library/Preferences/audio-visualizer
         # Linux: ~/.config/audio-visualizer
@@ -593,3 +587,16 @@ class Core:
             libLog.addHandler(libLogFile)
             # lowest level must be explicitly set on the root Logger
             libLog.setLevel(0)
+
+    @staticmethod
+    def getConfigPath(dataDir=None):
+        return (
+            os.path.join(
+                QtCore.QStandardPaths.writableLocation(
+                    QtCore.QStandardPaths.StandardLocation.AppConfigLocation
+                ),
+                "audio-visualizer",
+            )
+            if dataDir is None
+            else dataDir
+        )

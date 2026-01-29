@@ -43,7 +43,7 @@ def getTestDataPath(filename=""):
 
 
 def initCore():
-    testDataDir = getTestDataPath()
+    testDataDir = getTestDataPath("config")
     unwanted = ["autosave.avp", "settings.ini"]
     for file in unwanted:
         filename = os.path.join(testDataDir, "autosave.avp")

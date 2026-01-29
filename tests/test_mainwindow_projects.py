@@ -1,3 +1,5 @@
+from PyQt6 import QtCore
+import os
 from pytest import fixture
 from pytestqt import qtbot
 from . import getTestDataPath, window
@@ -8,9 +10,17 @@ def test_mainwindow_clear(qtbot, window):
     assert len(window.core.selectedComponents) == 0
 
 
+def test_mainwindow_presetDir_in_tests(qtbot, window):
+    # FIXME presetDir gets set to projectDir for some reason
+    assert (
+        os.path.basename(os.path.dirname(window.core.settings.value("presetDir")))
+        == "config"
+    )
+
+
 def test_mainwindow_openProject(qtbot, window):
     """Open testproject.avp using MainWindow.openProject()"""
-    window.openProject(getTestDataPath("projects/testproject.avp"), prompt=False)
+    window.openProject(getTestDataPath("config/projects/testproject.avp"), prompt=False)
     assert len(window.core.selectedComponents) == 2
 
 

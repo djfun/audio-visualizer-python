@@ -9,9 +9,9 @@ OrderedDict({'LG_end': 0.0, 'LG_start': 0.0, 'RG_centre': 0.0015625, 'RG_end': 0
 [Settings]
 componentDir=tests/data/inputfiles
 inputDir=tests/data/inputfiles
-presetDir=tests/data/presets
-projectDir=tests/data/projects
+presetDir=tests/data/config/presets
+projectDir=tests/data/config/projects
 
 [WindowFields]
-lineEdit_audioFile=tests/data/test.ogg
+lineEdit_audioFile=tests/data/inputfiles/test.ogg
 lineEdit_outputFile=
