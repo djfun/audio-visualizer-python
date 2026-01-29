@@ -902,8 +902,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def createNewProject(self, prompt=True):
         if prompt:
             ch = self.openSaveChangesDialog("starting a new project")
-        if ch is None:
-            return
+            if ch is None:
+                return
 
         self.clear()
         self.currentProject = None
