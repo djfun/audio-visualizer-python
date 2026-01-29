@@ -256,7 +256,6 @@ class Command(QtCore.QObject):
         for i, compFileName in enumerate(compFileNames):
             if name.lower() in compFileName:
                 return self.core.compNames[i]
-            return
 
         return None
 

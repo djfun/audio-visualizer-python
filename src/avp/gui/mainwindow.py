@@ -414,8 +414,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Add initial components if none are in the list
         if not self.core.selectedComponents:
-            self.core.insertComponent(0, 0, self)
-            self.core.insertComponent(1, 1, self)
+            self.core.insertComponent(
+                0, self.core.moduleIndexFor("Classic Visualizer"), self
+            )
+            self.core.insertComponent(1, self.core.moduleIndexFor("Color"), self)
             # set colors to white and black to match classic appearance of program
             self.core.selectedComponents[0].page.lineEdit_visColor.setText(
                 "255,255,255"
@@ -900,8 +902,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def createNewProject(self, prompt=True):
         if prompt:
             ch = self.openSaveChangesDialog("starting a new project")
-        if ch is None:
-            return
+            if ch is None:
+                return
 
         self.clear()
         self.currentProject = None

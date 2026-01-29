@@ -1,0 +1,17 @@
+[Components]
+Classic Visualizer
+1
+OrderedDict({'bars': 63, 'layout': 0, 'preset': None, 'scale': 20, 'smooth': 0, 'visColor': (255, 255, 255), 'y': 0.0})
+Color
+1
+OrderedDict({'LG_end': 0.0, 'LG_start': 0.0, 'RG_centre': 0.0015625, 'RG_end': 0.0, 'RG_start': 0.0, 'color1': (0, 0, 0), 'color2': (133, 133, 133), 'fillType': 0, 'height': 1.0, 'preset': None, 'spread': 0, 'stretch': False, 'trans': False, 'width': 1.0, 'x': 0.0, 'y': 0.0})
+
+[Settings]
+componentDir=tests/data/inputfiles
+inputDir=tests/data/inputfiles
+presetDir=tests/data/presets
+projectDir=tests/data/projects
+
+[WindowFields]
+lineEdit_audioFile=tests/data/test.ogg
+lineEdit_outputFile=

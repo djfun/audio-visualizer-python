@@ -420,14 +420,18 @@ class Core:
         Core.canceled = False
 
     @classmethod
-    def storeSettings(cls):
+    def storeSettings(cls, dataDir=None):
         """Store settings/paths to directories as class variables"""
         from .__init__ import wd
         from .toolkit.ffmpeg import findFfmpeg
 
         cls.wd = wd
-        dataDir = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.StandardLocation.AppConfigLocation
+        dataDir = (
+            QtCore.QStandardPaths.writableLocation(
+                QtCore.QStandardPaths.StandardLocation.AppConfigLocation
+            )
+            if dataDir is None
+            else dataDir
         )
         # Windows: C:/Users/<USER>/AppData/Local/audio-visualizer
         # macOS: ~/Library/Preferences/audio-visualizer
@@ -589,7 +593,3 @@ class Core:
             libLog.addHandler(libLogFile)
             # lowest level must be explicitly set on the root Logger
             libLog.setLevel(0)
-
-
-# always store settings in class variables even if a Core object is not created
-Core.storeSettings()

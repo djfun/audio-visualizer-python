@@ -9,6 +9,9 @@ prof/
 .venv/
 .env/
 .vscode/
+tests/data/log/
+tests/data/settings.ini
+tests/data/autosave.avp
 *.mkv
 *.mp4
 *.wav
