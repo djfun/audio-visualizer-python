@@ -2,7 +2,15 @@ from PyQt6 import QtCore
 import os
 from pytest import fixture
 from pytestqt import qtbot
+from avp.gui.mainwindow import MainWindow
 from . import getTestDataPath, window
+
+
+def test_mainwindow_init_with_project(qtbot):
+    window = MainWindow(getTestDataPath("config/projects/testproject.avp"), None)
+    qtbot.addWidget(window)
+    assert window.core.selectedComponents[0].name == "Classic Visualizer"
+    assert window.core.selectedComponents[1].name == "Color"
 
 
 def test_mainwindow_clear(qtbot, window):

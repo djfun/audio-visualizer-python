@@ -52,6 +52,17 @@ def initCore():
     Core.storeSettings(testDataDir)
 
 
+def preFrameRender(audioData, comp):
+    """Prepares a component for calls to frameRender()"""
+    comp.preFrameRender(
+        audioFile=getTestDataPath("inputfiles/test.ogg"),
+        completeAudioArray=audioData[0],
+        sampleSize=1470,
+        progressBarSetText=MockSignal(),
+        progressBarUpdate=MockSignal(),
+    )
+
+
 class MockSignal:
     """Pretends to be a pyqtSignal"""
 

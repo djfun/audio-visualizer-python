@@ -2,7 +2,7 @@ from avp.command import Command
 from avp.toolkit.visualizer import transformData
 from pytestqt import qtbot
 from pytest import fixture
-from . import audioData, command, MockSignal, imageDataSum
+from . import audioData, command, imageDataSum, preFrameRender, audioData
 
 
 sampleSize = 1470  # 44100 / 30 = 1470
@@ -51,12 +51,7 @@ def test_comp_classic_drawBars(coreWithClassicComp, audioData):
 def test_comp_classic_drawBars_using_preFrameRender(coreWithClassicComp, audioData):
     """Call drawBars after creating audio spectrum data using preFrameRender."""
     comp = coreWithClassicComp.selectedComponents[0]
-    comp.preFrameRender(
-        completeAudioArray=audioData[0],
-        sampleSize=sampleSize,
-        progressBarSetText=MockSignal(),
-        progressBarUpdate=MockSignal(),
-    )
+    preFrameRender(audioData, comp)
     image = comp.drawBars(
         1920,
         1080,
