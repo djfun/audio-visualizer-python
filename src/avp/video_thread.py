@@ -61,7 +61,11 @@ class Worker(QtCore.QObject):
     def createFfmpegCommand(self, duration):
         try:
             ffmpegCommand = createFfmpegCommand(
-                self.inputFile, self.outputFile, self.components, duration
+                self.inputFile,
+                self.outputFile,
+                self.components,
+                duration,
+                "info" if log.getEffectiveLevel() < logging.WARNING else "error",
             )
         except sp.CalledProcessError as e:
             # FIXME video_thread should own this error signal, not components
@@ -309,9 +313,9 @@ class Worker(QtCore.QObject):
             log.critical("Out_Pipe to FFmpeg couldn't be created!", exc_info=True)
             raise
 
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
         # Begin piping into ffmpeg!
@@ -335,16 +339,13 @@ class Worker(QtCore.QObject):
             completion = (audioI / self.audioArrayLen) * 100
             if progressBarValue + 1 <= completion:
                 progressBarValue = numpy.floor(completion).astype(int)
+                msg = "Exporting video: %s%%" % str(int(progressBarValue))
                 self.progressBarUpdate.emit(progressBarValue)
-                self.progressBarSetText.emit(
-                    "Exporting video: %s%%" % str(int(progressBarValue))
-                )
+                self.progressBarSetText.emit(msg)
 
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # Finished creating the video!
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-        numpy.seterr(all="print")
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
         self.closePipe()
 
@@ -363,7 +364,7 @@ class Worker(QtCore.QObject):
             if self.error:
                 self.failExport()
             else:
-                print("Export Complete")
+                print("\nExport Complete")
                 self.progressBarUpdate.emit(100)
                 self.progressBarSetText.emit("Export Complete")
 

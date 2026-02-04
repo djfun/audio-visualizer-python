@@ -19,7 +19,7 @@ log = logging.getLogger("AVP.Toolkit.Ffmpeg")
 
 
 class FfmpegVideo:
-    """Opens a pipe to ffmpeg and stores a buffer of raw video frames."""
+    """Opens an input pipe to ffmpeg and stores a buffer of raw video frames."""
 
     # error from the thread used to fill the buffer
     threadError = None
@@ -187,7 +187,9 @@ def findFfmpeg():
     return bin
 
 
-def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
+def createFfmpegCommand(
+    inputFile, outputFile, components, duration=-1, logLevel="info"
+):
     """
     Constructs the major ffmpeg command used to export the video
     """
@@ -243,6 +245,8 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
 
     ffmpegCommand = [
         Core.FFMPEG_BIN,
+        "-loglevel",
+        logLevel,
         "-thread_queue_size",
         "512",
         "-y",  # overwrite the output file if it already exists.

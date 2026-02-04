@@ -71,9 +71,10 @@ class Command(QtCore.QObject):
             help="copy and shorten recent log files into ~/avp_log.txt",
         )
         debugCommands.add_argument(
-            "--verbose", "-v",
+            "--verbose",
+            "-v",
             action="store_true",
-            help="create bigger logfiles while program is running",
+            help="send log messages and ffmpeg output to stdout, and create more verbose log files (good to use before --log)",
         )
 
         # project/GUI options
@@ -203,20 +204,18 @@ class Command(QtCore.QObject):
 
     @QtCore.pyqtSlot(str)
     def progressBarSetText(self, value):
-        if "Export " in value:
-            # Don't duplicate completion/failure messages
+        if "Export " in value or time.time() - self.lastProgressUpdate < 0.1:
+            # Don't duplicate completion/failure messages or send too many messages
             return
-        if (
-            not value.startswith("Exporting")
-            and time.time() - self.lastProgressUpdate >= 0.05
-        ):
+
+        if not value.endswith("%"):
             # Show most messages very often
             print(value)
-        elif time.time() - self.lastProgressUpdate >= 2.0:
-            # Give user time to read ffmpeg's output during the export
-            print("##### %s" % value)
-        else:
-            return
+        elif log.getEffectiveLevel() > logging.INFO:
+            # if ffmpeg isn't printing export progress for us,
+            # then overwrite previous message with the next one
+            # if this text is our main export progress
+            print(f"{value}\r", end="")
         self.lastProgressUpdate = time.time()
 
     @QtCore.pyqtSlot()
@@ -224,6 +223,7 @@ class Command(QtCore.QObject):
         self.quit(0)
 
     def quit(self, code):
+        print()
         quit(code)
 
     def showMessage(self, **kwargs):
@@ -285,6 +285,7 @@ class Command(QtCore.QObject):
             with open(filename, "a") as f:
                 f.write(f"{'='*60} debug log ends {'='*60}\n")
         except FileNotFoundError:
+            print("No debug log was found. Run `avp --verbose` before `avp --log`.")
             with open(filename, "w") as f:
                 f.write(f"{'='*60} no debug log {'='*60}\n")
 
