@@ -9,10 +9,10 @@ from ..toolkit.visualizer import createSpectrumArray
 
 class Component(Component):
     name = "Classic Visualizer"
-    version = "1.1.0"
+    version = "1.1.1"
 
     def names(*args):
-        return ["Original Audio Visualization"]
+        return ["Original"]
 
     def properties(self):
         return ["pcm"]
