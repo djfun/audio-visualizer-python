@@ -1,11 +1,27 @@
 from avp.command import Command
 from avp.toolkit.visualizer import transformData
 from pytestqt import qtbot
-from pytest import fixture
+from pytest import fixture, mark
 from . import audioData, command, imageDataSum, preFrameRender, audioData
 
 
 sampleSize = 1470  # 44100 / 30 = 1470
+
+
+def createSpectrumArray(audioData):
+    """Creates enough `spectrumArray` for one call to Component.drawBars()"""
+    spectrumArray = {0: transformData(0, audioData[0], sampleSize, 0.08, 0.8, None, 20)}
+    for i in range(sampleSize, len(audioData[0]), sampleSize):
+        spectrumArray[i] = transformData(
+            i,
+            audioData[0],
+            sampleSize,
+            0.08,
+            0.8,
+            spectrumArray[i - sampleSize].copy(),
+            20,
+        )
+    return spectrumArray
 
 
 @fixture
@@ -28,24 +44,14 @@ def test_comp_classic_removed(coreWithClassicComp):
     assert len(coreWithClassicComp.selectedComponents) == 0
 
 
-def test_comp_classic_drawBars(coreWithClassicComp, audioData):
+@mark.parametrize("layout", (0, 1, 2, 3))
+def test_comp_classic_drawBars(coreWithClassicComp, audioData, layout):
     """Call drawBars after creating audio spectrum data manually."""
-
-    spectrumArray = {0: transformData(0, audioData[0], sampleSize, 0.08, 0.8, None, 20)}
-    for i in range(sampleSize, len(audioData[0]), sampleSize):
-        spectrumArray[i] = transformData(
-            i,
-            audioData[0],
-            sampleSize,
-            0.08,
-            0.8,
-            spectrumArray[i - sampleSize].copy(),
-            20,
-        )
-    image = coreWithClassicComp.selectedComponents[0].drawBars(
-        1920, 1080, spectrumArray[sampleSize * 4], (0, 0, 0), 0
-    )
-    assert imageDataSum(image) == 37872316
+    spectrumArray = createSpectrumArray(audioData)
+    comp = coreWithClassicComp.selectedComponents[0]
+    image = comp.drawBars(1920, 1080, spectrumArray[sampleSize * 4], (0, 0, 0), layout)
+    imageSize = 37872316
+    assert imageDataSum(image) == imageSize if layout < 2 else imageSize / 2
 
 
 def test_comp_classic_drawBars_using_preFrameRender(coreWithClassicComp, audioData):
@@ -60,3 +66,36 @@ def test_comp_classic_drawBars_using_preFrameRender(coreWithClassicComp, audioDa
         0,
     )
     assert imageDataSum(image) == 37872316
+
+
+def test_comp_classic_command_layout(coreWithClassicComp):
+    comp = coreWithClassicComp.selectedComponents[0]
+    comp.command("layout=top")
+    assert comp.layout == 3
+
+
+def test_comp_classic_command_color(coreWithClassicComp):
+    comp = coreWithClassicComp.selectedComponents[0]
+    comp.command("color=111,111,111")
+    assert comp.visColor == (111, 111, 111)
+
+
+def test_comp_classic_command_preset(coreWithClassicComp):
+    comp = coreWithClassicComp.selectedComponents[0]
+    saveValueStore = comp.savePreset()
+    saveValueStore["preset"] = "testPreset"
+    coreWithClassicComp.createPresetFile(
+        comp.name, comp.version, "testPreset", saveValueStore
+    )
+    comp.command("preset=testPreset")
+    assert comp.currentPreset == "testPreset"
+
+
+def test_comp_classic_loadPreset(coreWithClassicComp):
+    comp = coreWithClassicComp.selectedComponents[0]
+    comp.scale = 99
+    saveValueStore = comp.savePreset()
+    saveValueStore["preset"] = "testPreset"
+    comp.scale = 20
+    comp.loadPreset(saveValueStore, "testPreset")
+    assert comp.scale == 99
