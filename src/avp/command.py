@@ -243,12 +243,14 @@ class Command(QtCore.QObject):
 
     def parseCompName(self, name):
         """Deduces a proper component name out of a commandline arg"""
-
         if name.title() in self.core.compNames:
             return name.title()
         for compName in self.core.compNames:
             if name.capitalize() in compName:
                 return compName
+        for altName, moduleIndex in self.core.altCompNames:
+            if name.title() in altName:
+                return self.core.compNames[moduleIndex]
 
         compFileNames = [
             os.path.splitext(os.path.basename(mod.__file__))[0]
