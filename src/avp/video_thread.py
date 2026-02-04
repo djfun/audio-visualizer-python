@@ -12,16 +12,16 @@ from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
 from PIL.ImageQt import ImageQt
+
 import numpy
 import subprocess as sp
 import sys
 import os
-import time
 import signal
 import logging
 
 from .libcomponent import ComponentError
-from .toolkit.frame import Checkerboard
+from .toolkit import formatTraceback
 from .toolkit.ffmpeg import (
     openPipe,
     readAudioFile,
@@ -212,9 +212,11 @@ class Worker(QtCore.QObject):
             self.closePipe()
             self.cancelExport()
             self.error = True
-            msg = "A call to renderFrame in the video thread failed critically."
-            log.critical(msg)
-            comp._error.emit(msg, str(e))
+            msg = f"{comp.name} renderFrame({int(audioI / self.sampleSize)}) raised an exception."
+            tb = formatTraceback()
+            details = f"{e.__class__.__name__}: {str(e)}\n\n{tb}"
+            log.critical(f"{msg}\n{details}")
+            comp._error.emit(msg, details)
 
         bgI = int(audioI / self.sampleSize)
         frame = None
