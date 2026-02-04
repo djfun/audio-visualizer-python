@@ -1,14 +1,14 @@
 from PyQt6 import QtGui
 import logging
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, FloodFrame, FramePainter
 
 
 log = logging.getLogger("AVP.Components.Color")
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Color"
     version = "1.0.0"
 

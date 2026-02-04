@@ -2,12 +2,12 @@ import numpy
 from PIL import Image, ImageDraw
 from copy import copy
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame
 from ..toolkit.visualizer import createSpectrumArray
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Classic Visualizer"
     version = "1.1.1"
 

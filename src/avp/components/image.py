@@ -3,12 +3,12 @@ from PyQt6 import QtWidgets
 import os
 from copy import copy
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Image"
     version = "2.1.0"
 

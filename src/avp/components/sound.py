@@ -1,11 +1,11 @@
 from PyQt6 import QtGui, QtCore, QtWidgets
 import os
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Sound"
     version = "1.0.0"
 

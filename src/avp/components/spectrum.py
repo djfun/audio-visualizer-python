@@ -6,7 +6,7 @@ import subprocess
 import time
 import logging
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, scale
 from ..toolkit import checkOutput, connectWidget
 from ..toolkit.ffmpeg import (
@@ -21,7 +21,7 @@ from ..toolkit.ffmpeg import (
 log = logging.getLogger("AVP.Components.Spectrum")
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Spectrum"
     version = "1.0.1"
 

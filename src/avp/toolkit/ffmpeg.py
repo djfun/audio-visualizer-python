@@ -98,7 +98,7 @@ class FfmpegVideo:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
-        from ..component import ComponentError
+        from ..libcomponent import ComponentError
 
         if Core.logEnabled:
             logFilename = os.path.join(

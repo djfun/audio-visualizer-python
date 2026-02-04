@@ -20,7 +20,7 @@ import time
 import signal
 import logging
 
-from .component import ComponentError
+from .libcomponent import ComponentError
 from .toolkit.frame import Checkerboard
 from .toolkit.ffmpeg import (
     openPipe,

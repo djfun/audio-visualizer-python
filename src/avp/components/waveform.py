@@ -5,7 +5,7 @@ import subprocess
 import logging
 from copy import copy
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.visualizer import transformData, createSpectrumArray
 from ..toolkit.frame import BlankFrame, scale
 from ..toolkit import checkOutput
@@ -21,7 +21,7 @@ from ..toolkit.ffmpeg import (
 log = logging.getLogger("AVP.Components.Waveform")
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Waveform"
     version = "2.0.0"
 
