@@ -1,8 +1,7 @@
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QUndoCommand
-from PIL import Image, ImageDraw, ImageEnhance, ImageChops, ImageFilter, ImageOps
+from PIL import Image, ImageDraw
 import os
-from copy import copy
 import math
 import logging
 

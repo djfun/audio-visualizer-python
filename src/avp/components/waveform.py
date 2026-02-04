@@ -3,12 +3,10 @@ from PyQt6.QtGui import QColor
 import os
 import subprocess
 import logging
-from copy import copy
 
 from ..libcomponent import BaseComponent
-from ..toolkit.visualizer import transformData, createSpectrumArray
+from ..toolkit.visualizer import createSpectrumArray
 from ..toolkit.frame import BlankFrame, scale
-from ..toolkit import checkOutput
 from ..toolkit.ffmpeg import (
     openPipe,
     closePipe,

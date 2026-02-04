@@ -1,7 +1,5 @@
-from PIL import ImageEnhance, ImageFilter, ImageChops
-from PyQt6.QtGui import QColor, QFont
-from PyQt6 import QtGui, QtCore, QtWidgets
-import os
+from PyQt6.QtGui import QFont
+from PyQt6 import QtGui, QtCore
 import logging
 
 from ..libcomponent import BaseComponent

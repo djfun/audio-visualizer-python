@@ -1,6 +1,5 @@
 import numpy
 from PIL import Image, ImageDraw
-from copy import copy
 
 from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame

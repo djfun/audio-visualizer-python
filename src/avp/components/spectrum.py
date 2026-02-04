@@ -1,14 +1,11 @@
 from PIL import Image
-from PyQt6 import QtGui, QtCore, QtWidgets
 import os
-import math
 import subprocess
-import time
 import logging
 
 from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, scale
-from ..toolkit import checkOutput, connectWidget
+from ..toolkit import connectWidget
 from ..toolkit.ffmpeg import (
     openPipe,
     closePipe,

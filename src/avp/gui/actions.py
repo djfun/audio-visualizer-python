@@ -1,5 +1,5 @@
 """
-QCommand classes for every undoable user action performed in the MainWindow
+QUndoCommand classes for every undoable user action performed in the MainWindow
 """
 
 from PyQt6.QtGui import QUndoCommand

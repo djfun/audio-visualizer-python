@@ -1,4 +1,4 @@
-from PyQt6 import QtGui, QtCore, QtWidgets
+from PyQt6 import QtWidgets
 import os
 
 from ..libcomponent import BaseComponent

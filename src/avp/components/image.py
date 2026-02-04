@@ -1,7 +1,6 @@
 from PIL import Image, ImageOps, ImageEnhance
 from PyQt6 import QtWidgets
 import os
-from copy import copy
 
 from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, addShadow

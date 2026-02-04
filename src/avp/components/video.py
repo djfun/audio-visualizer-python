@@ -1,14 +1,12 @@
 from PIL import Image
-from PyQt6 import QtGui, QtCore, QtWidgets
+from PyQt6 import QtWidgets
 import os
-import math
 import subprocess
 import logging
 
 from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, scale
 from ..toolkit.ffmpeg import openPipe, closePipe, testAudioStream, FfmpegVideo
-from ..toolkit import checkOutput
 
 
 log = logging.getLogger("AVP.Components.Video")
