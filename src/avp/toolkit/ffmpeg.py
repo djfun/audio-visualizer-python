@@ -11,7 +11,7 @@ import signal
 from queue import PriorityQueue
 import logging
 
-from .. import core
+from ..core import Core
 from .common import checkOutput, pipeWrapper
 
 
@@ -53,7 +53,7 @@ class FfmpegVideo:
             kwargs["filter_"] = None
 
         self.command = [
-            core.Core.FFMPEG_BIN,
+            Core.FFMPEG_BIN,
             "-thread_queue_size",
             "512",
             "-r",
@@ -100,9 +100,9 @@ class FfmpegVideo:
     def fillBuffer(self):
         from ..component import ComponentError
 
-        if core.Core.logEnabled:
+        if Core.logEnabled:
             logFilename = os.path.join(
-                core.Core.logDir, "render_%s.log" % str(self.component.compPos)
+                Core.logDir, "render_%s.log" % str(self.component.compPos)
             )
             log.debug("Creating ffmpeg process (log at %s)", logFilename)
             with open(logFilename, "w") as logf:
@@ -176,7 +176,7 @@ def findFfmpeg():
 
     if getattr(sys, "frozen", False):
         # The application is frozen
-        bin = os.path.join(core.Core.wd, bin)
+        bin = os.path.join(Core.wd, bin)
 
     with open(os.devnull, "w") as f:
         try:
@@ -197,7 +197,6 @@ def createFfmpegCommand(
         duration = getAudioDuration(inputFile)
     safeDuration = "{0:.3f}".format(duration - 0.05)  # used by filters
     duration = "{0:.3f}".format(duration + 0.1)  # used by input sources
-    Core = core.Core
 
     # Test if user has libfdk_aac
     encoders = checkOutput("%s -encoders -hide_banner" % Core.FFMPEG_BIN, shell=True)
@@ -419,7 +418,7 @@ def createAudioFilterCommand(extraAudio, duration):
 def testAudioStream(filename):
     """Test if an audio stream definitely exists"""
     audioTestCommand = [
-        core.Core.FFMPEG_BIN,
+        Core.FFMPEG_BIN,
         "-i",
         filename,
         "-vn",
@@ -437,7 +436,7 @@ def testAudioStream(filename):
 
 def getAudioDuration(filename):
     """Try to get duration of audio file as float, or False if not possible"""
-    command = [core.Core.FFMPEG_BIN, "-i", filename]
+    command = [Core.FFMPEG_BIN, "-i", filename]
 
     try:
         fileInfo = checkOutput(command, stderr=subprocess.STDOUT)
@@ -477,7 +476,7 @@ def readAudioFile(filename, videoWorker):
         return
 
     command = [
-        core.Core.FFMPEG_BIN,
+        Core.FFMPEG_BIN,
         "-i",
         filename,
         "-f",
@@ -502,7 +501,7 @@ def readAudioFile(filename, videoWorker):
     progress = 0
     lastPercent = None
     while True:
-        if core.Core.canceled:
+        if Core.canceled:
             return
         # read 2 seconds of audio
         progress += 4

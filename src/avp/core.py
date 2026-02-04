@@ -14,7 +14,6 @@ from . import toolkit
 
 appName = "Audio Visualizer Python"
 log = logging.getLogger("AVP.Core")
-STDOUT_LOGLVL = logging.WARNING
 
 
 class Core:
@@ -25,6 +24,8 @@ class Core:
     and presets, and creates the video thread to export.
     This class also stores constants as class variables.
     """
+
+    stdoutLogLvl = logging.WARNING
 
     def __init__(self):
         self.importComponents()
@@ -554,7 +555,7 @@ class Core:
     def makeLogger(deleteOldLogs=False, fileLogLvl=None):
         # send critical log messages to stdout
         logStream = logging.StreamHandler()
-        logStream.setLevel(STDOUT_LOGLVL)
+        logStream.setLevel(Core.stdoutLogLvl)
         streamFormatter = logging.Formatter("<%(name)s> %(levelname)s: %(message)s")
         logStream.setFormatter(streamFormatter)
         log = logging.getLogger("AVP")

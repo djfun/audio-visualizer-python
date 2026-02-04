@@ -14,7 +14,8 @@ import signal
 import shutil
 import logging
 
-from . import core, __version__
+from . import __version__
+from .core import Core
 
 
 log = logging.getLogger("AVP.Commandline")
@@ -29,11 +30,11 @@ class Command(QtCore.QObject):
 
     def __init__(self):
         super().__init__()
-        self.core = core.Core()
-        core.Core.mode = "commandline"
+        self.core = Core()
+        Core.mode = "commandline"
         self.dataDir = self.core.dataDir
         self.canceled = False
-        self.settings = core.Core.settings
+        self.settings = Core.settings
 
         # ctrl-c stops the export thread
         signal.signal(signal.SIGINT, self.stopVideo)
@@ -102,8 +103,8 @@ class Command(QtCore.QObject):
         args = parser.parse_args()
 
         if args.verbose:
-            core.STDOUT_LOGLVL = logging.DEBUG
-            core.Core.makeLogger(deleteOldLogs=False, fileLogLvl=logging.DEBUG)
+            Core.stdoutLogLvl = logging.DEBUG
+            Core.makeLogger(deleteOldLogs=False, fileLogLvl=logging.DEBUG)
 
         if args.log:
             self.createLogFile()
@@ -169,7 +170,7 @@ class Command(QtCore.QObject):
             return "commandline"
 
         elif args.no_preview:
-            core.Core.previewEnabled = False
+            Core.previewEnabled = False
 
         elif (
             args.projpath is None
@@ -281,7 +282,7 @@ class Command(QtCore.QObject):
             print("Log file could not be created (too many exist).")
             return
         try:
-            shutil.copy(os.path.join(core.Core.logDir, "avp_debug.log"), filename)
+            shutil.copy(os.path.join(Core.logDir, "avp_debug.log"), filename)
             with open(filename, "a") as f:
                 f.write(f"{'='*60} debug log ends {'='*60}\n")
         except FileNotFoundError:
@@ -291,7 +292,7 @@ class Command(QtCore.QObject):
 
         def concatenateLogs(logPattern):
             nonlocal filename
-            renderLogs = glob.glob(os.path.join(core.Core.logDir, logPattern))
+            renderLogs = glob.glob(os.path.join(Core.logDir, logPattern))
             with open(filename, "a") as fw:
                 for renderLog in renderLogs:
                     with open(renderLog, "r") as fr:
