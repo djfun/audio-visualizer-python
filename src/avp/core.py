@@ -78,7 +78,10 @@ class Core:
             compPos = len(self.selectedComponents)
         if len(self.selectedComponents) > 50:
             return -1
-        if type(component) is int:
+        if component is None:
+            log.warning("Tried to insert non-existent component")
+            return -1
+        elif type(component) is int:
             # create component using module index in self.modules
             moduleIndex = int(component)
             log.debug("Creating new component from module #%s", str(moduleIndex))
@@ -198,7 +201,7 @@ class Core:
                         )
                         continue
                     if i == -1:
-                        loader.showMessage(msg="Too many components!")
+                        loader.showMessage(msg="Invalid components!")
                         break
 
                     try:
