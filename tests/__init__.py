@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 import numpy
 
 from avp.core import Core
@@ -8,10 +10,19 @@ from avp.toolkit.ffmpeg import readAudioFile
 from pytest import fixture
 
 
+PYTEST_XDIST_WORKER_COUNT = os.environ.get("PYTEST_XDIST_WORKER_COUNT", 0)
+
+
+@fixture
+def settings():
+    """Doesn't instantiate core: just calls a static method to store `settings.ini`"""
+    initCore()
+    yield None
+
+
 @fixture
 def audioData():
     """Fixture that gives a tuple of (completeAudioArray, duration)"""
-    # Core.storeSettings() needed to store ffmpeg bin location
     initCore()
     soundFile = getTestDataPath("inputfiles/test.ogg")
     yield readAudioFile(soundFile, MockVideoWorker())
@@ -28,6 +39,8 @@ def command(qtbot):
 @fixture
 def window(qtbot):
     initCore()
+    # patch out any modal dialog that might happen
+    MainWindow.showMessage = lambda self, msg, **kwargs: print(msg)
     window = MainWindow(None, None)
     window.clear()
     qtbot.addWidget(window)
@@ -43,13 +56,30 @@ def getTestDataPath(filename=""):
 
 
 def initCore():
-    testDataDir = getTestDataPath("config")
+    """
+    Initializes the Core by creating `settings.ini`
+    Returns the temp directory path where settings.ini was created
+    or None if multiple pytest workers are not enabled.
+    """
+    try:
+        numWorkers = int(PYTEST_XDIST_WORKER_COUNT)
+    except ValueError:
+        numWorkers = 0
+    if numWorkers > 0:
+        # use temporary directories for multiple workers
+        # so they don't interfere with each other
+        configDir = tempfile.mkdtemp(prefix="avp-config-")
+    else:
+        # use test data path so we can easily see it after
+        # a failed test, and help us understand the config
+        configDir = getTestDataPath("config")
     unwanted = ["autosave.avp", "settings.ini"]
     for file in unwanted:
-        filename = os.path.join(testDataDir, "autosave.avp")
+        filename = os.path.join(configDir, "autosave.avp")
         if os.path.exists(filename):
             os.remove(filename)
-    Core.storeSettings(testDataDir)
+    Core.storeSettings(configDir)
+    return configDir if numWorkers > 0 else None
 
 
 def preFrameRender(audioData, comp):
