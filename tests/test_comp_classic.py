@@ -1,8 +1,7 @@
-from avp.command import Command
 from avp.toolkit.visualizer import transformData
 from pytestqt import qtbot
 from pytest import fixture, mark
-from . import audioData, command, imageDataSum, preFrameRender, audioData
+from . import audioData, command, imageDataSum, preFrameRender
 
 
 sampleSize = 1470  # 44100 / 30 = 1470
