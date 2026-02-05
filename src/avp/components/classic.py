@@ -2,19 +2,22 @@ import numpy
 from PIL import Image, ImageDraw
 
 from ..libcomponent import BaseComponent
-from ..toolkit.frame import BlankFrame
+from ..toolkit.frame import BlankFrame, FloodFrame
 from ..toolkit.visualizer import createSpectrumArray
 
 
 class Component(BaseComponent):
     name = "Classic Visualizer"
-    version = "1.1.1"
+    version = "1.2.0"
 
     def names(*args):
         return ["Original"]
 
     def properties(self):
-        return ["pcm"]
+        props = ["pcm"]
+        if self.invert:
+            props.append("composite")
+        return props
 
     def widget(self, *args):
         self.scale = 20
@@ -36,6 +39,7 @@ class Component(BaseComponent):
                 "y": self.page.spinBox_y,
                 "smooth": self.page.spinBox_sensitivity,
                 "bars": self.page.spinBox_bars,
+                "invert": self.page.checkBox_invert,
             },
             colorWidgets={
                 "visColor": self.page.pushButton_visColor,
@@ -45,14 +49,19 @@ class Component(BaseComponent):
             ],
         )
 
-    def previewRender(self):
+    def previewRender(self, frame=None):
         spectrum = numpy.fromfunction(
             lambda x: float(self.scale) / 2500 * (x - 128) ** 2,
             (255,),
             dtype="int16",
         )
         return self.drawBars(
-            self.width, self.height, spectrum, self.visColor, self.layout
+            self.width,
+            self.height,
+            spectrum,
+            self.visColor,
+            self.layout,
+            frame,
         )
 
     def preFrameRender(self, **kwargs):
@@ -70,7 +79,7 @@ class Component(BaseComponent):
             self.progressBarSetText,
         )
 
-    def frameRender(self, frameNo):
+    def frameRender(self, frameNo, frame=None):
         arrayNo = frameNo * self.sampleSize
         return self.drawBars(
             self.width,
@@ -78,9 +87,10 @@ class Component(BaseComponent):
             self.spectrumArray[arrayNo],
             self.visColor,
             self.layout,
+            frame,
         )
 
-    def drawBars(self, width, height, spectrum, color, layout):
+    def drawBars(self, width, height, spectrum, color, layout, frame):
         bigYCoord = height - height / 8
         smallYCoord = height / 1200
         bigXCoord = width / (self.bars + 1)
@@ -93,32 +103,44 @@ class Component(BaseComponent):
         color2 = (r, g, b, 125)
 
         for i in range(self.bars):
-            x0 = middleXCoord + i * bigXCoord
-            y0 = bigYCoord + smallXCoord
-            y1 = bigYCoord + smallXCoord - spectrum[i * 4] * smallYCoord - middleXCoord
-            x1 = middleXCoord + i * bigXCoord + bigXCoord
-            draw.rectangle(
-                (
+            # draw outline behind rectangles if not inverted
+            if frame is None:
+                x0 = middleXCoord + i * bigXCoord
+                y0 = bigYCoord + smallXCoord
+                x1 = middleXCoord + i * bigXCoord + bigXCoord
+                y1 = (
+                    bigYCoord
+                    + smallXCoord
+                    - spectrum[i * 4] * smallYCoord
+                    - middleXCoord
+                )
+                selection = (
                     x0,
                     y0 if y0 < y1 else y1,
                     x1 if x1 > x0 else x0,
                     y1 if y0 < y1 else y0,
-                ),
-                fill=color2,
-            )
+                )
+                draw.rectangle(
+                    selection,
+                    fill=color2,
+                )
 
             x0 = middleXCoord + smallXCoord + i * bigXCoord
             y0 = bigYCoord
             x1 = middleXCoord + smallXCoord + i * bigXCoord + middleXCoord
             y1 = bigYCoord - spectrum[i * 4] * smallYCoord
+            selection = (
+                x0,
+                y0 if y0 < y1 else y1,
+                x1 if x1 > x0 else x0,
+                y1 if y0 < y1 else y0,
+            )
+            # fill rectangle if not inverted
             draw.rectangle(
-                (
-                    x0,
-                    y0 if y0 < y1 else y1,
-                    x1 if x1 > x0 else x0,
-                    y1 if y0 < y1 else y0,
-                ),
-                fill=color,
+                selection,
+                fill=color if frame is None else (0, 0, 0, 0),
+                outline=color,
+                width=int(x1 - x0),
             )
 
         imBottom = imTop.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
@@ -145,7 +167,11 @@ class Component(BaseComponent):
             y = self.y - int(height / 100 * 10)
             im.paste(imBottom, (0, y), mask=imBottom)
 
-        return im
+        if frame is None:
+            return im
+        f = FloodFrame(width, height, color)
+        f.paste(frame, (0, 0), mask=im)
+        return f
 
     def command(self, arg):
         if "=" in arg:

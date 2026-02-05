@@ -86,7 +86,7 @@
      <item>
       <widget class="QLineEdit" name="lineEdit_visColor">
        <property name="text">
-        <string></string>
+        <string/>
        </property>
       </widget>
      </item>
@@ -229,6 +229,13 @@
        </property>
        <property name="value">
         <number>63</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="checkBox_invert">
+       <property name="text">
+        <string>Invert</string>
        </property>
       </widget>
      </item>

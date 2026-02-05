@@ -48,7 +48,9 @@ def test_comp_classic_drawBars(coreWithClassicComp, audioData, layout):
     """Call drawBars after creating audio spectrum data manually."""
     spectrumArray = createSpectrumArray(audioData)
     comp = coreWithClassicComp.selectedComponents[0]
-    image = comp.drawBars(1920, 1080, spectrumArray[sampleSize * 4], (0, 0, 0), layout)
+    image = comp.drawBars(
+        1920, 1080, spectrumArray[sampleSize * 4], (0, 0, 0), layout, None
+    )
     imageSize = 37872316
     assert imageDataSum(image) == imageSize if layout < 2 else imageSize / 2
 
@@ -63,6 +65,7 @@ def test_comp_classic_drawBars_using_preFrameRender(coreWithClassicComp, audioDa
         coreWithClassicComp.selectedComponents[0].spectrumArray[sampleSize * 4],
         (0, 0, 0),
         0,
+        None,
     )
     assert imageDataSum(image) == 37872316
 
