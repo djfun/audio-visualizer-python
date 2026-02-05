@@ -129,9 +129,12 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def properties(self):
         """
-        Return a list of properties to signify if your component is
-        non-animated ('static'), returns sound ('audio'), or has
-        encountered an error in configuration ('error').
+        Return a list of properties with certain meanings:
+        `static`: non-animated
+        `audio`: has extra sound to add
+        `error`: bad configuration
+        `pcm`: request raw audio data
+        `composite`: request frame to draw on
         """
         return []
 

@@ -115,6 +115,7 @@ class Worker(QtCore.QObject):
         Also prerenders "static" components like text and merges them if possible
         """
         self.staticComponents = {}
+        self.compositeComponents = set()
 
         # Call preFrameRender on each component
         canceledByComponent = False
@@ -164,6 +165,8 @@ class Worker(QtCore.QObject):
             if "static" in compProps:
                 log.info("Saving static frame from #%s %s", compNo, comp)
                 self.staticComponents[compNo] = comp.frameRender(0).copy()
+            elif compNo > 0 and "composite" in compProps:
+                self.compositeComponents.add(compNo)
 
         # Check if any errors occured
         log.debug("Checking if a component wishes to cancel the export...")
@@ -236,6 +239,9 @@ class Worker(QtCore.QObject):
                             frame, self.staticComponents[layerNo]
                         )
 
+                elif layerNo in self.compositeComponents:
+                    # component that uses previous frame to draw
+                    frame = Image.alpha_composite(frame, comp.frameRender(bgI, frame))
                 else:
                     # animated component
                     if frame is None:  # bottom-most layer
