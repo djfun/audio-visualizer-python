@@ -182,7 +182,7 @@ class Component(BaseComponent):
                 try:
                     Image.open(arg)
                     self.page.lineEdit_image.setText(arg)
-                    self.page.checkBox_stretch.setChecked(True)
+                    self.page.comboBox_resizeMode.setCurrentIndex(2)
                     return
                 except OSError as e:
                     print("Not a supported image format")
