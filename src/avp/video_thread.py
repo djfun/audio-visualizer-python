@@ -14,6 +14,8 @@ from PIL import Image
 from PIL.ImageQt import ImageQt
 
 import numpy
+import time
+from math import ceil
 import subprocess as sp
 import sys
 import os
@@ -322,6 +324,8 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        progressTimeTotal = time.time()
+        progressTimeBetween = 0.0
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
         # Begin piping into ffmpeg!
@@ -345,9 +349,22 @@ class Worker(QtCore.QObject):
             completion = (audioI / self.audioArrayLen) * 100
             if progressBarValue + 1 <= completion:
                 progressBarValue = numpy.floor(completion).astype(int)
-                msg = "Exporting video: %s%%" % str(int(progressBarValue))
+
+                curTime = time.time()
+                progressTimeBetween = curTime - progressTimeTotal
+                progressTimeTotal = curTime
+                minutesRemaining = ceil(
+                    (progressTimeBetween * (100 - progressBarValue)) / 60
+                )
+                s = "s" if minutesRemaining != 1 else ""
+                timeMessage = f"About {minutesRemaining} minute{s} remaining"
+                percentMessage = f"Exporting video: {int(progressBarValue)}%"
                 self.progressBarUpdate.emit(progressBarValue)
-                self.progressBarSetText.emit(msg)
+                self.progressBarSetText.emit(
+                    percentMessage
+                    if progressTimeBetween < 5 or progressBarValue % 5 != 0
+                    else timeMessage
+                )
 
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # Finished creating the video!
