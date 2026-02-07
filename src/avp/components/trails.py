@@ -44,7 +44,7 @@ class Component(BaseComponent):
                 -8,
             )
             image.paste(image, zone, mask=image)
-        return image
+        return Image.alpha_composite(frame, image)
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
@@ -68,14 +68,6 @@ class Component(BaseComponent):
 
     def frameRender(self, frameNo, frame=None):
         arrayNo = frameNo * self.sampleSize
-        """return self.drawBars(
-            -1,
-            self.width,
-            self.height,
-            self.spectrumArray[arrayNo],
-            self.color,
-        )"""
-
         img = self.drawBars(
             frameNo,
             self.width,
@@ -85,20 +77,12 @@ class Component(BaseComponent):
         )
         fragment = img.copy()
         self.frameBuffer[frameNo] = fragment
+
         startZone = max(0, frameNo - 8)
-        # for num in range(frameNo, startZone, -1):
-        """
-        bars = self.drawBars(
-            -1,
-            self.width,
-            self.height,
-            self.spectrumArray[arrayNo],
-            self.color,
-        )
-        """
         scrollFrame = frameNo % (self.width / 64)
         if scrollFrame == 0:
             self.swerveLeft = not self.swerveLeft
+
         for num, fnum in zip(range(frameNo, startZone, -1), range(startZone, frameNo)):
             swerveX = int(num % 4 + (((frameNo - startZone) / 30) - 0.50))
             zone = (
@@ -121,15 +105,14 @@ class Component(BaseComponent):
                 (0, 0),
                 mask=self.frameBuffer[frameNo - 1],
             )
-        # bars.paste(frame, (0, 0), mask=fragment)
-        # image = Image.alpha_composite(fragment, image)
+
+        # keep buffer small
         if frameNo - startZone > 7:
             del self.frameBuffer[startZone]
-
         # TODO put in test
         assert len(self.frameBuffer) < 9
-        # im = BlankFrame()
-        return Image.alpha_composite(fragment, img)
+
+        return Image.alpha_composite(frame, Image.alpha_composite(fragment, img))
 
     def drawBars(self, frameNo, width, height, spectrum, color):
         smallYCoord = height / 1200

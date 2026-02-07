@@ -60,13 +60,17 @@ class Worker(QtCore.QObject):
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
+                    isCompositeComponent = "composite" in component.properties()
                     component.lockSize(width, height)
-                    if "composite" in component.properties():
+                    if isCompositeComponent:
                         newFrame = component.previewRender(frame)
                     else:
                         newFrame = component.previewRender()
                     component.unlockSize()
-                    frame = Image.alpha_composite(frame, newFrame)
+                    if isCompositeComponent:
+                        frame = newFrame
+                    else:
+                        frame = Image.alpha_composite(frame, newFrame)
 
                 except (AttributeError, ValueError) as e:
                     errMsg = (
