@@ -60,7 +60,50 @@ The program works on **Linux**, **macOS**, and **Windows**. If you encounter pro
 
 ## Installation on macOS
 
-- We need help writing instructions for macOS, but the program should work in theory.
+- Install Homebrew
+
+  - If you don't have it already, install Homebrew (the macOS package manager) by running this in your terminal:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+- Install System Dependencies
+
+  - Update your packages and install FFmpeg:
+
+```bash
+brew update && brew upgrade
+brew install ffmpeg
+```
+
+- Install Python 3
+
+  - You can use a standard Python installation or Miniconda. To install Python via Homebrew:
+
+```bash
+brew install python
+```
+
+- Install and Run
+
+  - Install the latest stable version of audio-visualizer-python using pip:
+
+```bash
+pip3 install audio-visualizer-python
+```
+
+- Now run the program from your terminal:
+
+```bash
+avp
+```
+
+or
+
+```bash
+python3 -m avp
+```
 
 ## [Keyboard Shortcuts](https://github.com/djfun/audio-visualizer-python/wiki/Keyboard-Shortcuts)
 
