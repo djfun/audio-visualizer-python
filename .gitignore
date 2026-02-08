@@ -10,6 +10,7 @@ prof/
 .env/
 .vscode/
 tests/data/config/log/
+tests/data/config/presets/
 tests/data/config/settings.ini
 tests/data/config/autosave.avp
 *.mkv

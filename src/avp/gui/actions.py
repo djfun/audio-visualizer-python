@@ -1,5 +1,5 @@
 """
-QCommand classes for every undoable user action performed in the MainWindow
+QUndoCommand classes for every undoable user action performed in the MainWindow
 """
 
 from PyQt6.QtGui import QUndoCommand
@@ -13,9 +13,9 @@ from ..core import Core
 log = logging.getLogger("AVP.Gui.Actions")
 
 
-# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 # COMPONENT ACTIONS
-# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
 class AddComponent(QUndoCommand):
@@ -107,9 +107,9 @@ class MoveComponent(QUndoCommand):
         self.do(self.newRow, self.row)
 
 
-# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 # PRESET ACTIONS
-# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
 class ClearPreset(QUndoCommand):

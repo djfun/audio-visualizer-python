@@ -1,10 +1,9 @@
 import os
 from avp.core import Core
-from . import getTestDataPath, initCore
+from . import getTestDataPath, settings
 
 
-def test_component_names():
-    initCore()
+def test_component_names(settings):
     core = Core()
     assert core.compNames == [
         "Classic Visualizer",
@@ -19,8 +18,7 @@ def test_component_names():
     ]
 
 
-def test_moduleindex():
-    initCore()
+def test_moduleindex(settings):
     core = Core()
     assert core.moduleIndexFor("Classic Visualizer") == 0
 

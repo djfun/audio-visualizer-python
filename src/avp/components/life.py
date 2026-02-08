@@ -1,13 +1,12 @@
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QUndoCommand
-from PIL import Image, ImageDraw, ImageEnhance, ImageChops, ImageFilter, ImageOps
+from PIL import Image, ImageDraw
 import os
-from copy import copy
 import math
 import logging
 
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, scale, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
@@ -15,7 +14,7 @@ from ..toolkit.visualizer import createSpectrumArray
 log = logging.getLogger("AVP.Component.Life")
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Conway's Game of Life"
     version = "2.0.1"
 

@@ -734,6 +734,23 @@ class MainWindow(QtWidgets.QMainWindow):
             self.progressLabel.setText(value)
         else:
             self.progressBar_createVideo.setFormat(value)
+        if log.getEffectiveLevel() > logging.INFO:
+            # if ffmpeg is quiet, print progress ourselves
+            if any(
+                [
+                    value.startswith("Export C"),
+                    value.startswith("Analyzing"),
+                    value.startswith("Loading"),
+                ]
+            ):
+                # Don't duplicate completion/failure messages or send too many messages
+                return
+            elif not value.startswith("Exporting"):
+                print(value)
+            else:
+                # overwrite previous message with next one
+                # if the text is our main export progress
+                print(f"\r{value}", end="")
 
     def updateResolution(self):
         resIndex = int(self.comboBox_resolution.currentIndex())

@@ -25,9 +25,7 @@ class PresetManager(QtWidgets.QDialog):
         self.settings = parent.settings
         self.presetDir = parent.presetDir
         if not self.settings.value("presetDir"):
-            self.settings.setValue(
-                "presetDir", os.path.join(parent.dataDir, "projects")
-            )
+            self.settings.setValue("presetDir", os.path.join(parent.dataDir, "presets"))
 
         self.findPresets()
 

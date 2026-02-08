@@ -61,7 +61,10 @@ class Worker(QtCore.QObject):
             for component in reversed(components):
                 try:
                     component.lockSize(width, height)
-                    newFrame = component.previewRender()
+                    if "composite" in component.properties():
+                        newFrame = component.previewRender(frame)
+                    else:
+                        newFrame = component.previewRender()
                     component.unlockSize()
                     frame = Image.alpha_composite(frame, newFrame)
 
@@ -72,11 +75,12 @@ class Worker(QtCore.QObject):
                         % (
                             str(component),
                             str(e).capitalize(),
-                            "is None" if newFrame is None else "size was %s*%s; should be %s*%s" % (
-                                newFrame.width,
-                                newFrame.height,
-                                width,
-                                height),
+                            (
+                                "is None"
+                                if newFrame is None
+                                else "size was %s*%s; should be %s*%s"
+                                % (newFrame.width, newFrame.height, width, height)
+                            ),
                         )
                     )
                     log.critical(errMsg)

@@ -8,13 +8,14 @@ from pytestqt import qtbot
 def test_commandline_classic_export(qtbot, command):
     """Run Qt event loop and create a video in the system /tmp or /temp"""
     soundFile = getTestDataPath("inputfiles/test.ogg")
-    outputDir = tempfile.mkdtemp(prefix="avp-test-")
+    outputDir = tempfile.mkdtemp(prefix="avp-export-")
     outputFilename = os.path.join(outputDir, "output.mp4")
     sys.argv = [
         "",
         "-c",
         "0",
         "classic",
+        "color=255,255,255",
         "-i",
         soundFile,
         "-o",

@@ -124,6 +124,9 @@
            <height>32</height>
           </size>
          </property>
+         <property name="toolTip">
+          <string>End color of gradient. Disabled if fill is solid.</string>
+         </property>
          <property name="text">
           <string/>
          </property>

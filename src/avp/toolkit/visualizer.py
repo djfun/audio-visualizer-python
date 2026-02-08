@@ -14,6 +14,7 @@ def createSpectrumArray(
     progressBarUpdate,
     progressBarSetText,
 ):
+    lastProgress = 0
     lastSpectrum = None
     spectrumArray = {}
     for i in range(0, len(completeAudioArray), sampleSize):
@@ -33,9 +34,12 @@ def createSpectrumArray(
         progress = int(100 * (i / len(completeAudioArray)))
         if progress >= 100:
             progress = 100
+        if progress == lastProgress:
+            continue
         progressText = f"Analyzing audio: {str(progress)}%"
         progressBarSetText.emit(progressText)
         progressBarUpdate.emit(int(progress))
+        lastProgress = progress
     return spectrumArray
 
 
