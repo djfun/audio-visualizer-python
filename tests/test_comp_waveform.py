@@ -1,6 +1,9 @@
+from PyQt6.QtWidgets import QApplication
 from pytestqt import qtbot
 from pytest import fixture
 from . import command, imageDataSum, audioData, preFrameRender
+
+PLATFORM = QApplication.platformName()
 
 
 @fixture
@@ -21,7 +24,11 @@ def test_comp_waveform_setColor(coreWithWaveformComp):
 def test_comp_waveform_previewRender(coreWithWaveformComp):
     comp = coreWithWaveformComp.selectedComponents[0]
     comp.page.lineEdit_color.setText("255,255,255")
-    assert imageDataSum(comp.previewRender()) == 36114120
+    if PLATFORM == "wayland":
+        # Wayland gives slightly different colors
+        assert imageDataSum(comp.previewRender()) == 36114120
+    else:
+        assert imageDataSum(comp.previewRender()) == 37210620
 
 
 def test_comp_waveform_renderFrame(coreWithWaveformComp, audioData):
