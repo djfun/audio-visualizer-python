@@ -176,17 +176,22 @@ class Component(BaseComponent):
             self.mergeUndo = True
 
     def command(self, arg):
+        def fail():
+            print("Not a supported image format")
+            quit(1)
+
         if "=" in arg:
             key, arg = arg.split("=", 1)
             if key == "path" and os.path.exists(arg):
+                if os.path.splitext(arg)[1] not in self.core.imageFormats:
+                    fail()
                 try:
                     Image.open(arg)
                     self.page.lineEdit_image.setText(arg)
                     self.page.comboBox_resizeMode.setCurrentIndex(2)
                     return
                 except OSError as e:
-                    print("Not a supported image format")
-                    quit(1)
+                    fail()
         super().command(arg)
 
     def commandHelp(self):
