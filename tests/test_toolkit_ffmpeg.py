@@ -1,8 +1,6 @@
 import pytest
-from avp.core import Core
-from avp.command import Command
 from avp.toolkit.ffmpeg import createFfmpegCommand
-from . import audioData, getTestDataPath, initCore
+from . import audioData, getTestDataPath, command
 
 
 def test_readAudioFile_data(audioData):
@@ -14,14 +12,14 @@ def test_readAudioFile_duration(audioData):
 
 
 @pytest.mark.parametrize("width, height", ((1920, 1080), (1280, 720)))
-def test_createFfmpegCommand(width, height):
-    initCore()
-    command = Command()
+def test_createFfmpegCommand(command, width, height):
     command.settings.setValue("outputWidth", width)
     command.settings.setValue("outputHeight", height)
     ffmpegCmd = createFfmpegCommand("test.ogg", "/tmp", command.core.selectedComponents)
     assert ffmpegCmd == [
         "ffmpeg",
+        "-loglevel",
+        "info",
         "-thread_queue_size",
         "512",
         "-y",

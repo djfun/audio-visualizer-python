@@ -4,274 +4,26 @@ on making a valid component.
 """
 
 from PyQt6 import uic, QtCore, QtWidgets
-from PyQt6.QtGui import QColor, QUndoCommand
+from PyQt6.QtGui import QColor
 import os
-import sys
 import math
-import time
 import logging
 from copy import copy
 
-from .toolkit.frame import BlankFrame
-from .toolkit import (
+from .metaclass import ComponentMetaclass
+from .actions import ComponentUpdate
+from .exceptions import ComponentError
+from ..toolkit.frame import BlankFrame
+
+from ..toolkit import (
     getWidgetValue,
     setWidgetValue,
-    connectWidget,
     rgbFromString,
     randomColor,
     blockSignals,
 )
 
-
-log = logging.getLogger("AVP.ComponentHandler")
-
-
-class ComponentMetaclass(type(QtCore.QObject)):
-    """
-    Checks the validity of each Component class and mutates some attrs.
-    E.g., takes only major version from version string & decorates methods
-    """
-
-    def initializationWrapper(func):
-        def initializationWrapper(self, *args, **kwargs):
-            try:
-                return func(self, *args, **kwargs)
-            except Exception:
-                try:
-                    raise ComponentError(self, "initialization process")
-                except ComponentError:
-                    return
-
-        return initializationWrapper
-
-    def renderWrapper(func):
-        def renderWrapper(self, *args, **kwargs):
-            try:
-                log.verbose(
-                    "### %s #%s renders a preview frame ###",
-                    self.__class__.name,
-                    str(self.compPos),
-                )
-                return func(self, *args, **kwargs)
-            except Exception as e:
-                try:
-                    if e.__class__.__name__.startswith("Component"):
-                        raise
-                    else:
-                        raise ComponentError(self, "renderer")
-                except ComponentError:
-                    return BlankFrame()
-
-        return renderWrapper
-
-    def commandWrapper(func):
-        """Intercepts the command() method to check for global args"""
-
-        def commandWrapper(self, arg):
-            if arg.startswith("preset="):
-                _, preset = arg.split("=", 1)
-                path = os.path.join(self.core.getPresetDir(self), preset)
-                if not os.path.exists(path):
-                    print('Couldn\'t locate preset "%s"' % preset)
-                    quit(1)
-                else:
-                    print('Opening "%s" preset on layer %s' % (preset, self.compPos))
-                    self.core.openPreset(path, self.compPos, preset)
-                    # Don't call the component's command() method
-                    return
-            else:
-                return func(self, arg)
-
-        return commandWrapper
-
-    def propertiesWrapper(func):
-        """Intercepts the usual properties if the properties are locked."""
-
-        def propertiesWrapper(self):
-            if self._lockedProperties is not None:
-                return self._lockedProperties
-            else:
-                try:
-                    return func(self)
-                except Exception:
-                    try:
-                        raise ComponentError(self, "properties")
-                    except ComponentError:
-                        return []
-
-        return propertiesWrapper
-
-    def errorWrapper(func):
-        """Intercepts the usual error message if it is locked."""
-
-        def errorWrapper(self):
-            if self._lockedError is not None:
-                return self._lockedError
-            else:
-                return func(self)
-
-        return errorWrapper
-
-    def loadPresetWrapper(func):
-        """Wraps loadPreset to handle the self.openingPreset boolean"""
-
-        class openingPreset:
-            def __init__(self, comp):
-                self.comp = comp
-
-            def __enter__(self):
-                self.comp.openingPreset = True
-
-            def __exit__(self, *args):
-                self.comp.openingPreset = False
-
-        def presetWrapper(self, *args):
-            with openingPreset(self):
-                try:
-                    return func(self, *args)
-                except Exception:
-                    try:
-                        raise ComponentError(self, "preset loader")
-                    except ComponentError:
-                        return
-
-        return presetWrapper
-
-    def updateWrapper(func):
-        """
-        Calls _preUpdate before every subclass update().
-        Afterwards, for non-user updates, calls _autoUpdate().
-        For undoable updates triggered by the user, calls _userUpdate()
-        """
-
-        class wrap:
-            def __init__(self, comp, auto):
-                self.comp = comp
-                self.auto = auto
-
-            def __enter__(self):
-                self.comp._preUpdate()
-
-            def __exit__(self, *args):
-                if (
-                    self.auto
-                    or self.comp.openingPreset
-                    or not hasattr(self.comp.parent, "undoStack")
-                ):
-                    log.verbose("Automatic update")
-                    self.comp._autoUpdate()
-                else:
-                    log.verbose("User update")
-                    self.comp._userUpdate()
-
-        def updateWrapper(self, **kwargs):
-            auto = kwargs["auto"] if "auto" in kwargs else False
-            with wrap(self, auto):
-                try:
-                    return func(self)
-                except Exception:
-                    try:
-                        raise ComponentError(self, "update method")
-                    except ComponentError:
-                        return
-
-        return updateWrapper
-
-    def widgetWrapper(func):
-        """Connects all widgets to update method after the subclass's method"""
-
-        class wrap:
-            def __init__(self, comp):
-                self.comp = comp
-
-            def __enter__(self):
-                pass
-
-            def __exit__(self, *args):
-                for widgetList in self.comp._allWidgets.values():
-                    for widget in widgetList:
-                        log.verbose("Connecting %s", str(widget.__class__.__name__))
-                        connectWidget(widget, self.comp.update)
-
-        def widgetWrapper(self, *args, **kwargs):
-            auto = kwargs["auto"] if "auto" in kwargs else False
-            with wrap(self):
-                try:
-                    return func(self, *args, **kwargs)
-                except Exception:
-                    try:
-                        raise ComponentError(self, "widget creation")
-                    except ComponentError:
-                        return
-
-        return widgetWrapper
-
-    def __new__(cls, name, parents, attrs):
-        if "ui" not in attrs:
-            # Use module name as ui filename by default
-            attrs["ui"] = (
-                "%s.ui" % os.path.splitext(attrs["__module__"].split(".")[-1])[0]
-            )
-
-        decorate = (
-            "names",  # Class methods
-            "error",
-            "audio",
-            "properties",  # Properties
-            "preFrameRender",
-            "previewRender",
-            "loadPreset",
-            "command",
-            "update",
-            "widget",
-        )
-
-        # Auto-decorate methods
-        for key in decorate:
-            if key not in attrs:
-                continue
-            if key in ("names"):
-                attrs[key] = classmethod(attrs[key])
-            elif key in ("audio"):
-                attrs[key] = property(attrs[key])
-            elif key == "command":
-                attrs[key] = cls.commandWrapper(attrs[key])
-            elif key == "previewRender":
-                attrs[key] = cls.renderWrapper(attrs[key])
-            elif key == "preFrameRender":
-                attrs[key] = cls.initializationWrapper(attrs[key])
-            elif key == "properties":
-                attrs[key] = cls.propertiesWrapper(attrs[key])
-            elif key == "error":
-                attrs[key] = cls.errorWrapper(attrs[key])
-            elif key == "loadPreset":
-                attrs[key] = cls.loadPresetWrapper(attrs[key])
-            elif key == "update":
-                attrs[key] = cls.updateWrapper(attrs[key])
-            elif key == "widget" and parents[0] != QtCore.QObject:
-                attrs[key] = cls.widgetWrapper(attrs[key])
-
-        # Turn version string into a number
-        try:
-            if "version" not in attrs:
-                log.error(
-                    "No version attribute in %s. Defaulting to 1",
-                    attrs["name"],
-                )
-                attrs["version"] = 1
-            else:
-                attrs["version"] = int(attrs["version"].split(".")[0])
-        except ValueError:
-            log.critical(
-                "%s component has an invalid version string:\n%s",
-                attrs["name"],
-                str(attrs["version"]),
-            )
-        except KeyError:
-            log.critical("%s component has no version string.", attrs["name"])
-        else:
-            return super().__new__(cls, name, parents, attrs)
-        quit(1)
+log = logging.getLogger("AVP.BaseComponent")
 
 
 class Component(QtCore.QObject, metaclass=ComponentMetaclass):
@@ -340,9 +92,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             pprint.pformat(preset),
         )
 
-    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # Render Methods
-    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
     def previewRender(self):
         image = BlankFrame(self.width, self.height)
@@ -371,15 +123,18 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def postFrameRender(self):
         pass
 
-    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # Properties
-    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
     def properties(self):
         """
-        Return a list of properties to signify if your component is
-        non-animated ('static'), returns sound ('audio'), or has
-        encountered an error in configuration ('error').
+        Return a list of properties with certain meanings:
+        `static`: non-animated
+        `audio`: has extra sound to add
+        `error`: bad configuration
+        `pcm`: request raw audio data
+        `composite`: request frame to draw on
         """
         return []
 
@@ -403,9 +158,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         https://ffmpeg.org/ffmpeg-filters.html
         """
 
-    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # Idle Methods
-    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
     def widget(self, parent):
         """
@@ -510,9 +265,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.commandHelp()
         quit(0)
 
-    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # "Private" Methods
-    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+    # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
     def _preUpdate(self):
         """Happens before subclass update()"""
         for attr in self._relativeWidgets:
@@ -826,153 +581,3 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         maxRes = int(self.core.resolutions[0].split("x")[0])
         newMaximumValue = self.width * (self._relativeMaximums[attr] / maxRes)
         self._trackedWidgets[attr].setMaximum(int(newMaximumValue))
-
-
-class ComponentError(RuntimeError):
-    """Gives the MainWindow a traceback to display, and cancels the export."""
-
-    prevErrors = []
-    lastTime = time.time()
-
-    def __init__(self, caller, name, msg=None):
-        if msg is None and sys.exc_info()[0] is not None:
-            msg = str(sys.exc_info()[1])
-        else:
-            msg = "Unknown error."
-        log.error("ComponentError by %s's %s: %s" % (caller.name, name, msg))
-
-        # Don't create multiple windows for quickly repeated messages
-        if len(ComponentError.prevErrors) > 1:
-            ComponentError.prevErrors.pop()
-        ComponentError.prevErrors.insert(0, name)
-        curTime = time.time()
-        if (
-            name in ComponentError.prevErrors[1:]
-            and curTime - ComponentError.lastTime < 1.0
-        ):
-            return
-        ComponentError.lastTime = time.time()
-
-        from .toolkit import formatTraceback
-
-        if sys.exc_info()[0] is not None:
-            string = "%s component (#%s): %s encountered %s %s: %s" % (
-                caller.__class__.name,
-                str(caller.compPos),
-                name,
-                (
-                    "an"
-                    if any(
-                        [
-                            sys.exc_info()[0].__name__.startswith(vowel)
-                            for vowel in ("A", "I", "U", "O", "E")
-                        ]
-                    )
-                    else "a"
-                ),
-                sys.exc_info()[0].__name__,
-                str(sys.exc_info()[1]),
-            )
-            detail = formatTraceback(sys.exc_info()[2])
-        else:
-            string = name
-            detail = "Attributes:\n%s" % (
-                "\n".join([m for m in dir(caller) if not m.startswith("_")])
-            )
-
-        super().__init__(string)
-        caller.lockError(string)
-        caller._error.emit(string, detail)
-
-
-class ComponentUpdate(QUndoCommand):
-    """Command object for making a component action undoable"""
-
-    def __init__(self, parent, oldWidgetVals, modifiedVals):
-        super().__init__("change %s component #%s" % (parent.name, parent.compPos))
-        self.undone = False
-        self.res = (int(parent.width), int(parent.height))
-        self.parent = parent
-        self.oldWidgetVals = {
-            attr: (
-                copy(val)
-                if attr not in self.parent._relativeWidgets
-                else self.parent.floatValForAttr(attr, val, axis=self.res)
-            )
-            for attr, val in oldWidgetVals.items()
-            if attr in modifiedVals
-        }
-        self.modifiedVals = {
-            attr: (
-                val
-                if attr not in self.parent._relativeWidgets
-                else self.parent.floatValForAttr(attr, val, axis=self.res)
-            )
-            for attr, val in modifiedVals.items()
-        }
-
-        # Because relative widgets change themselves every update based on
-        # their previous value, we must store ALL their values in case of undo
-        self.relativeWidgetValsAfterUndo = {
-            attr: copy(getattr(self.parent, attr))
-            for attr in self.parent._relativeWidgets
-        }
-
-        # Determine if this update is mergeable
-        self.id_ = -1
-        if self.parent.mergeUndo:
-            if len(self.modifiedVals) == 1:
-                attr, val = self.modifiedVals.popitem()
-                self.id_ = sum([ord(letter) for letter in attr[-14:]])
-                self.modifiedVals[attr] = val
-                return
-            log.warning(
-                "%s component settings changed at once. (%s)",
-                len(self.modifiedVals),
-                repr(self.modifiedVals),
-            )
-
-    def id(self):
-        """If 2 consecutive updates have same id, Qt will call mergeWith()"""
-        return self.id_
-
-    def mergeWith(self, other):
-        self.modifiedVals.update(other.modifiedVals)
-        return True
-
-    def setWidgetValues(self, attrDict):
-        """
-        Mask the component's usual method to handle our
-        relative widgets in case the resolution has changed.
-        """
-        newAttrDict = {
-            attr: (
-                val
-                if attr not in self.parent._relativeWidgets
-                else self.parent.pixelValForAttr(attr, val)
-            )
-            for attr, val in attrDict.items()
-        }
-        self.parent.setWidgetValues(newAttrDict)
-
-    def redo(self):
-        if self.undone:
-            log.info("Redoing component update")
-        self.parent.oldAttrs = self.relativeWidgetValsAfterUndo
-        self.setWidgetValues(self.modifiedVals)
-        self.parent.update(auto=True)
-        self.parent.oldAttrs = None
-        if not self.undone:
-            self.relativeWidgetValsAfterRedo = {
-                attr: copy(getattr(self.parent, attr))
-                for attr in self.parent._relativeWidgets
-            }
-            self.parent._sendUpdateSignal()
-
-    def undo(self):
-        log.info("Undoing component update")
-        self.undone = True
-        self.parent.oldAttrs = self.relativeWidgetValsAfterRedo
-        self.setWidgetValues(self.oldWidgetVals)
-        self.parent.update(auto=True)
-        self.parent.oldAttrs = None

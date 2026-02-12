@@ -1,16 +1,14 @@
-from PIL import ImageEnhance, ImageFilter, ImageChops
-from PyQt6.QtGui import QColor, QFont
-from PyQt6 import QtGui, QtCore, QtWidgets
-import os
+from PyQt6.QtGui import QFont
+from PyQt6 import QtGui, QtCore
 import logging
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.frame import FramePainter, addShadow
 
 log = logging.getLogger("AVP.Components.Text")
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Title Text"
     version = "1.0.1"
 

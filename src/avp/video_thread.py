@@ -12,16 +12,16 @@ from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
 from PIL.ImageQt import ImageQt
+
 import numpy
 import subprocess as sp
 import sys
 import os
-import time
 import signal
 import logging
 
-from .component import ComponentError
-from .toolkit.frame import Checkerboard
+from .libcomponent import ComponentError
+from .toolkit import formatTraceback
 from .toolkit.ffmpeg import (
     openPipe,
     readAudioFile,
@@ -61,7 +61,11 @@ class Worker(QtCore.QObject):
     def createFfmpegCommand(self, duration):
         try:
             ffmpegCommand = createFfmpegCommand(
-                self.inputFile, self.outputFile, self.components, duration
+                self.inputFile,
+                self.outputFile,
+                self.components,
+                duration,
+                "info" if log.getEffectiveLevel() < logging.WARNING else "error",
             )
         except sp.CalledProcessError as e:
             # FIXME video_thread should own this error signal, not components
@@ -111,6 +115,7 @@ class Worker(QtCore.QObject):
         Also prerenders "static" components like text and merges them if possible
         """
         self.staticComponents = {}
+        self.compositeComponents = set()
 
         # Call preFrameRender on each component
         canceledByComponent = False
@@ -160,6 +165,8 @@ class Worker(QtCore.QObject):
             if "static" in compProps:
                 log.info("Saving static frame from #%s %s", compNo, comp)
                 self.staticComponents[compNo] = comp.frameRender(0).copy()
+            elif compNo > 0 and "composite" in compProps:
+                self.compositeComponents.add(compNo)
 
         # Check if any errors occured
         log.debug("Checking if a component wishes to cancel the export...")
@@ -208,9 +215,11 @@ class Worker(QtCore.QObject):
             self.closePipe()
             self.cancelExport()
             self.error = True
-            msg = "A call to renderFrame in the video thread failed critically."
-            log.critical(msg)
-            comp._error.emit(msg, str(e))
+            msg = f"{comp.name} renderFrame({int(audioI / self.sampleSize)}) raised an exception."
+            tb = formatTraceback()
+            details = f"{e.__class__.__name__}: {str(e)}\n\n{tb}"
+            log.critical(f"{msg}\n{details}")
+            comp._error.emit(msg, details)
 
         bgI = int(audioI / self.sampleSize)
         frame = None
@@ -230,6 +239,9 @@ class Worker(QtCore.QObject):
                             frame, self.staticComponents[layerNo]
                         )
 
+                elif layerNo in self.compositeComponents:
+                    # component that uses previous frame to draw
+                    frame = Image.alpha_composite(frame, comp.frameRender(bgI, frame))
                 else:
                     # animated component
                     if frame is None:  # bottom-most layer
@@ -309,9 +321,9 @@ class Worker(QtCore.QObject):
             log.critical("Out_Pipe to FFmpeg couldn't be created!", exc_info=True)
             raise
 
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
         # Begin piping into ffmpeg!
@@ -335,16 +347,13 @@ class Worker(QtCore.QObject):
             completion = (audioI / self.audioArrayLen) * 100
             if progressBarValue + 1 <= completion:
                 progressBarValue = numpy.floor(completion).astype(int)
+                msg = "Exporting video: %s%%" % str(int(progressBarValue))
                 self.progressBarUpdate.emit(progressBarValue)
-                self.progressBarSetText.emit(
-                    "Exporting video: %s%%" % str(int(progressBarValue))
-                )
+                self.progressBarSetText.emit(msg)
 
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # Finished creating the video!
-        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~==~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-        numpy.seterr(all="print")
+        # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
         self.closePipe()
 
@@ -363,7 +372,7 @@ class Worker(QtCore.QObject):
             if self.error:
                 self.failExport()
             else:
-                print("Export Complete")
+                print("\nExport Complete")
                 self.progressBarUpdate.emit(100)
                 self.progressBarSetText.emit("Export Complete")
 

@@ -1,3 +1,5 @@
+"""Tests of MainWindow undoing certain ComponentActions (changes to component settings)"""
+
 from pytest import fixture
 from pytestqt import qtbot
 from avp.gui.mainwindow import MainWindow

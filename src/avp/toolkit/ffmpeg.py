@@ -11,7 +11,7 @@ import signal
 from queue import PriorityQueue
 import logging
 
-from .. import core
+from ..core import Core
 from .common import checkOutput, pipeWrapper
 
 
@@ -19,7 +19,7 @@ log = logging.getLogger("AVP.Toolkit.Ffmpeg")
 
 
 class FfmpegVideo:
-    """Opens a pipe to ffmpeg and stores a buffer of raw video frames."""
+    """Opens an input pipe to ffmpeg and stores a buffer of raw video frames."""
 
     # error from the thread used to fill the buffer
     threadError = None
@@ -53,7 +53,7 @@ class FfmpegVideo:
             kwargs["filter_"] = None
 
         self.command = [
-            core.Core.FFMPEG_BIN,
+            Core.FFMPEG_BIN,
             "-thread_queue_size",
             "512",
             "-r",
@@ -98,11 +98,11 @@ class FfmpegVideo:
             self.frameBuffer.task_done()
 
     def fillBuffer(self):
-        from ..component import ComponentError
+        from ..libcomponent import ComponentError
 
-        if core.Core.logEnabled:
+        if Core.logEnabled:
             logFilename = os.path.join(
-                core.Core.logDir, "render_%s.log" % str(self.component.compPos)
+                Core.logDir, "render_%s.log" % str(self.component.compPos)
             )
             log.debug("Creating ffmpeg process (log at %s)", logFilename)
             with open(logFilename, "w") as logf:
@@ -176,7 +176,7 @@ def findFfmpeg():
 
     if getattr(sys, "frozen", False):
         # The application is frozen
-        bin = os.path.join(core.Core.wd, bin)
+        bin = os.path.join(Core.wd, bin)
 
     with open(os.devnull, "w") as f:
         try:
@@ -187,7 +187,9 @@ def findFfmpeg():
     return bin
 
 
-def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
+def createFfmpegCommand(
+    inputFile, outputFile, components, duration=-1, logLevel="info"
+):
     """
     Constructs the major ffmpeg command used to export the video
     """
@@ -195,7 +197,6 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
         duration = getAudioDuration(inputFile)
     safeDuration = "{0:.3f}".format(duration - 0.05)  # used by filters
     duration = "{0:.3f}".format(duration + 0.1)  # used by input sources
-    Core = core.Core
 
     # Test if user has libfdk_aac
     encoders = checkOutput("%s -encoders -hide_banner" % Core.FFMPEG_BIN, shell=True)
@@ -243,6 +244,8 @@ def createFfmpegCommand(inputFile, outputFile, components, duration=-1):
 
     ffmpegCommand = [
         Core.FFMPEG_BIN,
+        "-loglevel",
+        logLevel,
         "-thread_queue_size",
         "512",
         "-y",  # overwrite the output file if it already exists.
@@ -415,7 +418,7 @@ def createAudioFilterCommand(extraAudio, duration):
 def testAudioStream(filename):
     """Test if an audio stream definitely exists"""
     audioTestCommand = [
-        core.Core.FFMPEG_BIN,
+        Core.FFMPEG_BIN,
         "-i",
         filename,
         "-vn",
@@ -433,7 +436,7 @@ def testAudioStream(filename):
 
 def getAudioDuration(filename):
     """Try to get duration of audio file as float, or False if not possible"""
-    command = [core.Core.FFMPEG_BIN, "-i", filename]
+    command = [Core.FFMPEG_BIN, "-i", filename]
 
     try:
         fileInfo = checkOutput(command, stderr=subprocess.STDOUT)
@@ -473,7 +476,7 @@ def readAudioFile(filename, videoWorker):
         return
 
     command = [
-        core.Core.FFMPEG_BIN,
+        Core.FFMPEG_BIN,
         "-i",
         filename,
         "-f",
@@ -498,7 +501,7 @@ def readAudioFile(filename, videoWorker):
     progress = 0
     lastPercent = None
     while True:
-        if core.Core.canceled:
+        if Core.canceled:
             return
         # read 2 seconds of audio
         progress += 4
@@ -543,3 +546,18 @@ def exampleSound(style="white", extra="apulsator=offset_l=0.35:offset_r=0.67"):
         src = "0.1*sin(2*PI*(360-2.5/2)*t) | 0.1*sin(2*PI*(360+2.5/2)*t)"
 
     return "aevalsrc='%s', %s%s" % (src, extra, ", " if extra else "")
+
+
+def checkFfmpegVersion():
+    try:
+        with open(os.devnull, "w") as f:
+            ffmpegVers = checkOutput([Core.FFMPEG_BIN, "-version"], stderr=f)
+        ffmpegVers = str(ffmpegVers).split()[2].split(".", 1)[0]
+        if ffmpegVers.startswith("n"):
+            ffmpegVers = ffmpegVers[1:]
+        versionNum = int(ffmpegVers)
+        goodVersion = versionNum > 3
+    except Exception:
+        versionNum = -1
+        goodVersion = False
+    return goodVersion, versionNum

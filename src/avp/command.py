@@ -14,7 +14,8 @@ import signal
 import shutil
 import logging
 
-from . import core, __version__
+from . import __version__
+from .core import Core
 
 
 log = logging.getLogger("AVP.Commandline")
@@ -29,11 +30,11 @@ class Command(QtCore.QObject):
 
     def __init__(self):
         super().__init__()
-        self.core = core.Core()
-        core.Core.mode = "commandline"
+        self.core = Core()
+        Core.mode = "commandline"
         self.dataDir = self.core.dataDir
         self.canceled = False
-        self.settings = core.Core.settings
+        self.settings = Core.settings
 
         # ctrl-c stops the export thread
         signal.signal(signal.SIGINT, self.stopVideo)
@@ -71,9 +72,10 @@ class Command(QtCore.QObject):
             help="copy and shorten recent log files into ~/avp_log.txt",
         )
         debugCommands.add_argument(
-            "--verbose", "-v",
+            "--verbose",
+            "-v",
             action="store_true",
-            help="create bigger logfiles while program is running",
+            help="send log messages and ffmpeg output to stdout, and create more verbose log files (good to use before --log)",
         )
 
         # project/GUI options
@@ -101,8 +103,8 @@ class Command(QtCore.QObject):
         args = parser.parse_args()
 
         if args.verbose:
-            core.STDOUT_LOGLVL = logging.DEBUG
-            core.Core.makeLogger(deleteOldLogs=False, fileLogLvl=logging.DEBUG)
+            Core.stdoutLogLvl = logging.DEBUG
+            Core.makeLogger(deleteOldLogs=False, fileLogLvl=logging.DEBUG)
 
         if args.log:
             self.createLogFile()
@@ -168,7 +170,7 @@ class Command(QtCore.QObject):
             return "commandline"
 
         elif args.no_preview:
-            core.Core.previewEnabled = False
+            Core.previewEnabled = False
 
         elif (
             args.projpath is None
@@ -203,20 +205,18 @@ class Command(QtCore.QObject):
 
     @QtCore.pyqtSlot(str)
     def progressBarSetText(self, value):
-        if "Export " in value:
-            # Don't duplicate completion/failure messages
+        if "Export " in value or time.time() - self.lastProgressUpdate < 0.1:
+            # Don't duplicate completion/failure messages or send too many messages
             return
-        if (
-            not value.startswith("Exporting")
-            and time.time() - self.lastProgressUpdate >= 0.05
-        ):
+
+        if not value.endswith("%"):
             # Show most messages very often
             print(value)
-        elif time.time() - self.lastProgressUpdate >= 2.0:
-            # Give user time to read ffmpeg's output during the export
-            print("##### %s" % value)
-        else:
-            return
+        elif log.getEffectiveLevel() > logging.INFO:
+            # if ffmpeg isn't printing export progress for us,
+            # then overwrite previous message with the next one
+            # if this text is our main export progress
+            print(f"{value}\r", end="")
         self.lastProgressUpdate = time.time()
 
     @QtCore.pyqtSlot()
@@ -224,6 +224,7 @@ class Command(QtCore.QObject):
         self.quit(0)
 
     def quit(self, code):
+        print()
         quit(code)
 
     def showMessage(self, **kwargs):
@@ -242,12 +243,14 @@ class Command(QtCore.QObject):
 
     def parseCompName(self, name):
         """Deduces a proper component name out of a commandline arg"""
-
         if name.title() in self.core.compNames:
             return name.title()
         for compName in self.core.compNames:
             if name.capitalize() in compName:
                 return compName
+        for altName, moduleIndex in self.core.altCompNames:
+            if name.title() in altName:
+                return self.core.compNames[moduleIndex]
 
         compFileNames = [
             os.path.splitext(os.path.basename(mod.__file__))[0]
@@ -281,16 +284,17 @@ class Command(QtCore.QObject):
             print("Log file could not be created (too many exist).")
             return
         try:
-            shutil.copy(os.path.join(core.Core.logDir, "avp_debug.log"), filename)
+            shutil.copy(os.path.join(Core.logDir, "avp_debug.log"), filename)
             with open(filename, "a") as f:
                 f.write(f"{'='*60} debug log ends {'='*60}\n")
         except FileNotFoundError:
+            print("No debug log was found. Run `avp --verbose` before `avp --log`.")
             with open(filename, "w") as f:
                 f.write(f"{'='*60} no debug log {'='*60}\n")
 
         def concatenateLogs(logPattern):
             nonlocal filename
-            renderLogs = glob.glob(os.path.join(core.Core.logDir, logPattern))
+            renderLogs = glob.glob(os.path.join(Core.logDir, logPattern))
             with open(filename, "a") as fw:
                 for renderLog in renderLogs:
                     with open(renderLog, "r") as fr:

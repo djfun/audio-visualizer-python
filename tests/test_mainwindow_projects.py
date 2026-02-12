@@ -2,7 +2,15 @@ from PyQt6 import QtCore
 import os
 from pytest import fixture
 from pytestqt import qtbot
-from . import getTestDataPath, window
+from avp.gui.mainwindow import MainWindow
+from . import getTestDataPath, window, settings
+
+
+def test_mainwindow_init_with_project(qtbot, settings):
+    window = MainWindow(getTestDataPath("config/projects/testproject.avp"), None)
+    qtbot.addWidget(window)
+    assert window.core.selectedComponents[0].name == "Classic Visualizer"
+    assert window.core.selectedComponents[1].name == "Color"
 
 
 def test_mainwindow_clear(qtbot, window):
@@ -11,11 +19,8 @@ def test_mainwindow_clear(qtbot, window):
 
 
 def test_mainwindow_presetDir_in_tests(qtbot, window):
-    # FIXME presetDir gets set to projectDir for some reason
-    assert (
-        os.path.basename(os.path.dirname(window.core.settings.value("presetDir")))
-        == "config"
-    )
+    """`presetDir` is the filepath on which "Import Preset" file picker opens"""
+    assert os.path.basename(window.core.settings.value("presetDir")) == "presets"
 
 
 def test_mainwindow_openProject(qtbot, window):

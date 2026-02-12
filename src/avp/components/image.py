@@ -1,14 +1,13 @@
 from PIL import Image, ImageOps, ImageEnhance
 from PyQt6 import QtWidgets
 import os
-from copy import copy
 
-from ..component import Component
+from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
 
-class Component(Component):
+class Component(BaseComponent):
     name = "Image"
     version = "2.1.0"
 
@@ -177,17 +176,22 @@ class Component(Component):
             self.mergeUndo = True
 
     def command(self, arg):
+        def fail():
+            print("Not a supported image format")
+            quit(1)
+
         if "=" in arg:
             key, arg = arg.split("=", 1)
             if key == "path" and os.path.exists(arg):
+                if f"*{os.path.splitext(arg)[1]}" not in self.core.imageFormats:
+                    fail()
                 try:
                     Image.open(arg)
                     self.page.lineEdit_image.setText(arg)
-                    self.page.checkBox_stretch.setChecked(True)
+                    self.page.comboBox_resizeMode.setCurrentIndex(2)
                     return
                 except OSError as e:
-                    print("Not a supported image format")
-                    quit(1)
+                    fail()
         super().command(arg)
 
     def commandHelp(self):
