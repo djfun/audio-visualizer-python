@@ -546,3 +546,18 @@ def exampleSound(style="white", extra="apulsator=offset_l=0.35:offset_r=0.67"):
         src = "0.1*sin(2*PI*(360-2.5/2)*t) | 0.1*sin(2*PI*(360+2.5/2)*t)"
 
     return "aevalsrc='%s', %s%s" % (src, extra, ", " if extra else "")
+
+
+def checkFfmpegVersion():
+    try:
+        with open(os.devnull, "w") as f:
+            ffmpegVers = checkOutput([Core.FFMPEG_BIN, "-version"], stderr=f)
+        ffmpegVers = str(ffmpegVers).split()[2].split(".", 1)[0]
+        if ffmpegVers.startswith("n"):
+            ffmpegVers = ffmpegVers[1:]
+        versionNum = int(ffmpegVers)
+        goodVersion = versionNum > 3
+    except Exception:
+        versionNum = -1
+        goodVersion = False
+    return goodVersion, versionNum

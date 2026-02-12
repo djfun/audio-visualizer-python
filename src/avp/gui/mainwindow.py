@@ -25,7 +25,7 @@ from . import preview_thread
 from .preview_win import PreviewWindow
 from .presetmanager import PresetManager
 from .actions import *
-from ..toolkit.ffmpeg import createFfmpegCommand
+from ..toolkit.ffmpeg import createFfmpegCommand, checkFfmpegVersion
 from ..toolkit import (
     disableWhenEncoding,
     disableWhenOpeningProject,
@@ -330,26 +330,13 @@ class MainWindow(QtWidgets.QMainWindow):
             )
         else:
             if not self.settings.value("ffmpegMsgShown"):
-                try:
-                    with open(os.devnull, "w") as f:
-                        ffmpegVers = checkOutput(
-                            [self.core.FFMPEG_BIN, "-version"], stderr=f
-                        )
-                    ffmpegVers = str(ffmpegVers).split()[2].split(".", 1)[0]
-                    if ffmpegVers.startswith("n"):
-                        ffmpegVers = ffmpegVers[1:]
-                    goodVersion = int(ffmpegVers) > 3
-                except Exception:
-                    goodVersion = False
-            else:
-                goodVersion = True
-
-            if not goodVersion:
-                self.showMessage(
-                    msg="You're using an old version of Ffmpeg. "
-                    "Some features may not work as expected."
-                )
-            self.settings.setValue("ffmpegMsgShown", True)
+                ffmpegGoodVersion, ffmpegVersionNum = checkFfmpegVersion()
+                if not ffmpegGoodVersion:
+                    self.showMessage(
+                        msg="The version of FFmpeg ({ffmpegVersionNum}) is "
+                        "not recognized. Some features may not work as expected."
+                    )
+                self.settings.setValue("ffmpegMsgShown", True)
 
         # Hotkeys for projects
 
