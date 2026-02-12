@@ -40,10 +40,8 @@ def main() -> int:
     screen = app.primaryScreen()
     if screen is None:
         dpi = None
-        log.error("Could not detect DPI")
     else:
         dpi = screen.physicalDotsPerInchX()
-        log.info("Detected screen DPI: %s", dpi)
 
     # Launch program
     if mode == "commandline":
@@ -53,6 +51,8 @@ def main() -> int:
         mode = main.parseArgs()
         log.debug("Finished creating command object")
 
+    log.info(f"QApplication Platform: {QApplication.platformName()}")
+    log.info(f"Detected screen DPI: {dpi}")
     # Both branches here may occur in one execution:
     # Commandline parsing could change mode back to GUI
     if mode == "GUI":
