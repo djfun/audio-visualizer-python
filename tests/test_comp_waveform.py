@@ -1,9 +1,7 @@
-from PyQt6.QtWidgets import QApplication
 from pytestqt import qtbot
 from pytest import fixture
+from avp.toolkit.ffmpeg import checkFfmpegVersion
 from . import command, imageDataSum, audioData, preFrameRender
-
-PLATFORM = QApplication.platformName()
 
 
 @fixture
@@ -24,8 +22,10 @@ def test_comp_waveform_setColor(coreWithWaveformComp):
 def test_comp_waveform_previewRender(coreWithWaveformComp):
     comp = coreWithWaveformComp.selectedComponents[0]
     comp.page.lineEdit_color.setText("255,255,255")
-    if PLATFORM == "wayland":
-        # Wayland gives slightly different colors
+    _, version = checkFfmpegVersion()
+    if version > 6:
+        # FFmpeg 8 has different colors from 6
+        # TODO check version 7
         assert imageDataSum(comp.previewRender()) == 36114120
     else:
         assert imageDataSum(comp.previewRender()) == 37210620
