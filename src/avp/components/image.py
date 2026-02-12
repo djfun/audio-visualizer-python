@@ -183,7 +183,7 @@ class Component(BaseComponent):
         if "=" in arg:
             key, arg = arg.split("=", 1)
             if key == "path" and os.path.exists(arg):
-                if os.path.splitext(arg)[1] not in self.core.imageFormats:
+                if f"*{os.path.splitext(arg)[1]}" not in self.core.imageFormats:
                     fail()
                 try:
                     Image.open(arg)
