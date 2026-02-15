@@ -13,6 +13,7 @@ def test_component_names(settings):
         "Sound",
         "Spectrum",
         "Title Text",
+        "Trails",
         "Video",
         "Waveform",
     ]
