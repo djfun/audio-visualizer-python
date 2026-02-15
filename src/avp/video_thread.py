@@ -238,16 +238,14 @@ class Worker(QtCore.QObject):
                         frame = Image.alpha_composite(
                             frame, self.staticComponents[layerNo]
                         )
-
+                elif frame is None:  # bottom-most layer
+                    frame = comp.frameRender(bgI)
                 elif layerNo in self.compositeComponents:
-                    # component that uses previous frame to draw
-                    frame = Image.alpha_composite(frame, comp.frameRender(bgI, frame))
+                    # component that does its own compositing
+                    frame = comp.frameRender(bgI, frame)
                 else:
-                    # animated component
-                    if frame is None:  # bottom-most layer
-                        frame = comp.frameRender(bgI)
-                    else:
-                        frame = Image.alpha_composite(frame, comp.frameRender(bgI))
+                    # normal animated component
+                    frame = Image.alpha_composite(frame, comp.frameRender(bgI))
             except Exception as e:
                 err()
         return frame
