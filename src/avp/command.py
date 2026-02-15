@@ -195,13 +195,22 @@ class Command(QtCore.QObject):
         # quit(0) after video is created
         self.worker.videoCreated.connect(self.videoCreated)
         self.lastProgressUpdate = time.time()
+        self.lastEstimatedTimeUpdate = time.time()
         self.worker.progressBarSetText.connect(self.progressBarSetText)
+        self.worker.estimatedTimeUpdate.connect(self.estimatedTimeUpdate)
         self.createVideo.emit()
 
     def stopVideo(self, *args):
         self.worker.error = True
         self.worker.cancelExport()
         self.worker.cancel()
+
+    @QtCore.pyqtSlot(str)
+    def estimatedTimeUpdate(self, value):
+        if time.time() - self.lastEstimatedTimeUpdate < 5.0:
+            return
+        print(value)
+        self.lastEstimatedTimeUpdate = time.time()
 
     @QtCore.pyqtSlot(str)
     def progressBarSetText(self, value):

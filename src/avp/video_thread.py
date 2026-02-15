@@ -14,6 +14,8 @@ from PIL import Image
 from PIL.ImageQt import ImageQt
 
 import numpy
+import time
+from math import ceil
 import subprocess as sp
 import sys
 import os
@@ -37,6 +39,7 @@ class Worker(QtCore.QObject):
 
     imageCreated = pyqtSignal("QImage")
     videoCreated = pyqtSignal()
+    estimatedTimeUpdate = pyqtSignal(str)
     progressBarUpdate = pyqtSignal(int)
     progressBarSetText = pyqtSignal(str)
     encoding = pyqtSignal(bool)
@@ -322,6 +325,8 @@ class Worker(QtCore.QObject):
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # START CREATING THE VIDEO
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+        progressTimeTotal = time.time()
+        progressTimeBetween = 0.0
         progressBarValue = 0
         self.progressBarUpdate.emit(progressBarValue)
         # Begin piping into ffmpeg!
@@ -345,9 +350,21 @@ class Worker(QtCore.QObject):
             completion = (audioI / self.audioArrayLen) * 100
             if progressBarValue + 1 <= completion:
                 progressBarValue = numpy.floor(completion).astype(int)
-                msg = "Exporting video: %s%%" % str(int(progressBarValue))
                 self.progressBarUpdate.emit(progressBarValue)
-                self.progressBarSetText.emit(msg)
+                self.progressBarSetText.emit(
+                    f"Exporting video: {int(progressBarValue)}%"
+                )
+
+                # update estimated time until finished
+                curTime = time.time()
+                progressTimeBetween = curTime - progressTimeTotal
+                progressTimeTotal = curTime
+                minutesRemaining = ceil(
+                    (progressTimeBetween * (100 - progressBarValue)) / 60
+                )
+                s = "s" if minutesRemaining != 1 else ""
+                timeMessage = f"About {minutesRemaining} minute{s} remaining"
+                self.estimatedTimeUpdate.emit(timeMessage)
 
         # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
         # Finished creating the video!
