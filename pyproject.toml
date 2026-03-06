@@ -9,6 +9,7 @@ readme = "README.md"
 version = "2.2.4"
 requires-python = ">= 3.12"
 license = "MIT"
+license-files = ["LICENSE", "AUTHORS"]
 classifiers=[
   "Development Status :: 5 - Production/Stable",
   "License :: OSI Approved :: MIT License",
