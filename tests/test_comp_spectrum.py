@@ -1,6 +1,6 @@
 from avp.command import Command
 from pytestqt import qtbot
-from pytest import fixture
+from pytest import fixture, approx
 from . import (
     imageDataSum,
     command,
@@ -21,7 +21,10 @@ def coreWithSpectrumComp(qtbot, command):
 def test_comp_spectrum_previewRender(coreWithSpectrumComp):
     comp = coreWithSpectrumComp.selectedComponents[0]
     image = comp.previewRender()
-    assert imageDataSum(image) == 71992628
+
+    accept_range = 719 #  Accept images with ±0.001% difference
+    expected = 71992628 #  This value was extracted on amd64
+    assert imageDataSum(image) == approx(expected, abs=accept_range)
 
 
 def test_comp_spectrum_renderFrame(coreWithSpectrumComp, audioData):
