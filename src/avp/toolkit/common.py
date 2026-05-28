@@ -154,8 +154,11 @@ def formatTraceback(tb=None):
     return "Traceback:\n%s" % "\n".join(traceback.format_tb(tb))
 
 
-def connectWidget(widget, func):
-    unsupportedWidgets = ["QtWidgets.QFontComboBox"]
+def connectWidget(widget, func, unsupportedWidgets=None):
+    if unsupportedWidgets is None:
+        unsupportedWidgets = ["QFontComboBox"]
+    widgetClassName = widget.__class__.__name__
+
     if type(widget) == QtWidgets.QLineEdit:
         widget.textChanged.connect(func)
     elif type(widget) == QtWidgets.QSpinBox or type(widget) == QtWidgets.QDoubleSpinBox:
@@ -164,12 +167,13 @@ def connectWidget(widget, func):
         widget.stateChanged.connect(func)
     elif type(widget) == QtWidgets.QComboBox:
         widget.currentIndexChanged.connect(func)
-    elif type(widget) in unsupportedWidgets:
+    elif widgetClassName in unsupportedWidgets:
         log.info(
-            "Could not connect %s using connectWidget()", str(widget.__class__.__name__)
+            "Could not connect %s using connectWidget() (known unsupportedWidget)",
+            widgetClassName,
         )
     else:
-        log.warning("Failed to connect %s ", str(widget.__class__.__name__))
+        log.warning("Failed to connect %s ", widgetClassName)
         return False
     return True
 

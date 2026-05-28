@@ -1,8 +1,12 @@
 from pytest import fixture
 from pytestqt import qtbot
 from avp.command import Command
-from avp.toolkit import blockSignals, rgbFromString
+from avp.toolkit import blockSignals, rgbFromString, connectWidget
 from . import command
+
+
+class UnsupportedWidget:
+    pass
 
 
 @fixture
@@ -20,6 +24,9 @@ def gotWarning():
         def warning(self, *args):
             nonlocal warning
             warning = True
+
+        def info(self, *args):
+            pass
 
     oldLog = tk.log
     tk.log = log()
@@ -45,4 +52,20 @@ def test_rgbFromString(gotWarning):
 
 def test_rgbFromString_error(gotWarning):
     assert rgbFromString("255,255,256") == (255, 255, 255)
+    assert gotWarning()
+
+
+def test_connectWidget_unsupportedWidgetInfo(gotWarning):
+    """A known unsupported widget causes an info message"""
+
+    connectWidget(
+        UnsupportedWidget(), lambda: ..., unsupportedWidgets=["UnsupportedWidget"]
+    )
+    assert not gotWarning()
+
+
+def test_connectWidget_unsupportedWidgetWarning(gotWarning):
+    """An unknown unsupported widget causes a warning message"""
+
+    connectWidget(UnsupportedWidget(), lambda: ...)
     assert gotWarning()
