@@ -42,3 +42,10 @@ def test_comp_text_renderFrame(coreWithTextComp, width, height):
     assert comp.shadY == -2
     assert comp.shadBlur == 0
     assert imageDataSum(image) == 727403 or 738586
+
+
+@mark.parametrize("alignment", (0, 1, 2))
+def test_comp_text_alignment(coreWithTextComp, alignment):
+    comp = coreWithTextComp.selectedComponents[0]
+    comp.page.comboBox_textAlign.setCurrentIndex(alignment)
+    assert comp.alignment == alignment

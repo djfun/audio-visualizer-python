@@ -87,7 +87,7 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Text Layout</string>
+        <string>Alignment</string>
        </property>
       </widget>
      </item>

@@ -10,7 +10,7 @@ log = logging.getLogger("AVP.Components.Text")
 
 class Component(BaseComponent):
     name = "Title Text"
-    version = "1.0.1"
+    version = "1.0.2"
 
     def widget(self, *args):
         super().widget(*args)
@@ -91,12 +91,11 @@ class Component(BaseComponent):
         text_width = fm.boundingRect(self.title).width()
         x = self.pixelValForAttr("xPosition")
 
+        offset = 0
         if self.alignment == 1:  # Middle
             offset = int(text_width / 2)
         elif self.alignment == 2:  # Right
             offset = text_width
-        else:
-            raise ValueError(f"Alignment value {self.alignment} unknown")
 
         x -= offset
 
