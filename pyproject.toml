@@ -35,7 +35,7 @@ maintainers = [
 ]
 dependencies = [
   "numpy>=2.4.1",
-  "pillow>=12.1.0",
+  "pillow>=12.2.0",
   "pyqt6>=6.10.2",
 ]
 
