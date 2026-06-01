@@ -536,6 +536,22 @@
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QLabel" name="estimatedTimeLabel">
+              <property name="text">
+               <string/>
+              </property>
+              <property name="scaledContents">
+               <bool>true</bool>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignmentFlag::AlignCenter</set>
+              </property>
+              <property name="indent">
+               <number>-1</number>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
          </layout>

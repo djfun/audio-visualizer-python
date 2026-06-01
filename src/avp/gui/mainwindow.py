@@ -29,12 +29,12 @@ from ..toolkit.ffmpeg import createFfmpegCommand, checkFfmpegVersion
 from ..toolkit import (
     disableWhenEncoding,
     disableWhenOpeningProject,
-    checkOutput,
     blockSignals,
 )
 
 
 log = logging.getLogger("AVP.Gui.MainWindow")
+SYSPLATFORM = sys.platform
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -165,11 +165,13 @@ class MainWindow(QtWidgets.QMainWindow):
             style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogDiscardButton)
         )
 
-        if sys.platform == "darwin":
-            log.debug("Darwin detected: showing progress label below progress bar")
+        if SYSPLATFORM == "darwin":
+            log.debug("Darwin detected: showing progress label above progress bar")
             self.progressBar_createVideo.setTextVisible(False)
-        else:
-            self.progressLabel.setHidden(True)
+            self.estimatedTimeLabel.setAlignment(
+                QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
+        self.progressLabel.setHidden(True)
 
         self.toolButton_selectAudioFile.clicked.connect(self.openInputFileDialog)
 
@@ -642,6 +644,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.videoWorker = self.core.newVideoWorker(self, audioFile, outputPath)
         self.videoWorker.progressBarUpdate.connect(self.progressBarUpdated)
         self.videoWorker.progressBarSetText.connect(self.progressBarSetText)
+        self.videoWorker.estimatedTimeUpdate.connect(self.estimatedTimeUpdated)
         self.videoWorker.imageCreated.connect(self.showPreviewImage)
         self.videoWorker.encoding.connect(self.changeEncodingStatus)
         self.createVideo.emit()
@@ -664,6 +667,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.encoding = status
         if status:
             # Disable many widgets when starting to export
+            if SYSPLATFORM == "darwin":
+                self.progressLabel.setHidden(False)
             self.pushButton_createVideo.setEnabled(False)
             self.pushButton_Cancel.setEnabled(True)
             self.comboBox_resolution.setEnabled(False)
@@ -685,10 +690,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.menuButton_openProject.setEnabled(False)
             # Close undo history dialog if open
             self.undoDialog.close()
-            # Show label under progress bar on macOS
-            if sys.platform == "darwin":
-                self.progressLabel.setHidden(False)
         else:
+            self.estimatedTimeLabel.setText("")
+            self.progressLabel.setHidden(True)
             self.pushButton_createVideo.setEnabled(True)
             self.pushButton_Cancel.setEnabled(False)
             self.comboBox_resolution.setEnabled(True)
@@ -708,8 +712,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.menuButton_newProject.setEnabled(True)
             self.menuButton_openProject.setEnabled(True)
             self.listWidget_componentList.setEnabled(True)
-            self.progressLabel.setHidden(True)
             self.drawPreview(True)
+
+    @QtCore.pyqtSlot(str)
+    def estimatedTimeUpdated(self, value):
+        if SYSPLATFORM == "darwin":
+            value = "(%s)" % value
+        self.estimatedTimeLabel.setText(value)
 
     @QtCore.pyqtSlot(int)
     def progressBarUpdated(self, value):
@@ -717,7 +726,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(str)
     def progressBarSetText(self, value):
-        if sys.platform == "darwin":
+        if SYSPLATFORM == "darwin":
             self.progressLabel.setText(value)
         else:
             self.progressBar_createVideo.setFormat(value)
@@ -852,7 +861,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(position, "toPointF"):
             position = position.toPointF()
         position = position.toPoint()
-
         modelIndexes = [
             componentList.model().index(i) for i in range(componentList.count())
         ]
