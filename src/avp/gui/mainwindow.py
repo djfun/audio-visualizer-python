@@ -78,206 +78,312 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autosavePath = os.path.join(self.dataDir, "autosave.avp")
         self.settings = Core.settings
 
+        # Create Preset Manager
+        self.presetManager = PresetManager(self)
+        self.pushButton_presets.clicked.connect(self.openPresetManager)
+
         # Create stack of undoable user actions
         self.undoStack = UndoStack(self)
         undoLimit = self.settings.value("pref_undoLimit")
         self.undoStack.setUndoLimit(undoLimit)
 
-        # Create Undo Dialog - A standard QUndoView on a standard QDialog
-        self.undoDialog = QtWidgets.QDialog(self)
-        self.undoDialog.setWindowTitle("Undo History")
-        undoView = QtWidgets.QUndoView(self.undoStack)
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(undoView)
-        self.undoDialog.setLayout(layout)
-        self.undoDialog.setMinimumWidth(int(self.width() / 2))
-
-        # Create Preset Manager
-        self.presetManager = PresetManager(self)
-
-        # Create the preview window and its thread, queues, and timers
-        log.debug("Creating preview window")
-        self.previewWindow = PreviewWindow(
-            self, os.path.join(Core.wd, "gui", "background.png")
-        )
-        self.verticalLayout_previewWrapper.addWidget(self.previewWindow)
-
-        log.debug("Starting preview thread")
-        self.previewQueue = Queue()
-        self.previewThread = QtCore.QThread(self)
-        self.previewWorker = preview_thread.Worker(
-            self.core, self.settings, self.previewQueue
-        )
-        self.previewWorker.moveToThread(self.previewThread)
-        self.newTask.connect(self.previewWorker.createPreviewImage)
-        self.processTask.connect(self.previewWorker.process)
-        self.previewWorker.error.connect(self.previewWindow.threadError)
-        self.previewWorker.imageCreated.connect(self.showPreviewImage)
-        self.previewThread.start()
-        self.previewThread.finished.connect(
-            lambda: log.info("Preview thread finished.")
-        )
-
-        timeout = 500
-        log.debug("Preview timer set to trigger when idle for %sms" % str(timeout))
-        self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self.processTask.emit)
-        self.timer.start(timeout)
-
         # Begin decorating the window and connecting events
-        componentList = self.listWidget_componentList
+        def setupHotkeys():
+            # Hotkeys for projects
+            QShortcut("Ctrl+S", self, self.saveCurrentProject)
+            QShortcut("Ctrl+A", self, self.openSaveProjectDialog)
+            QShortcut("Ctrl+O", self, self.openOpenProjectDialog)
+            QShortcut("Ctrl+N", self, self.createNewProject)
 
-        # Undo Feature
-        def toggleUndoButtonEnabled(*_):
-            """Enable/disable undo button depending on whether UndoStack contains Actions"""
-            try:
-                undoButton.setEnabled(self.undoStack.count())
-            except RuntimeError:
-                # program is probably in midst of exiting
-                pass
+            # Hotkeys for undo/redo
+            QShortcut("Ctrl+Z", self, self.undoStack.undo)
+            QShortcut("Ctrl+Y", self, self.undoStack.redo)
+            QShortcut("Ctrl+Shift+Z", self, self.undoStack.redo)
 
-        style = self.pushButton_undo.style()
-        undoButton = self.pushButton_undo
-        undoButton.setIcon(
-            style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_FileDialogBack)
-        )
-        undoButton.clicked.connect(self.undoStack.undo)
-        undoButton.setEnabled(False)
-        self.undoStack.cleanChanged.connect(toggleUndoButtonEnabled)
-        self.undoMenu = QtWidgets.QMenu()
-        self.undoMenu.addAction(self.undoStack.createUndoAction(self))
-        self.undoMenu.addAction(self.undoStack.createRedoAction(self))
-        action = self.undoMenu.addAction("Show History...")
-        action.triggered.connect(lambda _: self.showUndoStack())
-        undoButton.setMenu(self.undoMenu)
-        # end of Undo Feature
-
-        style = self.pushButton_listMoveUp.style()
-        self.pushButton_listMoveUp.setIcon(
-            style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ArrowUp)
-        )
-        style = self.pushButton_listMoveDown.style()
-        self.pushButton_listMoveDown.setIcon(
-            style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ArrowDown)
-        )
-        style = self.pushButton_removeComponent.style()
-        self.pushButton_removeComponent.setIcon(
-            style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogDiscardButton)
-        )
-
-        if SYSPLATFORM == "darwin":
-            log.debug("Darwin detected: showing progress label above progress bar")
-            self.progressBar_createVideo.setTextVisible(False)
-            self.estimatedTimeLabel.setAlignment(
-                QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
+            # Hotkeys for component list
+            for inskey in ("Ctrl+T", QtCore.Qt.Key.Key_Insert):
+                QShortcut(
+                    inskey,
+                    self,
+                    activated=lambda: self.pushButton_addComponent.click(),
+                )
+            for delkey in ("Ctrl+R", QtCore.Qt.Key.Key_Delete):
+                QShortcut(delkey, self.listWidget_componentList, self.removeComponent)
+            QShortcut(
+                "Ctrl+Space",
+                self,
+                activated=lambda: self.listWidget_componentList.setFocus(),
             )
-        self.progressLabel.setHidden(True)
+            QShortcut("Ctrl+Shift+S", self, self.presetManager.openSavePresetDialog)
+            QShortcut("Ctrl+Shift+C", self, self.presetManager.clearPreset)
 
-        self.toolButton_selectAudioFile.clicked.connect(self.openInputFileDialog)
+            QShortcut(
+                "Ctrl+Up",
+                self.listWidget_componentList,
+                activated=lambda: self.moveComponent(-1),
+            )
+            QShortcut(
+                "Ctrl+Down",
+                self.listWidget_componentList,
+                activated=lambda: self.moveComponent(1),
+            )
+            QShortcut(
+                "Ctrl+Home",
+                self.listWidget_componentList,
+                activated=lambda: self.moveComponent("top"),
+            )
+            QShortcut(
+                "Ctrl+End",
+                self.listWidget_componentList,
+                activated=lambda: self.moveComponent("bottom"),
+            )
 
-        self.toolButton_selectOutputFile.clicked.connect(self.openOutputFileDialog)
+            QShortcut("F1", self, self.showHelpWindow)
+            QShortcut("Ctrl+Shift+F", self, self.showFfmpegCommand)
+            QShortcut("Ctrl+Shift+U", self, self.showUndoStack)
 
-        def changedField():
-            self.autosave()
-            self.updateWindowTitle()
+            if log.isEnabledFor(logging.DEBUG):
+                QShortcut("Ctrl+Alt+Shift+R", self, self.drawPreview)
+                QShortcut("Ctrl+Alt+Shift+A", self, lambda: log.debug(repr(self)))
 
-        self.lineEdit_audioFile.textChanged.connect(changedField)
-        self.lineEdit_outputFile.textChanged.connect(changedField)
+        def setupMainWindowWidgets():
+            def setupUndoDialog():
+                """Create Undo Dialog - A standard QUndoView on a standard QDialog"""
+                self.undoDialog = QtWidgets.QDialog(self)
+                self.undoDialog.setWindowTitle("Undo History")
+                undoView = QtWidgets.QUndoView(self.undoStack)
+                layout = QtWidgets.QVBoxLayout()
+                layout.addWidget(undoView)
+                self.undoDialog.setLayout(layout)
+                self.undoDialog.setMinimumWidth(int(self.width() / 2))
 
-        self.progressBar_createVideo.setValue(0)
+            def setupPreviewWindow():
+                """Create the preview window and its thread, queues, and timers"""
+                log.debug("Creating preview window")
+                self.previewWindow = PreviewWindow(
+                    self, os.path.join(Core.wd, "gui", "background.png")
+                )
+                self.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
-        self.pushButton_createVideo.clicked.connect(self.createAudioVisualization)
-
-        self.pushButton_Cancel.clicked.connect(self.stopVideo)
-
-        for i, container in enumerate(Core.encoderOptions["containers"]):
-            self.comboBox_videoContainer.addItem(container["name"])
-            if container["name"] == self.settings.value("outputContainer"):
-                selectedContainer = i
-
-        self.comboBox_videoContainer.setCurrentIndex(selectedContainer)
-        self.comboBox_videoContainer.currentIndexChanged.connect(self.updateCodecs)
-
-        self.updateCodecs()
-
-        for i in range(self.comboBox_videoCodec.count()):
-            codec = self.comboBox_videoCodec.itemText(i)
-            if codec == self.settings.value("outputVideoCodec"):
-                self.comboBox_videoCodec.setCurrentIndex(i)
-
-        for i in range(self.comboBox_audioCodec.count()):
-            codec = self.comboBox_audioCodec.itemText(i)
-            if codec == self.settings.value("outputAudioCodec"):
-                self.comboBox_audioCodec.setCurrentIndex(i)
-
-        self.comboBox_videoCodec.currentIndexChanged.connect(self.updateCodecSettings)
-
-        self.comboBox_audioCodec.currentIndexChanged.connect(self.updateCodecSettings)
-
-        vBitrate = int(self.settings.value("outputVideoBitrate"))
-        aBitrate = int(self.settings.value("outputAudioBitrate"))
-
-        self.spinBox_vBitrate.setValue(vBitrate)
-        self.spinBox_aBitrate.setValue(aBitrate)
-        self.spinBox_vBitrate.valueChanged.connect(self.updateCodecSettings)
-        self.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
-
-        # Make component buttons
-        self.compMenu = QtWidgets.QMenu()
-        for i, comp in enumerate(self.core.modules):
-            action = self.compMenu.addAction(comp.Component.name)
-            action.triggered.connect(lambda _, item=i: self.addComponent(0, item))
-
-        self.pushButton_addComponent.setMenu(self.compMenu)
-
-        componentList.dropEvent = self.dragComponent
-        componentList.itemSelectionChanged.connect(self.changeComponentWidget)
-        componentList.itemSelectionChanged.connect(
-            self.presetManager.clearPresetListSelection
-        )
-        self.pushButton_removeComponent.clicked.connect(lambda: self.removeComponent())
-
-        componentList.setContextMenuPolicy(
-            QtCore.Qt.ContextMenuPolicy.CustomContextMenu
-        )
-        componentList.customContextMenuRequested.connect(self.componentContextMenu)
-
-        currentRes = (
-            str(self.settings.value("outputWidth"))
-            + "x"
-            + str(self.settings.value("outputHeight"))
-        )
-        for i, res in enumerate(Core.resolutions):
-            self.comboBox_resolution.addItem(res)
-            if res == currentRes:
-                currentRes = i
-                self.comboBox_resolution.setCurrentIndex(currentRes)
-                self.comboBox_resolution.currentIndexChanged.connect(
-                    self.updateResolution
+                log.debug("Starting preview thread")
+                self.previewQueue = Queue()
+                self.previewThread = QtCore.QThread(self)
+                self.previewWorker = preview_thread.Worker(
+                    self.core, self.settings, self.previewQueue
+                )
+                self.previewWorker.moveToThread(self.previewThread)
+                self.newTask.connect(self.previewWorker.createPreviewImage)
+                self.processTask.connect(self.previewWorker.process)
+                self.previewWorker.error.connect(self.previewWindow.threadError)
+                self.previewWorker.imageCreated.connect(self.showPreviewImage)
+                self.previewThread.start()
+                self.previewThread.finished.connect(
+                    lambda: log.info("Preview thread finished.")
                 )
 
-        self.pushButton_listMoveUp.clicked.connect(lambda: self.moveComponent(-1))
-        self.pushButton_listMoveDown.clicked.connect(lambda: self.moveComponent(1))
+                timeout = 500
+                log.debug(
+                    "Preview timer set to trigger when idle for %sms" % str(timeout)
+                )
+                self.timer = QtCore.QTimer(self)
+                self.timer.timeout.connect(self.processTask.emit)
+                self.timer.start(timeout)
 
-        # Configure the Projects Menu
-        self.projectMenu = QtWidgets.QMenu()
-        self.menuButton_newProject = self.projectMenu.addAction("New Project")
-        self.menuButton_newProject.triggered.connect(lambda: self.createNewProject())
-        self.menuButton_openProject = self.projectMenu.addAction("Open Project")
-        self.menuButton_openProject.triggered.connect(
-            lambda: self.openOpenProjectDialog()
-        )
+            def setupUndoFeature():
+                def toggleUndoButtonEnabled(*_):
+                    """Enable/disable undo button depending on whether UndoStack contains Actions"""
+                    try:
+                        undoButton.setEnabled(self.undoStack.count())
+                    except RuntimeError:
+                        # program is probably in midst of exiting
+                        pass
 
-        action = self.projectMenu.addAction("Save Project")
-        action.triggered.connect(self.saveCurrentProject)
+                style = self.pushButton_undo.style()
+                undoButton = self.pushButton_undo
+                undoButton.setIcon(
+                    style.standardIcon(
+                        QtWidgets.QStyle.StandardPixmap.SP_FileDialogBack
+                    )
+                )
+                undoButton.clicked.connect(self.undoStack.undo)
+                undoButton.setEnabled(False)
+                self.undoStack.cleanChanged.connect(toggleUndoButtonEnabled)
+                self.undoMenu = QtWidgets.QMenu()
+                self.undoMenu.addAction(self.undoStack.createUndoAction(self))
+                self.undoMenu.addAction(self.undoStack.createRedoAction(self))
+                action = self.undoMenu.addAction("Show History...")
+                action.triggered.connect(lambda _: self.showUndoStack())
+                undoButton.setMenu(self.undoMenu)
 
-        action = self.projectMenu.addAction("Save Project As")
-        action.triggered.connect(self.openSaveProjectDialog)
+            def setupProgressBar():
+                if SYSPLATFORM == "darwin":
+                    log.debug(
+                        "Darwin detected: showing progress label above progress bar"
+                    )
+                    self.progressBar_createVideo.setTextVisible(False)
+                    self.estimatedTimeLabel.setAlignment(
+                        QtCore.Qt.AlignmentFlag.AlignLeft
+                        | QtCore.Qt.AlignmentFlag.AlignVCenter
+                    )
+                self.progressLabel.setHidden(True)
 
-        self.pushButton_projects.setMenu(self.projectMenu)
+            def setupExportVideoTab():
+                self.toolButton_selectAudioFile.clicked.connect(
+                    self.openInputFileDialog
+                )
 
-        # Configure the Presets Button
-        self.pushButton_presets.clicked.connect(self.openPresetManager)
+                self.toolButton_selectOutputFile.clicked.connect(
+                    self.openOutputFileDialog
+                )
+
+                def changedField():
+                    self.autosave()
+                    self.updateWindowTitle()
+
+                self.lineEdit_audioFile.textChanged.connect(changedField)
+                self.lineEdit_outputFile.textChanged.connect(changedField)
+
+                self.progressBar_createVideo.setValue(0)
+
+                self.pushButton_createVideo.clicked.connect(
+                    self.createAudioVisualization
+                )
+
+                self.pushButton_Cancel.clicked.connect(self.stopVideo)
+
+            def setupEncoderSettingsTab():
+                for i, container in enumerate(Core.encoderOptions["containers"]):
+                    self.comboBox_videoContainer.addItem(container["name"])
+                    if container["name"] == self.settings.value("outputContainer"):
+                        selectedContainer = i
+
+                self.comboBox_videoContainer.setCurrentIndex(selectedContainer)
+                self.comboBox_videoContainer.currentIndexChanged.connect(
+                    self.updateCodecs
+                )
+
+                self.updateCodecs()
+
+                for i in range(self.comboBox_videoCodec.count()):
+                    codec = self.comboBox_videoCodec.itemText(i)
+                    if codec == self.settings.value("outputVideoCodec"):
+                        self.comboBox_videoCodec.setCurrentIndex(i)
+
+                for i in range(self.comboBox_audioCodec.count()):
+                    codec = self.comboBox_audioCodec.itemText(i)
+                    if codec == self.settings.value("outputAudioCodec"):
+                        self.comboBox_audioCodec.setCurrentIndex(i)
+
+                self.comboBox_videoCodec.currentIndexChanged.connect(
+                    self.updateCodecSettings
+                )
+
+                self.comboBox_audioCodec.currentIndexChanged.connect(
+                    self.updateCodecSettings
+                )
+
+                vBitrate = int(self.settings.value("outputVideoBitrate"))
+                aBitrate = int(self.settings.value("outputAudioBitrate"))
+
+                self.spinBox_vBitrate.setValue(vBitrate)
+                self.spinBox_aBitrate.setValue(aBitrate)
+                self.spinBox_vBitrate.valueChanged.connect(self.updateCodecSettings)
+                self.spinBox_aBitrate.valueChanged.connect(self.updateCodecSettings)
+
+                currentRes = (
+                    str(self.settings.value("outputWidth"))
+                    + "x"
+                    + str(self.settings.value("outputHeight"))
+                )
+                for i, res in enumerate(Core.resolutions):
+                    self.comboBox_resolution.addItem(res)
+                    if res == currentRes:
+                        currentRes = i
+                        self.comboBox_resolution.setCurrentIndex(currentRes)
+                        self.comboBox_resolution.currentIndexChanged.connect(
+                            self.updateResolution
+                        )
+
+            def setupComponentListWidgets():
+                componentList = self.listWidget_componentList
+                style = self.pushButton_listMoveUp.style()
+                self.pushButton_listMoveUp.setIcon(
+                    style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ArrowUp)
+                )
+                style = self.pushButton_listMoveDown.style()
+                self.pushButton_listMoveDown.setIcon(
+                    style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ArrowDown)
+                )
+                style = self.pushButton_removeComponent.style()
+                self.pushButton_removeComponent.setIcon(
+                    style.standardIcon(
+                        QtWidgets.QStyle.StandardPixmap.SP_DialogDiscardButton
+                    )
+                )
+
+                self.compMenu = QtWidgets.QMenu()
+                for i, comp in enumerate(self.core.modules):
+                    action = self.compMenu.addAction(comp.Component.name)
+                    action.triggered.connect(
+                        lambda _, item=i: self.addComponent(0, item)
+                    )
+
+                self.pushButton_addComponent.setMenu(self.compMenu)
+
+                componentList.dropEvent = self.dragComponent
+                componentList.itemSelectionChanged.connect(self.changeComponentWidget)
+                componentList.itemSelectionChanged.connect(
+                    self.presetManager.clearPresetListSelection
+                )
+                self.pushButton_removeComponent.clicked.connect(
+                    lambda: self.removeComponent()
+                )
+
+                componentList.setContextMenuPolicy(
+                    QtCore.Qt.ContextMenuPolicy.CustomContextMenu
+                )
+                componentList.customContextMenuRequested.connect(
+                    self.componentContextMenu
+                )
+
+                self.pushButton_listMoveUp.clicked.connect(
+                    lambda: self.moveComponent(-1)
+                )
+                self.pushButton_listMoveDown.clicked.connect(
+                    lambda: self.moveComponent(1)
+                )
+
+            def setupProjectsMenu():
+                """Configure the Projects Menu"""
+                self.projectMenu = QtWidgets.QMenu()
+                self.menuButton_newProject = self.projectMenu.addAction("New Project")
+                self.menuButton_newProject.triggered.connect(
+                    lambda: self.createNewProject()
+                )
+                self.menuButton_openProject = self.projectMenu.addAction("Open Project")
+                self.menuButton_openProject.triggered.connect(
+                    lambda: self.openOpenProjectDialog()
+                )
+
+                action = self.projectMenu.addAction("Save Project")
+                action.triggered.connect(self.saveCurrentProject)
+
+                action = self.projectMenu.addAction("Save Project As")
+                action.triggered.connect(self.openSaveProjectDialog)
+
+                self.pushButton_projects.setMenu(self.projectMenu)
+
+            setupUndoDialog()
+            setupPreviewWindow()
+            setupUndoFeature()
+            setupProgressBar()
+            setupExportVideoTab()
+            setupEncoderSettingsTab()
+            setupComponentListWidgets()
+            setupProjectsMenu()
+
+        setupMainWindowWidgets()
+        setupHotkeys()
 
         self.updateWindowTitle()
         log.debug("Showing main window")
@@ -339,64 +445,6 @@ class MainWindow(QtWidgets.QMainWindow):
                         "not recognized. Some features may not work as expected."
                     )
                 self.settings.setValue("ffmpegMsgShown", True)
-
-        # Hotkeys for projects
-
-        QShortcut("Ctrl+S", self, self.saveCurrentProject)
-        QShortcut("Ctrl+A", self, self.openSaveProjectDialog)
-        QShortcut("Ctrl+O", self, self.openOpenProjectDialog)
-        QShortcut("Ctrl+N", self, self.createNewProject)
-
-        # Hotkeys for undo/redo
-        QShortcut("Ctrl+Z", self, self.undoStack.undo)
-        QShortcut("Ctrl+Y", self, self.undoStack.redo)
-        QShortcut("Ctrl+Shift+Z", self, self.undoStack.redo)
-
-        # Hotkeys for component list
-        for inskey in ("Ctrl+T", QtCore.Qt.Key.Key_Insert):
-            QShortcut(
-                inskey,
-                self,
-                activated=lambda: self.pushButton_addComponent.click(),
-            )
-        for delkey in ("Ctrl+R", QtCore.Qt.Key.Key_Delete):
-            QShortcut(delkey, self.listWidget_componentList, self.removeComponent)
-        QShortcut(
-            "Ctrl+Space",
-            self,
-            activated=lambda: self.listWidget_componentList.setFocus(),
-        )
-        QShortcut("Ctrl+Shift+S", self, self.presetManager.openSavePresetDialog)
-        QShortcut("Ctrl+Shift+C", self, self.presetManager.clearPreset)
-
-        QShortcut(
-            "Ctrl+Up",
-            self.listWidget_componentList,
-            activated=lambda: self.moveComponent(-1),
-        )
-        QShortcut(
-            "Ctrl+Down",
-            self.listWidget_componentList,
-            activated=lambda: self.moveComponent(1),
-        )
-        QShortcut(
-            "Ctrl+Home",
-            self.listWidget_componentList,
-            activated=lambda: self.moveComponent("top"),
-        )
-        QShortcut(
-            "Ctrl+End",
-            self.listWidget_componentList,
-            activated=lambda: self.moveComponent("bottom"),
-        )
-
-        QShortcut("F1", self, self.showHelpWindow)
-        QShortcut("Ctrl+Shift+F", self, self.showFfmpegCommand)
-        QShortcut("Ctrl+Shift+U", self, self.showUndoStack)
-
-        if log.isEnabledFor(logging.DEBUG):
-            QShortcut("Ctrl+Alt+Shift+R", self, self.drawPreview)
-            QShortcut("Ctrl+Alt+Shift+A", self, lambda: log.debug(repr(self)))
 
         # Close MainWindow when receiving Ctrl+C from terminal
         signal.signal(signal.SIGINT, lambda *args: self.close())
