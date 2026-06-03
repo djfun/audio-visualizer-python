@@ -4,6 +4,7 @@ QUndoCommand class for generic undoable user actions performed to a BaseComponen
 See `../life.py` for an example of a component that uses a custom QUndoCommand
 """
 
+from PyQt6 import QtCore
 from PyQt6.QtGui import QUndoCommand
 from copy import copy
 import logging
@@ -102,3 +103,40 @@ class ComponentUpdate(QUndoCommand):
         self.setWidgetValues(self.oldWidgetVals)
         self.parent.update(auto=True)
         self.parent.oldAttrs = None
+
+
+class ComponentPreviewClick(QUndoCommand):
+    def __init__(self, comp, pos, size, button):
+        super().__init__("click %s component #%s" % (comp.name, comp.compPos))
+        self.comp = comp
+        self.pos = [pos]
+        self.size = size
+        if button == QtCore.Qt.MouseButton.RightButton:
+            self.button = 2
+        else:
+            self.button = 1
+
+    def id(self):
+        return self.button
+
+    def mergeWith(self, other):
+        self.pos.extend(other.pos)
+        return True
+
+    def add(self):
+        ...
+
+    def remove(self):
+        ...
+
+    def redo(self):
+        if self.button == 1:  # Left-click
+            self.add()
+        elif self.button == 2:  # Right-click
+            self.remove()
+
+    def undo(self):
+        if self.button == 1:  # Left-click
+            self.remove()
+        elif self.button == 2:  # Right-click
+            self.add()

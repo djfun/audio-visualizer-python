@@ -7,6 +7,7 @@ import logging
 
 
 from ..libcomponent import BaseComponent
+from ..libcomponent.actions import ComponentPreviewClick
 from ..toolkit.frame import BlankFrame, scale, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
@@ -149,7 +150,7 @@ class Component(BaseComponent):
             math.ceil((pos[0] / size[0]) * self.gridWidth) - 1,
             math.ceil((pos[1] / size[1]) * self.gridHeight) - 1,
         )
-        action = ClickGrid(self, pos, button)
+        action = ClickGrid(self, pos, size, button)
         self.parent.undoStack.push(action)
 
     def updateGridSize(self):
@@ -561,23 +562,7 @@ class Component(BaseComponent):
         yield x - 1, y
 
 
-class ClickGrid(QUndoCommand):
-    def __init__(self, comp, pos, button):
-        super().__init__("click %s component #%s" % (comp.name, comp.compPos))
-        self.comp = comp
-        self.pos = [pos]
-        if button == QtCore.Qt.MouseButton.RightButton:
-            self.button = 2
-        else:
-            self.button = 1
-
-    def id(self):
-        return self.button
-
-    def mergeWith(self, other):
-        self.pos.extend(other.pos)
-        return True
-
+class ClickGrid(ComponentPreviewClick):
     def add(self):
         for pos in self.pos[:]:
             self.comp.startingGrid.add(pos)
@@ -587,18 +572,6 @@ class ClickGrid(QUndoCommand):
         for pos in self.pos[:]:
             self.comp.startingGrid.discard(pos)
         self.comp.update(auto=True)
-
-    def redo(self):
-        if self.button == 1:  # Left-click
-            self.add()
-        elif self.button == 2:  # Right-click
-            self.remove()
-
-    def undo(self):
-        if self.button == 1:  # Left-click
-            self.remove()
-        elif self.button == 2:  # Right-click
-            self.add()
 
 
 class ShiftGrid(QUndoCommand):
