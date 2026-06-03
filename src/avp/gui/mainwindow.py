@@ -55,39 +55,13 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         log.debug("Main thread id: {}".format(int(QtCore.QThread.currentThreadId())))
         uic.loadUi(os.path.join(Core.wd, "gui", "mainwindow.ui"), self)
+        log.info("Pillow version %s", Image.__version__)
+        log.info(
+            "PyQt version %s (Qt version %s)",
+            QtCore.PYQT_VERSION_STR,
+            QtCore.QT_VERSION_STR,
+        )
 
-        if dpi:
-            self.resize(
-                int(self.width() * (dpi / 144)),
-                int(self.height() * (dpi / 144)),
-            )
-
-        self.core = Core()
-        Core.mode = "GUI"
-        # widgets of component settings
-        self.pages = []
-        self.lastAutosave = time.time()
-        # list of previous five autosave times, used to reduce update spam
-        self.autosaveTimes = []
-        self.autosaveCooldown = 0.2
-        self.encoding = False
-
-        # Find settings created by Core object
-        self.dataDir = Core.dataDir
-        self.presetDir = Core.presetDir
-        self.autosavePath = os.path.join(self.dataDir, "autosave.avp")
-        self.settings = Core.settings
-
-        # Create Preset Manager
-        self.presetManager = PresetManager(self)
-        self.pushButton_presets.clicked.connect(self.openPresetManager)
-
-        # Create stack of undoable user actions
-        self.undoStack = UndoStack(self)
-        undoLimit = self.settings.value("pref_undoLimit")
-        self.undoStack.setUndoLimit(undoLimit)
-
-        # Begin decorating the window and connecting events
         def setupHotkeys():
             # Hotkeys for projects
             QShortcut("Ctrl+S", self, self.saveCurrentProject)
@@ -382,13 +356,44 @@ class MainWindow(QtWidgets.QMainWindow):
             setupComponentListWidgets()
             setupProjectsMenu()
 
+        self.core = Core()
+        Core.mode = "GUI"
+        # widgets of component settings
+        self.pages = []
+        self.lastAutosave = time.time()
+        # list of previous five autosave times, used to reduce update spam
+        self.autosaveTimes = []
+        self.autosaveCooldown = 0.2
+        self.encoding = False
+
+        # Find settings created by Core object
+        self.dataDir = Core.dataDir
+        self.presetDir = Core.presetDir
+        self.autosavePath = os.path.join(self.dataDir, "autosave.avp")
+        self.settings = Core.settings
+
+        # Create Preset Manager
+        self.presetManager = PresetManager(self)
+        self.pushButton_presets.clicked.connect(self.openPresetManager)
+
+        # Create widgets and hotkeys
+        self.undoStack = UndoStack(self)
+        undoLimit = self.settings.value("pref_undoLimit")
+        self.undoStack.setUndoLimit(undoLimit)
         setupMainWindowWidgets()
         setupHotkeys()
 
+        # Resize and show main window
+        if dpi:
+            self.resize(
+                int(self.width() * (dpi / 144)),
+                int(self.height() * (dpi / 144)),
+            )
         self.updateWindowTitle()
         log.debug("Showing main window")
         self.show()
 
+        # Load project and prompt user to restore unsaved changes
         if project and project != self.autosavePath:
             if not project.endswith(".avp"):
                 project += ".avp"
@@ -421,14 +426,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.openProject(self.currentProject, prompt=False)
         self.drawPreview(True)
 
-        log.info("Pillow version %s", Image.__version__)
-        log.info(
-            "PyQt version %s (Qt version %s)",
-            QtCore.PYQT_VERSION_STR,
-            QtCore.QT_VERSION_STR,
-        )
-
-        # verify Ffmpeg version
+        # Verify FFmpeg version
         if not self.core.FFMPEG_BIN:
             self.showMessage(
                 msg="FFmpeg could not be found. This is a critical error. "
