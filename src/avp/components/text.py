@@ -3,6 +3,7 @@ from PyQt6 import QtGui, QtCore
 import logging
 
 from ..libcomponent import BaseComponent
+from ..libcomponent.actions import ComponentPreviewClick
 from ..toolkit.frame import FramePainter, addShadow
 
 log = logging.getLogger("AVP.Components.Text")
@@ -10,7 +11,7 @@ log = logging.getLogger("AVP.Components.Text")
 
 class Component(BaseComponent):
     name = "Title Text"
-    version = "1.0.2"
+    version = "1.1.0"
 
     def widget(self, *args):
         super().widget(*args)
@@ -80,6 +81,12 @@ class Component(BaseComponent):
             self.page.spinBox_shadY.setHidden(True)
             self.page.label_shadBlur.setHidden(True)
             self.page.spinBox_shadBlur.setHidden(True)
+
+    def previewClickEvent(self, pos, size, button):
+        if button != QtCore.Qt.MouseButton.LeftButton:
+            return
+        action = ClickPreviewAction(self, pos, size, button)
+        self.parent.undoStack.push(action)
 
     def centerXY(self):
         self.setRelativeWidget("xPosition", 0.5)
@@ -208,3 +215,23 @@ class Component(BaseComponent):
                 self.page.lineEdit_title.setText(arg)
                 return
         super().command(arg)
+
+
+class ClickPreviewAction(ComponentPreviewClick):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.oldX = self.comp.xPosition / int(self.comp.settings.value("outputWidth"))
+        self.oldY = self.comp.yPosition / int(self.comp.settings.value("outputHeight"))
+
+
+    def add(self):
+        for pos in self.pos[:]:
+            self.comp.setRelativeWidget("xPosition", pos[0] / self.size[0])
+            self.comp.setRelativeWidget("yPosition", pos[1] / self.size[1])
+        self.comp.update(auto=True)
+
+    def remove(self):
+        self.comp.setRelativeWidget("xPosition", self.oldX)
+        self.comp.setRelativeWidget("yPosition", self.oldY)
+        self.comp.update(auto=True)
