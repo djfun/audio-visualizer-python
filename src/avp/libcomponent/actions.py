@@ -12,8 +12,11 @@ import logging
 log = logging.getLogger("AVP.ComponentHandler")
 
 
-class ComponentUpdate(QUndoCommand):
-    """Command object for making a component action undoable"""
+class ComponentTrackedWidgetUpdate(QUndoCommand):
+    """
+    This QUndoCommand represents value changes in a component's `page` (its UI widget)
+    It is used by the BaseComponent class for input widgets tracked by `trackWidgets()`
+    """
 
     def __init__(self, parent, oldWidgetVals, modifiedVals):
         super().__init__("change %s component #%s" % (parent.name, parent.compPos))
@@ -106,6 +109,14 @@ class ComponentUpdate(QUndoCommand):
 
 
 class ComponentPreviewClick(QUndoCommand):
+    """
+    This QUndoCommand represents the user clicking the preview window.
+    A component that responds to preview click events must define a subclass
+    which defines `add()` and `remove()` to respond to left and right mouse buttons.
+    This component should then create instances of its subclass and
+    add them to the undoStack within a `previewClickEvent` method.
+    """
+
     def __init__(self, comp, pos, size, button):
         super().__init__("click %s component #%s" % (comp.name, comp.compPos))
         self.comp = comp

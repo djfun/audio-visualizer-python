@@ -11,7 +11,7 @@ import logging
 from copy import copy
 
 from .metaclass import ComponentMetaclass
-from .actions import ComponentUpdate
+from .actions import ComponentTrackedWidgetUpdate
 from .exceptions import ComponentError
 from ..toolkit.frame import BlankFrame
 
@@ -292,7 +292,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             if val != oldWidgetVals[attr]
         }
         if modifiedWidgets:
-            action = ComponentUpdate(self, oldWidgetVals, modifiedWidgets)
+            action = ComponentTrackedWidgetUpdate(self, oldWidgetVals, modifiedWidgets)
             self.parent.undoStack.push(action)
 
     def _autoUpdate(self):
