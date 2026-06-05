@@ -80,7 +80,7 @@ class Component(BaseComponent):
             self.page.spinBox_shadBlur.setHidden(True)
 
     def previewClickEvent(self, pos, size, button):
-        if button != QtCore.Qt.MouseButton.LeftButton:
+        if self.imageSize == (0, 0) or button != QtCore.Qt.MouseButton.LeftButton:
             return
         action = ClickPreviewAction(self, pos, size, button)
         self.parent.undoStack.push(action)
@@ -208,7 +208,8 @@ class Component(BaseComponent):
                 frame = frame.rotate(self.rotate)
             if self.shadow:
                 frame = addShadow(frame, shadBlur, shadX, shadY)
-
+        else:
+            self.imageSize = (0, 0)
         return frame
 
     def postFrameRender(self):
