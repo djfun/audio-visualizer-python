@@ -151,3 +151,27 @@ class ComponentPreviewClick(QUndoCommand):
             self.remove()
         elif self.button == 2:  # Right-click
             self.add()
+
+
+class ComponentSettingsUpdate(QUndoCommand):
+    """
+    This QUndoCommand represents any change to a component's settings
+    not already covered by another action type above.
+    A component should define a subclass to define `redo()` and `undo()`,
+    manually create instances, and add them to the undoStack when needed.
+    """
+
+    def __init__(self, comp):
+        super().__init__("change %s component #%s" % (comp.name, comp.compPos))
+        self.comp = comp
+        self.res = (int(comp.width), int(comp.height))
+
+    def id(self):
+        return -1
+
+    def mergeWith(self):
+        return True
+
+    def redo(self): ...
+
+    def undo(self): ...

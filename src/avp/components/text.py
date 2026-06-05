@@ -3,7 +3,7 @@ from PyQt6 import QtGui, QtCore
 import logging
 
 from ..libcomponent import BaseComponent
-from ..libcomponent.actions import ComponentPreviewClick
+from ..libcomponent.actions import ComponentPreviewClick, ComponentSettingsUpdate
 from ..toolkit.frame import FramePainter, addShadow
 
 log = logging.getLogger("AVP.Components.Text")
@@ -25,7 +25,7 @@ class Component(BaseComponent):
         self.page.comboBox_textAlign.addItem("Right")
         self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
-        self.page.pushButton_center.clicked.connect(self.centerXY)
+        self.page.pushButton_center.clicked.connect(self.addCenterAction)
 
         self.page.fontComboBox_titleFont.currentFontChanged.connect(
             self._sendUpdateSignal
@@ -86,6 +86,11 @@ class Component(BaseComponent):
         if button != QtCore.Qt.MouseButton.LeftButton:
             return
         action = ClickPreviewAction(self, pos, size, button)
+        self.parent.undoStack.push(action)
+
+    def addCenterAction(self):
+        """Triggered when user clicks "center text" button."""
+        action = CenterTextAction(self)
         self.parent.undoStack.push(action)
 
     def centerXY(self):
@@ -216,14 +221,22 @@ class Component(BaseComponent):
                 return
         super().command(arg)
 
+    def getRelativeXY(self):
+        return (
+            self.floatValForAttr(
+                "xPosition", axis=int(self.settings.value("outputWidth"))
+            ),
+            self.floatValForAttr(
+                "yPosition", axis=int(self.settings.value("outputHeight"))
+            ),
+        )
+
 
 class ClickPreviewAction(ComponentPreviewClick):
     def __init__(self, *args):
         super().__init__(*args)
 
-        self.oldX = self.comp.xPosition / int(self.comp.settings.value("outputWidth"))
-        self.oldY = self.comp.yPosition / int(self.comp.settings.value("outputHeight"))
-
+        self.oldXY = self.comp.getRelativeXY()
 
     def add(self):
         for pos in self.pos[:]:
@@ -232,6 +245,21 @@ class ClickPreviewAction(ComponentPreviewClick):
         self.comp.update(auto=True)
 
     def remove(self):
-        self.comp.setRelativeWidget("xPosition", self.oldX)
-        self.comp.setRelativeWidget("yPosition", self.oldY)
+        self.comp.setRelativeWidget("xPosition", self.oldXY[0])
+        self.comp.setRelativeWidget("yPosition", self.oldXY[1])
+        self.comp.update(auto=True)
+
+
+class CenterTextAction(ComponentSettingsUpdate):
+    def __init__(self, comp):
+        super().__init__(comp)
+        self.oldXY = self.comp.getRelativeXY()
+
+    def redo(self):
+        self.comp.centerXY()
+
+    def undo(self):
+        # set back to old values
+        self.comp.setRelativeWidget("xPosition", self.oldXY[0])
+        self.comp.setRelativeWidget("yPosition", self.oldXY[1])
         self.comp.update(auto=True)
