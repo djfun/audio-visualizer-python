@@ -134,12 +134,6 @@ class ComponentPreviewClick(QUndoCommand):
         self.pos.extend(other.pos)
         return True
 
-    def add(self):
-        ...
-
-    def remove(self):
-        ...
-
     def redo(self):
         if self.button == 1:  # Left-click
             self.add()
@@ -151,6 +145,10 @@ class ComponentPreviewClick(QUndoCommand):
             self.remove()
         elif self.button == 2:  # Right-click
             self.add()
+
+    def add(self): ...
+
+    def remove(self): ...
 
 
 class ComponentSettingsUpdate(QUndoCommand):

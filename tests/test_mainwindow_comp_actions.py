@@ -1,4 +1,6 @@
-"""Tests of MainWindow undoing certain ComponentActions (changes to component settings)"""
+"""
+Tests of MainWindow undoing certain ComponentTrackedWidgetUpdates
+"""
 
 from pytest import fixture
 from pytestqt import qtbot

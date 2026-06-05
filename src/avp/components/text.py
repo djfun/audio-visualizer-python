@@ -33,7 +33,7 @@ class Component(BaseComponent):
         # The QFontComboBox must be connected directly to the Qt Signal
         # which triggers the preview to update.
         # This unfortunately makes changing the font into a non-undoable action.
-        # Fix requires updating ComponentAction to handle fonts
+        # Fix requires updating ComponentTrackedWidgetUpdate to handle fonts
 
         self.trackWidgets(
             {
@@ -70,13 +70,13 @@ class Component(BaseComponent):
     def update(self):
         self.titleFont = self.page.fontComboBox_titleFont.currentFont()
         if self.page.checkBox_shadow.isChecked():
-            self.page.label_shadX.setHidden(False)
+            self.page.label_shadOffset.setHidden(False)
             self.page.spinBox_shadX.setHidden(False)
             self.page.spinBox_shadY.setHidden(False)
             self.page.label_shadBlur.setHidden(False)
             self.page.spinBox_shadBlur.setHidden(False)
         else:
-            self.page.label_shadX.setHidden(True)
+            self.page.label_shadOffset.setHidden(True)
             self.page.spinBox_shadX.setHidden(True)
             self.page.spinBox_shadY.setHidden(True)
             self.page.label_shadBlur.setHidden(True)

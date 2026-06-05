@@ -557,7 +557,7 @@
       </spacer>
      </item>
      <item>
-      <widget class="QLabel" name="label_shadX">
+      <widget class="QLabel" name="label_shadOffset">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
          <horstretch>0</horstretch>
