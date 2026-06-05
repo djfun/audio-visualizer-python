@@ -1,15 +1,16 @@
 from PIL import Image, ImageOps, ImageEnhance
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtCore
 import os
 
 from ..libcomponent import BaseComponent
+from ..libcomponent.actions import ComponentPreviewClick, ComponentSettingsUpdate
 from ..toolkit.frame import BlankFrame, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
 
 class Component(BaseComponent):
     name = "Image"
-    version = "2.1.0"
+    version = "2.2.0"
 
     def widget(self, *args):
         super().widget(*args)
@@ -17,7 +18,11 @@ class Component(BaseComponent):
         # cache a modified image object in case we are rendering beyond frame 1
         self.existingImage = None
 
+        # cache image size for reference when centering the image
+        self.imageSize = (0, 0)
+
         self.page.pushButton_image.clicked.connect(self.pickImage)
+        self.page.pushButton_centerImage.clicked.connect(self.addCenterAction)
         self.page.comboBox_resizeMode.addItem("Scale")
         self.page.comboBox_resizeMode.addItem("Cover")
         self.page.comboBox_resizeMode.addItem("Stretch")
@@ -35,13 +40,23 @@ class Component(BaseComponent):
                 "respondToAudio": self.page.checkBox_respondToAudio,
                 "sensitivity": self.page.spinBox_sensitivity,
                 "shadow": self.page.checkBox_shadow,
+                "shadX": self.page.spinBox_shadX,
+                "shadY": self.page.spinBox_shadY,
+                "shadBlur": self.page.spinBox_shadBlur,
             },
             presetNames={
                 "imagePath": "image",
                 "xPosition": "x",
                 "yPosition": "y",
             },
-            relativeWidgets=["xPosition", "yPosition", "scale"],
+            relativeWidgets=[
+                "xPosition",
+                "yPosition",
+                "scale",
+                "shadX",
+                "shadY",
+                "shadBlur",
+            ],
         )
 
     def update(self):
@@ -50,6 +65,41 @@ class Component(BaseComponent):
         )
         self.page.spinBox_scale.setEnabled(
             self.page.comboBox_resizeMode.currentIndex() == 0
+        )
+        if self.page.checkBox_shadow.isChecked():
+            self.page.label_shadOffset.setHidden(False)
+            self.page.spinBox_shadX.setHidden(False)
+            self.page.spinBox_shadY.setHidden(False)
+            self.page.label_shadBlur.setHidden(False)
+            self.page.spinBox_shadBlur.setHidden(False)
+        else:
+            self.page.label_shadOffset.setHidden(True)
+            self.page.spinBox_shadX.setHidden(True)
+            self.page.spinBox_shadY.setHidden(True)
+            self.page.label_shadBlur.setHidden(True)
+            self.page.spinBox_shadBlur.setHidden(True)
+
+    def previewClickEvent(self, pos, size, button):
+        if button != QtCore.Qt.MouseButton.LeftButton:
+            return
+        action = ClickPreviewAction(self, pos, size, button)
+        self.parent.undoStack.push(action)
+
+    def addCenterAction(self):
+        """Triggered when user clicks "center image" button."""
+        if self.imageSize == (0, 0):
+            return
+        action = CenterImageAction(self)
+        self.parent.undoStack.push(action)
+
+    def centerXY(self):
+        self.setRelativeWidget(
+            "xPosition",
+            0.5 - (self.floatValForAttr("xPosition", self.imageSize[0]) / 2),
+        )
+        self.setRelativeWidget(
+            "yPosition",
+            0.5 - (self.floatValForAttr("yPosition", self.imageSize[1] / 2)),
         )
 
     def previewRender(self):
@@ -122,12 +172,15 @@ class Component(BaseComponent):
                         (newWidth, newHeight), Image.Resampling.LANCZOS
                     )
                 self.existingImage = image
+                self.imageSize = (image.width, image.height)
+
+            # Shadow-related variables (modified below if "respond to audio")
+            resolutionFactor = height / 1080
+            shadX = int(resolutionFactor * self.shadX)
+            shadY = int(resolutionFactor * self.shadY)
+            shadBlur = resolutionFactor * (self.shadBlur / 10)
 
             # Respond to audio
-            resolutionFactor = height / 1080
-            shadX = int(resolutionFactor * 1)
-            shadY = int(resolutionFactor * -1)
-            shadBlur = resolutionFactor * 3.50
             scale = 0
             if dynamicScale is not None:
                 scale = dynamicScale[36 * 4] / 4
@@ -196,3 +249,38 @@ class Component(BaseComponent):
 
     def commandHelp(self):
         print("Load an image:\n    path=/filepath/to/image.png")
+
+
+class ClickPreviewAction(ComponentPreviewClick):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.oldXY = (
+            self.comp.floatValForAttr("xPosition"),
+            self.comp.floatValForAttr("yPosition"),
+        )
+
+    def add(self):
+        for pos in self.pos[:]:
+            self.comp.setRelativeWidget("xPosition", pos[0] / self.size[0])
+            self.comp.setRelativeWidget("yPosition", pos[1] / self.size[1])
+
+    def remove(self):
+        self.comp.setRelativeWidget("xPosition", self.oldXY[0])
+        self.comp.setRelativeWidget("yPosition", self.oldXY[1])
+
+
+class CenterImageAction(ComponentSettingsUpdate):
+    def __init__(self, comp):
+        super().__init__(comp)
+        self.oldXY = (
+            self.comp.floatValForAttr("xPosition"),
+            self.comp.floatValForAttr("yPosition"),
+        )
+
+    def redo(self):
+        self.comp.centerXY()
+
+    def undo(self):
+        self.comp.setRelativeWidget("xPosition", self.oldXY[0])
+        self.comp.setRelativeWidget("yPosition", self.oldXY[1])
