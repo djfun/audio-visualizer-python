@@ -221,45 +221,37 @@ class Component(BaseComponent):
                 return
         super().command(arg)
 
-    def getRelativeXY(self):
-        return (
-            self.floatValForAttr(
-                "xPosition", axis=int(self.settings.value("outputWidth"))
-            ),
-            self.floatValForAttr(
-                "yPosition", axis=int(self.settings.value("outputHeight"))
-            ),
-        )
-
 
 class ClickPreviewAction(ComponentPreviewClick):
     def __init__(self, *args):
         super().__init__(*args)
 
-        self.oldXY = self.comp.getRelativeXY()
+        self.oldXY = (
+            self.comp.floatValForAttr("xPosition"),
+            self.comp.floatValForAttr("yPosition"),
+        )
 
     def add(self):
         for pos in self.pos[:]:
             self.comp.setRelativeWidget("xPosition", pos[0] / self.size[0])
             self.comp.setRelativeWidget("yPosition", pos[1] / self.size[1])
-        self.comp.update(auto=True)
 
     def remove(self):
         self.comp.setRelativeWidget("xPosition", self.oldXY[0])
         self.comp.setRelativeWidget("yPosition", self.oldXY[1])
-        self.comp.update(auto=True)
 
 
 class CenterTextAction(ComponentSettingsUpdate):
     def __init__(self, comp):
         super().__init__(comp)
-        self.oldXY = self.comp.getRelativeXY()
+        self.oldXY = (
+            self.comp.floatValForAttr("xPosition"),
+            self.comp.floatValForAttr("yPosition"),
+        )
 
     def redo(self):
         self.comp.centerXY()
 
     def undo(self):
-        # set back to old values
         self.comp.setRelativeWidget("xPosition", self.oldXY[0])
         self.comp.setRelativeWidget("yPosition", self.oldXY[1])
-        self.comp.update(auto=True)
