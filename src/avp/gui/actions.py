@@ -8,9 +8,49 @@ import logging
 from copy import copy
 
 from ..core import Core
+from ..toolkit.common import blockSignals
 
 
 log = logging.getLogger("AVP.Gui.Actions")
+
+
+# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+# ENCODER SETTINGS ACTIONS
+# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+
+class ChangeResolution(QUndoCommand):
+    def __init__(self, window, newResolutionIndex):
+        super().__init__(
+            "change resolution to %s"
+            % window.comboBox_resolution.itemText(newResolutionIndex)
+        )
+        self.window = window
+        self.newResolution = tuple(Core.resolutions[newResolutionIndex].split("x"))
+        self.newResolutionIndex = newResolutionIndex
+
+        # store old resolution
+        w = window.settings.value("outputWidth")
+        h = window.settings.value("outputHeight")
+        self.oldResolution = (w, h)
+        self.oldResolutionIndex = Core.resolutions.index("%sx%s" % self.oldResolution)
+
+    def updateResolution(self, resolution, index):
+        self.window.settings.setValue("outputWidth", resolution[0])
+        self.window.settings.setValue("outputHeight", resolution[1])
+        with blockSignals(
+            [self.window.comboBox_resolution, *self.window.core.selectedComponents]
+        ):
+            self.window.comboBox_resolution.setCurrentIndex(index)
+            for i in range(len(self.window.core.selectedComponents)):
+                self.window.core.updateComponent(i)
+        self.window.drawPreview()
+
+    def redo(self):
+        self.updateResolution(self.newResolution, self.newResolutionIndex)
+
+    def undo(self):
+        self.updateResolution(self.oldResolution, self.oldResolutionIndex)
 
 
 # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
