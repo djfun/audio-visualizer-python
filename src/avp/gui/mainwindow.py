@@ -486,6 +486,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.stop()
         self.previewThread.quit()
         self.previewThread.wait()
+        self.presetManager.close()
+        self.undoDialog.close()
         return super().closeEvent(event)
 
     @disableWhenOpeningProject
