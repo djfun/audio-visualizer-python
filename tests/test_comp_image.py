@@ -45,6 +45,7 @@ def test_comp_image_scale_50_720p(coreWithImageComp):
     sum = imageDataSum(image)
     comp.parent.settings.setValue("outputHeight", 720)
     comp.parent.settings.setValue("outputWidth", 1280)
+    comp.updateResolution()
     newImage = comp.previewRender()
     assert image.width == 1920
     assert newImage.width == 1280

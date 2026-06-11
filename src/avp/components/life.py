@@ -108,6 +108,10 @@ class Component(BaseComponent):
         action = ShiftGrid(self, d)
         self.parent.undoStack.push(action)
 
+    def updateResolution(self):
+        super().updateResolution()
+        self.updateGridSize()
+
     def update(self):
         self.updateGridSize()
 

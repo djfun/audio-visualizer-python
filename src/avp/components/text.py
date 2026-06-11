@@ -101,7 +101,7 @@ class Component(BaseComponent):
         """Returns true x, y after considering alignment settings"""
         fm = QtGui.QFontMetrics(self.titleFont)
         text_width = fm.boundingRect(self.title).width()
-        x = self.pixelValForAttr("xPosition")
+        x = self.xPosition
 
         offset = 0
         if self.alignment == 1:  # Middle

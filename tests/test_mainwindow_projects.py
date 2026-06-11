@@ -29,6 +29,14 @@ def test_mainwindow_openProject(qtbot, window):
     assert len(window.core.selectedComponents) == 2
 
 
+def test_mainwindow_openProject_with_outdated_file(qtbot, window):
+    """Open outdated project file using MainWindow.openProject()"""
+    window.openProject(
+        getTestDataPath("config/projects/testproject_outdated.avp"), prompt=False
+    )
+    assert len(window.core.selectedComponents) == 2
+
+
 def test_mainwindow_newProject_without_unsaved_changes(qtbot, window):
     """Starting new project without unsaved changes"""
     didCallFunction = False

@@ -38,6 +38,7 @@ def test_comp_text_renderFrame(coreWithTextComp, width, height):
     comp = coreWithTextComp.selectedComponents[0]
     comp.parent.settings.setValue("outputWidth", width)
     comp.parent.settings.setValue("outputHeight", height)
+    comp.updateResolution()
     setTextSettings(comp)
     comp.centerXY()
     image = comp.frameRender(0)
@@ -58,16 +59,7 @@ def test_comp_text_alignment(coreWithTextComp, alignment):
     assert comp.alignment == alignment
 
 
-@mark.parametrize("pos", ((0, 0), (23, 37), (900, 900)))
-def test_comp_text_previewClickEvent_dynamic_assertion(windowWithTextComp, pos):
-    comp = windowWithTextComp.core.selectedComponents[0]
-    comp.previewClickEvent(pos, (555, 333), QtCore.Qt.MouseButton.LeftButton)
-    assert comp.xPosition == comp.pixelValForAttr("xPosition")
-    assert comp.yPosition == comp.pixelValForAttr("yPosition")
-
-
-def test_comp_text_previewClickEvent_static_assertion(windowWithTextComp):
-    """Test without using pixelValForAttr method"""
+def test_comp_text_previewClickEvent(windowWithTextComp):
     comp = windowWithTextComp.core.selectedComponents[0]
     comp.previewClickEvent((192, 108), (1920, 1080), QtCore.Qt.MouseButton.LeftButton)
     assert comp.xPosition == 192
@@ -92,3 +84,35 @@ def test_comp_text_centerText_undo_redo(windowWithTextComp):
     assert comp.xPosition == 0
     windowWithTextComp.undoStack.redo()
     assert comp.xPosition == comp.pixelValForAttr("xPosition", 0.5)
+
+
+def test_comp_text_fontSize_relative_to_resolution(windowWithTextComp):
+    comp = windowWithTextComp.core.selectedComponents[0]
+    # resolution is 1920x1080
+    comp.page.spinBox_fontSize.setValue(200)
+    # set resolution to 1280x720
+    windowWithTextComp.updateResolution(1)
+    assert comp.fontSize == 134
+    # set resolution to 854x480
+    windowWithTextComp.updateResolution(2)
+    assert comp.fontSize == 90
+
+
+def test_comp_text_fontSize_rounding_errors(windowWithTextComp):
+    """Test that `relativeWidgets` system does not interfere with setValue"""
+    comp = windowWithTextComp.core.selectedComponents[0]
+    for i in range(1, 501):
+        comp.page.spinBox_fontSize.setValue(i)
+        assert comp.fontSize == i
+
+
+def test_comp_text_fontSize_maximum(windowWithTextComp):
+    comp = windowWithTextComp.core.selectedComponents[0]
+    # resolution is 1920x1080
+    assert comp.page.spinBox_fontSize.maximum() == 500
+    # set resolution to 1280x720
+    windowWithTextComp.updateResolution(1)
+    assert comp.page.spinBox_fontSize.maximum() == 333
+    # set resolution to 854x480
+    windowWithTextComp.updateResolution(2)
+    assert comp.page.spinBox_fontSize.maximum() == 222

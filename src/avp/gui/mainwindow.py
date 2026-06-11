@@ -492,7 +492,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @disableWhenOpeningProject
     def updateWindowTitle(self):
-        log.debug("Setting main window's title")
         windowTitle = appName
         try:
             if self.currentProject:
@@ -503,7 +502,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 windowTitle += "*"
         except AttributeError:
             pass
-        log.verbose(f'Window title is "{windowTitle}"')
+        log.debug("Setting MainWindow title to %s" % windowTitle)
         self.setWindowTitle(windowTitle)
 
     @QtCore.pyqtSlot(int, dict)
@@ -796,15 +795,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 # if the text is our main export progress
                 print(f"\r{value}", end="")
 
-    def updateResolution(self):
-        resIndex = int(self.comboBox_resolution.currentIndex())
+    def updateResolution(self, resIndex=None):
+        if resIndex == -1:
+            log.error("Resolution combobox is broken.")
+            return
+        elif resIndex is None:
+            resIndex = int(self.comboBox_resolution.currentIndex())
         action = ChangeResolution(self, resIndex)
         self.undoStack.push(action)
 
     def drawPreview(self, force=False, **kwargs):
         """Use autosave keyword arg to force saving or not saving if needed"""
         self.newTask.emit(self.core.selectedComponents)
-        # self.processTask.emit()
         if force or "autosave" in kwargs:
             if force or kwargs["autosave"]:
                 self.autosave(True)

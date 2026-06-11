@@ -36,6 +36,7 @@ class ChangeResolution(QUndoCommand):
         self.oldResolutionIndex = Core.resolutions.index("%sx%s" % self.oldResolution)
 
     def updateResolution(self, resolution, index):
+        log.debug("Updating resolution to %sx%s" % resolution)
         self.window.settings.setValue("outputWidth", resolution[0])
         self.window.settings.setValue("outputHeight", resolution[1])
         with blockSignals(
@@ -43,7 +44,7 @@ class ChangeResolution(QUndoCommand):
         ):
             self.window.comboBox_resolution.setCurrentIndex(index)
             for i in range(len(self.window.core.selectedComponents)):
-                self.window.core.updateComponent(i)
+                self.window.core.selectedComponents[i].updateResolution()
         self.window.drawPreview()
 
     def redo(self):
