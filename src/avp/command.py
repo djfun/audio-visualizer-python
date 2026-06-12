@@ -74,7 +74,8 @@ class Command(QtCore.QObject):
         debugCommands.add_argument(
             "--verbose",
             "-v",
-            action="store_true",
+            action="count",
+            default=0,
             help="send log messages and ffmpeg output to stdout, and create more verbose log files (good to use before --log)",
         )
 
@@ -102,8 +103,8 @@ class Command(QtCore.QObject):
 
         args = parser.parse_args()
 
-        if args.verbose:
-            Core.stdoutLogLvl = logging.DEBUG
+        if args.verbose > 0:
+            Core.stdoutLogLvl -= 10 * args.verbose
             Core.makeLogger(deleteOldLogs=False, fileLogLvl=logging.DEBUG)
 
         if args.log:
@@ -177,6 +178,8 @@ class Command(QtCore.QObject):
             and "help" not in sys.argv
             and "--verbose" not in sys.argv
             and "-v" not in sys.argv
+            and "-vv" not in sys.argv
+            and "-vvv" not in sys.argv
             and "--log" not in sys.argv
         ):
             parser.print_help()
