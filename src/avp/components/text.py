@@ -4,6 +4,7 @@ import logging
 
 from ..libcomponent import BaseComponent
 from ..libcomponent.actions import ComponentPreviewClick, ComponentSettingsUpdate
+from ..toolkit import hasUndoStack
 from ..toolkit.frame import FramePainter, addShadow
 
 log = logging.getLogger("AVP.Components.Text")
@@ -83,15 +84,19 @@ class Component(BaseComponent):
             self.page.spinBox_shadBlur.setHidden(True)
 
     def previewClickEvent(self, pos, size, button):
+        if not hasUndoStack(self.loader):
+            return
         if button != QtCore.Qt.MouseButton.LeftButton:
             return
         action = ClickPreviewAction(self, pos, size, button)
-        self.parent.undoStack.push(action)
+        self.loader.undoStack.push(action)
 
     def addCenterAction(self):
         """Triggered when user clicks "center text" button."""
+        if not hasUndoStack(self.loader):
+            return
         action = CenterTextAction(self)
-        self.parent.undoStack.push(action)
+        self.loader.undoStack.push(action)
 
     def centerXY(self):
         self.setRelativeWidget("xPosition", 0.5)

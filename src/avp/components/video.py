@@ -67,9 +67,9 @@ class Component(BaseComponent):
     def properties(self):
         props = []
         outputFile = None
-        if hasattr(self.parent, "lineEdit_outputFile"):
+        if hasattr(self.loader, "lineEdit_outputFile"):
             # check only happens in GUI mode
-            outputFile = self.parent.lineEdit_outputFile.text()
+            outputFile = self.loader.lineEdit_outputFile.text()
 
         if not self.videoPath:
             self.lockError("There is no video selected.")
@@ -103,8 +103,8 @@ class Component(BaseComponent):
                 width=self.width,
                 height=self.height,
                 chunkSize=self.chunkSize,
-                frameRate=int(self.settings.value("outputFrameRate")),
-                parent=self.parent,
+                frameRate=int(self.core.settings.value("outputFrameRate")),
+                parent=self.loader,
                 loopVideo=self.loopVideo,
                 component=self,
             )
@@ -121,7 +121,7 @@ class Component(BaseComponent):
         closePipe(self.video.pipe)
 
     def pickVideo(self):
-        imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
+        imgDir = self.core.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page,
             "Choose Video",
@@ -129,7 +129,7 @@ class Component(BaseComponent):
             "Video Files (%s)" % " ".join(self.core.videoFormats),
         )
         if filename:
-            self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.core.settings.setValue("componentDir", os.path.dirname(filename))
             self.mergeUndo = False
             self.page.lineEdit_video.setText(filename)
             self.mergeUndo = True

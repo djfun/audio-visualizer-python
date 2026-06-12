@@ -43,8 +43,8 @@ def test_comp_image_scale_50_720p(coreWithImageComp):
     comp.page.spinBox_scale.setValue(50)
     image = comp.previewRender()
     sum = imageDataSum(image)
-    comp.parent.settings.setValue("outputHeight", 720)
-    comp.parent.settings.setValue("outputWidth", 1280)
+    coreWithImageComp.settings.setValue("outputHeight", 720)
+    coreWithImageComp.settings.setValue("outputWidth", 1280)
     comp.updateResolution()
     newImage = comp.previewRender()
     assert image.width == 1920

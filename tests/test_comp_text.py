@@ -36,8 +36,8 @@ def setTextSettings(comp):
 def test_comp_text_renderFrame(coreWithTextComp, width, height):
     """Call renderFrame of Title Text component added to Command object."""
     comp = coreWithTextComp.selectedComponents[0]
-    comp.parent.settings.setValue("outputWidth", width)
-    comp.parent.settings.setValue("outputHeight", height)
+    coreWithTextComp.settings.setValue("outputWidth", width)
+    coreWithTextComp.settings.setValue("outputHeight", height)
     comp.updateResolution()
     setTextSettings(comp)
     comp.centerXY()

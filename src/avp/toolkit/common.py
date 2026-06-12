@@ -208,3 +208,8 @@ def getWidgetValue(widget):
 
 def randomColor():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+
+def hasUndoStack(loader):
+    """Receives a Command or MainWindow object"""
+    return hasattr(loader, "undoStack")

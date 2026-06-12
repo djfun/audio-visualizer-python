@@ -20,8 +20,8 @@ class Component(BaseComponent):
         # disable color #2 until non-default 'fill' option gets changed
         self.page.lineEdit_color2.setDisabled(True)
         self.page.pushButton_color2.setDisabled(True)
-        self.page.spinBox_width.setValue(int(self.settings.value("outputWidth")))
-        self.page.spinBox_height.setValue(int(self.settings.value("outputHeight")))
+        self.page.spinBox_width.setValue(int(self.core.settings.value("outputWidth")))
+        self.page.spinBox_height.setValue(int(self.core.settings.value("outputHeight")))
 
         self.fillLabels = [
             "Solid",

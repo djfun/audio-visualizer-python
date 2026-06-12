@@ -163,16 +163,15 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     # Idle Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-    def widget(self, parent):
+    def widget(self, loader):
         """
         Call super().widget(*args) to create the component widget
         which also auto-connects any common widgets (e.g., checkBoxes)
         to self.update(). Then in a subclass connect special actions
         (e.g., pushButtons to select a file) and initialize
         """
-        self.parent = parent
-        self.settings = parent.settings
-        log.verbose(
+        self.loader = loader
+        log.debug(
             "Creating UI for %s #%s's widget",
             self.__class__.name,
             self.compPos,
@@ -308,7 +307,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         }
         if modifiedWidgets:
             action = ComponentTrackedWidgetUpdate(self, oldWidgetVals, modifiedWidgets)
-            self.parent.undoStack.push(action)
+            self.loader.undoStack.push(action)
 
     def _autoUpdate(self):
         """Happens after subclass update() for an internal component update."""
@@ -320,11 +319,16 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._sendUpdateSignal()
 
     def updateResolution(self):
-        newWidth = int(self.parent.settings.value("outputWidth"))
-        newHeight = int(self.parent.settings.value("outputHeight"))
+        newWidth = int(self.core.settings.value("outputWidth"))
+        newHeight = int(self.core.settings.value("outputHeight"))
         log.info(
-            "Updating relative widget values for %s from %sx%s to %sx%s."
-            % (self.name, self.width, self.height, newWidth, newHeight)
+            "Updating relative widget values for %s #%s from %sx%s to %sx%s.",
+            self.name,
+            str(self.compPos),
+            self.width,
+            self.height,
+            newWidth,
+            newHeight,
         )
         for attr in self._relativeWidgets:
             self.updateRelativeWidgetResolution(
@@ -373,12 +377,13 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 setWidgetValue(widget, val)
 
     def _sendUpdateSignal(self):
-        if not self.core.openingProject:
-            self.parent.drawPreview()
-            saveValueStore = self.savePreset()
-            saveValueStore["preset"] = self.currentPreset
-            saveValueStore["resolution"] = (self.width, self.height)
-            self.modified.emit(self.compPos, saveValueStore)
+        if self.core.openingProject:
+            # TODO use `disableWhenOpeningProject` decorator
+            return
+        saveValueStore = self.savePreset()
+        saveValueStore["preset"] = self.currentPreset
+        saveValueStore["resolution"] = (self.width, self.height)
+        self.modified.emit(self.compPos, saveValueStore)
 
     def trackWidgets(self, trackDict, **kwargs):
         """
@@ -517,6 +522,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 lambda attr: "height" in attr.lower()
                 or "ypos" in attr.lower()
                 or attr == "y"
+                or attr.endswith("Y")
             )
             if "axis" not in kwargs:
                 axis = self.width

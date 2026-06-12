@@ -4,6 +4,7 @@ import os
 
 from ..libcomponent import BaseComponent
 from ..libcomponent.actions import ComponentPreviewClick, ComponentSettingsUpdate
+from ..toolkit import hasUndoStack
 from ..toolkit.frame import BlankFrame, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
@@ -80,17 +81,21 @@ class Component(BaseComponent):
             self.page.spinBox_shadBlur.setHidden(True)
 
     def previewClickEvent(self, pos, size, button):
-        if self.imageSize == (0, 0) or button != QtCore.Qt.MouseButton.LeftButton:
+        if (
+            not hasUndoStack(self.loader)
+            or self.imageSize == (0, 0)
+            or button != QtCore.Qt.MouseButton.LeftButton
+        ):
             return
         action = ClickPreviewAction(self, pos, size, button)
-        self.parent.undoStack.push(action)
+        self.loader.undoStack.push(action)
 
     def addCenterAction(self):
         """Triggered when user clicks "center image" button."""
-        if self.imageSize == (0, 0):
+        if not hasUndoStack(self.loader) or self.imageSize == (0, 0):
             return
         action = CenterImageAction(self)
-        self.parent.undoStack.push(action)
+        self.loader.undoStack.push(action)
 
     def centerXY(self):
         self.setRelativeWidget(
@@ -216,7 +221,7 @@ class Component(BaseComponent):
         self.existingImage = None
 
     def pickImage(self):
-        imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
+        imgDir = self.core.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page,
             "Choose Image",
@@ -224,7 +229,7 @@ class Component(BaseComponent):
             "Image Files (%s)" % " ".join(self.core.imageFormats),
         )
         if filename:
-            self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.core.settings.setValue("componentDir", os.path.dirname(filename))
             self.mergeUndo = False
             self.page.lineEdit_image.setText(filename)
             self.mergeUndo = True

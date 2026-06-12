@@ -35,8 +35,8 @@ class Component(BaseComponent):
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
 
-        if hasattr(self.parent, "lineEdit_audioFile"):
-            self.parent.lineEdit_audioFile.textChanged.connect(self.update)
+        if hasattr(self.loader, "lineEdit_audioFile"):
+            self.loader.lineEdit_audioFile.textChanged.connect(self.update)
 
         self.trackWidgets(
             {
@@ -83,8 +83,8 @@ class Component(BaseComponent):
             width=w,
             height=h,
             chunkSize=self.chunkSize,
-            frameRate=int(self.settings.value("outputFrameRate")),
-            parent=self.parent,
+            frameRate=int(self.core.settings.value("outputFrameRate")),
+            parent=self.loader,
             component=self,
             debug=True,
         )
@@ -151,10 +151,10 @@ class Component(BaseComponent):
         closePipe(self.video.pipe)
 
     def getPreviewFrame(self, width, height):
-        genericPreview = self.settings.value("pref_genericPreview")
+        genericPreview = self.core.settings.value("pref_genericPreview")
         startPt = 0
         if not genericPreview:
-            inputFile = self.parent.lineEdit_audioFile.text()
+            inputFile = self.loader.lineEdit_audioFile.text()
             if not inputFile or not os.path.exists(inputFile):
                 return
             duration = getAudioDuration(inputFile)
@@ -169,7 +169,7 @@ class Component(BaseComponent):
             "-thread_queue_size",
             "512",
             "-r",
-            str(self.settings.value("outputFrameRate")),
+            str(self.core.settings.value("outputFrameRate")),
             "-ss",
             "{0:.3f}".format(startPt),
             "-i",
@@ -233,18 +233,18 @@ class Component(BaseComponent):
             amplitude = "lin"
         hexcolor = QColor(*self.color).name()
         opacity = "{0:.1f}".format(self.opacity / 100)
-        genericPreview = self.settings.value("pref_genericPreview")
+        genericPreview = self.core.settings.value("pref_genericPreview")
         if self.mode > 1:
             filter_ = (
                 "showwaves="
-                f'r={str(self.settings.value("outputFrameRate"))}:'
-                f's={self.settings.value("outputWidth")}x{self.settings.value("outputHeight")}:'
+                f'r={str(self.core.settings.value("outputFrameRate"))}:'
+                f"s={self.width}x{self.height}:"
                 f'mode={self.page.comboBox_mode.currentText().lower() if self.mode != 3 else "p2p"}:'
                 f"colors={hexcolor}@{opacity}:scale={amplitude}"
             )
         elif self.mode < 2:
             filter_ = (
-                f'showfreqs=s={str(self.settings.value("outputWidth"))}x{str(self.settings.value("outputHeight"))}:'
+                f"showfreqs=s={str(self.width)}x{str(self.height)}:"
                 f'mode={"line" if self.mode == 0 else "bar"}:'
                 f"colors={hexcolor}@{opacity}"
                 f":ascale={amplitude}:fscale={'log' if self.mono else 'lin'}"

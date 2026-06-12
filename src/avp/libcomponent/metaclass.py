@@ -3,7 +3,7 @@ import logging
 from PyQt6 import QtCore
 
 from .exceptions import ComponentError
-from ..toolkit import connectWidget
+from ..toolkit import connectWidget, hasUndoStack
 from ..toolkit.frame import BlankFrame
 
 log = logging.getLogger("AVP.ComponentHandler")
@@ -139,7 +139,7 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 if (
                     self.auto
                     or self.comp.openingPreset
-                    or not hasattr(self.comp.parent, "undoStack")
+                    or not hasUndoStack(self.comp.loader)
                 ):
                     log.verbose("Automatic update")
                     self.comp._autoUpdate()

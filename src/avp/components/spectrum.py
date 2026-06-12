@@ -4,8 +4,8 @@ import subprocess
 import logging
 
 from ..libcomponent import BaseComponent
-from ..toolkit.frame import BlankFrame, scale
 from ..toolkit import connectWidget
+from ..toolkit.frame import BlankFrame, scale
 from ..toolkit.ffmpeg import (
     openPipe,
     closePipe,
@@ -31,9 +31,9 @@ class Component(BaseComponent):
         self.previewSize = (214, 120)
         self.previewPipe = None
 
-        if hasattr(self.parent, "lineEdit_audioFile"):
+        if hasattr(self.loader, "lineEdit_audioFile"):
             # update preview when audio file changes (if genericPreview is off)
-            self.parent.lineEdit_audioFile.textChanged.connect(self.update)
+            self.loader.lineEdit_audioFile.textChanged.connect(self.update)
 
         self.trackWidgets(
             {
@@ -111,8 +111,8 @@ class Component(BaseComponent):
             width=w,
             height=h,
             chunkSize=self.chunkSize,
-            frameRate=int(self.settings.value("outputFrameRate")),
-            parent=self.parent,
+            frameRate=int(self.core.settings.value("outputFrameRate")),
+            parent=self.loader,
             component=self,
         )
 
@@ -125,10 +125,10 @@ class Component(BaseComponent):
         closePipe(self.video.pipe)
 
     def getPreviewFrame(self):
-        genericPreview = self.settings.value("pref_genericPreview")
+        genericPreview = self.core.settings.value("pref_genericPreview")
         startPt = 0
         if not genericPreview:
-            inputFile = self.parent.lineEdit_audioFile.text()
+            inputFile = self.loader.lineEdit_audioFile.text()
             if not inputFile or not os.path.exists(inputFile):
                 return
             duration = getAudioDuration(inputFile)
@@ -141,7 +141,7 @@ class Component(BaseComponent):
             "-thread_queue_size",
             "512",
             "-r",
-            str(self.settings.value("outputFrameRate")),
+            str(self.core.settings.value("outputFrameRate")),
             "-ss",
             "{0:.3f}".format(startPt),
             "-i",
@@ -200,7 +200,7 @@ class Component(BaseComponent):
         def getFilterComplexCommand():
             """Inner function that creates the final, complex part of the filter command"""
             nonlocal self
-            genericPreview = self.settings.value("pref_genericPreview")
+            genericPreview = self.core.settings.value("pref_genericPreview")
 
             def getFilterComplexCommandForType():
                 """Determine portion of filter command that changes depending on selected type"""
@@ -249,7 +249,7 @@ class Component(BaseComponent):
                     elif self.display == 4:
                         display = "rlog"
                     filter_ = (
-                        f'ahistogram=r={str(self.settings.value("outputFrameRate"))}:'
+                        f'ahistogram=r={str(self.core.settings.value("outputFrameRate"))}:'
                         f"s={w}x{h}:"
                         "dmode=separate:"
                         f"ascale={amplitude}:"
@@ -274,7 +274,7 @@ class Component(BaseComponent):
                     )
                 elif self.filterType == 3:  # Musical Scale
                     filter_ = (
-                        f'showcqt=r={str(self.settings.value("outputFrameRate"))}:'
+                        f'showcqt=r={str(self.core.settings.value("outputFrameRate"))}:'
                         f"s={w}x{h}:"
                         "count=30:"
                         "text=0:"
@@ -284,7 +284,7 @@ class Component(BaseComponent):
                     )
                 elif self.filterType == 4:  # Phase
                     filter_ = (
-                        f'aphasemeter=r={str(self.settings.value("outputFrameRate"))}:'
+                        f'aphasemeter=r={str(self.core.settings.value("outputFrameRate"))}:'
                         f"s={w}x{h}:"
                         "video=1 [atrash][vtmp1]; "
                         "[atrash] anullsink; "

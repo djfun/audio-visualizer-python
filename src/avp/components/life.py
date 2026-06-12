@@ -8,6 +8,7 @@ import logging
 
 from ..libcomponent import BaseComponent
 from ..libcomponent.actions import ComponentPreviewClick
+from ..toolkit import hasUndoStack
 from ..toolkit.frame import BlankFrame, scale, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
@@ -91,7 +92,7 @@ class Component(BaseComponent):
         self.page.spinBox_scale.valueChanged.connect(self.updateGridSize)
 
     def pickImage(self):
-        imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
+        imgDir = self.core.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page,
             "Choose Image",
@@ -99,14 +100,14 @@ class Component(BaseComponent):
             "Image Files (%s)" % " ".join(self.core.imageFormats),
         )
         if filename:
-            self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.core.settings.setValue("componentDir", os.path.dirname(filename))
             self.mergeUndo = False
             self.page.lineEdit_image.setText(filename)
             self.mergeUndo = True
 
     def shiftGrid(self, d):
         action = ShiftGrid(self, d)
-        self.parent.undoStack.push(action)
+        self.loader.undoStack.push(action)
 
     def updateResolution(self):
         super().updateResolution()
@@ -150,12 +151,14 @@ class Component(BaseComponent):
             widget.setEnabled(enabled)
 
     def previewClickEvent(self, pos, size, button):
+        if not hasUndoStack(self.loader):
+            return
         pos = (
             math.ceil((pos[0] / size[0]) * self.gridWidth) - 1,
             math.ceil((pos[1] / size[1]) * self.gridHeight) - 1,
         )
         action = ClickGrid(self, pos, size, button)
-        self.parent.undoStack.push(action)
+        self.loader.undoStack.push(action)
 
     def updateGridSize(self):
         w, h = self.core.resolutions[-1].split("x")
