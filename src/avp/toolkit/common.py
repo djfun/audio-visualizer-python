@@ -180,7 +180,6 @@ def connectWidget(widget, func, unsupportedWidgets=None):
 
 def setWidgetValue(widget, val):
     """Generic setValue method for use with any typical QtWidget"""
-    log.verbose("Setting %s to %s" % (str(widget.__class__.__name__), val))
     if type(widget) == QtWidgets.QLineEdit:
         widget.setText(val)
     elif type(widget) == QtWidgets.QSpinBox or type(widget) == QtWidgets.QDoubleSpinBox:
@@ -204,6 +203,17 @@ def getWidgetValue(widget):
         return widget.isChecked()
     elif type(widget) == QtWidgets.QComboBox:
         return widget.currentIndex()
+
+
+def logWidgetValues(component, attrDict):
+    log.debug(
+        "Set %s #%s's settings to %s",
+        component.name,
+        str(component.compPos),
+        ", ".join(
+            ["'%s: %s'" % (key, str(getattr(component, key))) for key in attrDict]
+        ),
+    )
 
 
 def randomColor():

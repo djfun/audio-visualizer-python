@@ -10,9 +10,11 @@ import math
 import logging
 from copy import copy
 
+
 from .metaclass import ComponentMetaclass
 from .actions import ComponentTrackedWidgetUpdate
 from .exceptions import ComponentError
+from ..toolkit import logWidgetValues
 from ..toolkit.frame import BlankFrame
 
 from ..toolkit import (
@@ -215,12 +217,15 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         # This happens if loading a file from before v2.3.0
         if "resolution" not in presetDict:
             log.warning(
-                "Resolution not saved%s. Using project resolution." % ""
-                if self.currentPreset is None
-                else " for %s" % self.currentPreset
+                "%s #%s's%s resolution was not saved. Using project resolution instead.",
+                self.name,
+                str(self.compPos),
+                "" if self.currentPreset is None else " %s" % self.currentPreset,
             )
             presetDict["resolution"] = currentResolution
             for attr in self._relativeWidgets:
+                if getPresetAttrName(attr) not in presetDict:
+                    continue
                 if type(presetDict[getPresetAttrName(attr)]) == float:
                     presetDict[getPresetAttrName(attr)] = self.pixelValForAttr(
                         attr, presetDict[getPresetAttrName(attr)]
@@ -233,8 +238,14 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 val = presetDict[key]
             except KeyError as e:
                 log.warning(
-                    "%s missing value %s. Outdated preset?",
-                    self.currentPreset,
+                    "%s #%s%s is missing value %s. Outdated preset?",
+                    self.name,
+                    self.compPos,
+                    (
+                        "'s %s" % self.currentPreset
+                        if self.currentPreset is not None
+                        else ""
+                    ),
                     str(e),
                 )
                 val = getattr(self, key)
@@ -249,6 +260,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             else:
                 setWidgetValue(widget, val)
 
+        logWidgetValues(self, self._trackedWidgets)
         if presetDict["resolution"] != currentResolution:
             self.updateResolution()
 
@@ -361,7 +373,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             else:
                 # Normal tracked widget
                 setattr(self, attr, val)
-            log.debug("Setting %s self.%s to %s" % (self.__class__.name, attr, val))
+        logWidgetValues(self, attrDict)
 
     def setWidgetValues(self, attrDict):
         """
@@ -375,6 +387,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 if attr in self._colorWidgets:
                     val = "%s,%s,%s" % val
                 setWidgetValue(widget, val)
+        logWidgetValues(self, attrDict)
 
     def _sendUpdateSignal(self):
         if self.core.openingProject:

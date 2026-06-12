@@ -3,12 +3,12 @@ Thread that runs to create QImages for MainWindow's preview label.
 Processes a queue of component lists.
 """
 
-from PyQt6 import QtCore, QtGui, uic
+from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
 from PIL.ImageQt import ImageQt
-from queue import Queue, Empty
-import os
+from queue import Empty
+import time
 import logging
 
 from ..toolkit.frame import Checkerboard
@@ -27,9 +27,12 @@ class Worker(QtCore.QObject):
         super().__init__()
         self.core = core
         self.settings = settings
+        self.queue = queue
+        self.newBackground()
+
+    def newBackground(self):
         width = int(self.settings.value("outputWidth"))
         height = int(self.settings.value("outputHeight"))
-        self.queue = queue
         self.background = Checkerboard(width, height)
 
     @disableWhenOpeningProject
@@ -38,8 +41,10 @@ class Worker(QtCore.QObject):
         dic = {
             "components": components,
         }
+        for component in reversed(components):
+            if "composite" not in component.properties():
+                dic[component.compPos] = component.previewRender()
         self.queue.put(dic)
-        log.debug("Preview thread id: {}".format(int(QtCore.QThread.currentThreadId())))
 
     @pyqtSlot()
     def process(self):
@@ -50,23 +55,26 @@ class Worker(QtCore.QObject):
                     self.queue.get(block=False)
                 except Empty:
                     continue
-            width = int(self.settings.value("outputWidth"))
-            height = int(self.settings.value("outputHeight"))
-            if self.background.width != width or self.background.height != height:
-                self.background = Checkerboard(width, height)
-
+            timeElapsed = time.time()
             frame = self.background.copy()
-            log.info("Creating new preview frame")
             components = nextPreviewInformation["components"]
             for component in reversed(components):
+                if component.width != frame.width or component.height != frame.height:
+                    self.newBackground()
+                    break
+
                 try:
                     isCompositeComponent = "composite" in component.properties()
-                    component.lockSize(width, height)
                     if isCompositeComponent:
                         newFrame = component.previewRender(frame)
+                    elif (
+                        component.compPos in nextPreviewInformation
+                        and nextPreviewInformation[component.compPos].width
+                        == frame.width
+                    ):
+                        newFrame = nextPreviewInformation[component.compPos]
                     else:
                         newFrame = component.previewRender()
-                    component.unlockSize()
                     if isCompositeComponent:
                         frame = newFrame
                     else:
@@ -83,7 +91,12 @@ class Worker(QtCore.QObject):
                                 "is None"
                                 if newFrame is None
                                 else "size was %s*%s; should be %s*%s"
-                                % (newFrame.width, newFrame.height, width, height)
+                                % (
+                                    newFrame.width,
+                                    newFrame.height,
+                                    frame.width,
+                                    frame.height,
+                                )
                             ),
                         )
                     )
@@ -96,6 +109,8 @@ class Worker(QtCore.QObject):
                 # We must store a reference to this QImage
                 # or else Qt will garbage-collect it on the C++ side
                 self.frame = ImageQt(frame)
+                timeElapsed = time.time() - timeElapsed
+                log.info("Generated preview frame in {0:.3f}s".format(timeElapsed))
                 self.imageCreated.emit(QtGui.QImage(self.frame))
 
         except Empty:

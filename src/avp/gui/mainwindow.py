@@ -53,7 +53,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, project, dpi):
         super().__init__()
-        log.debug("Main thread id: {}".format(int(QtCore.QThread.currentThreadId())))
+        # log.debug("Main thread id: {}".format(int(QtCore.QThread.currentThreadId())))
         uic.loadUi(os.path.join(Core.wd, "gui", "mainwindow.ui"), self)
         log.info("Pillow version %s", Image.__version__)
         log.info(
@@ -852,8 +852,8 @@ class MainWindow(QtWidgets.QMainWindow):
         componentList.insertItem(index, self.core.selectedComponents[index].name)
         componentList.setCurrentRow(index)
 
-        # connect to signal that adds an asterisk when modified
         self.core.selectedComponents[index].modified.connect(self.updateComponentTitle)
+        self.core.selectedComponents[index].modified.connect(self.drawPreview)
 
         self.pages.insert(index, self.core.selectedComponents[index].page)
         stackedWidget.insertWidget(index, self.pages[index])

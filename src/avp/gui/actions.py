@@ -8,7 +8,7 @@ import logging
 from copy import copy
 
 from ..core import Core
-from ..toolkit.common import blockSignals
+from ..toolkit import blockSignals
 
 
 log = logging.getLogger("AVP.Gui.Actions")
@@ -45,6 +45,7 @@ class ChangeResolution(QUndoCommand):
             self.window.comboBox_resolution.setCurrentIndex(index)
             for i in range(len(self.window.core.selectedComponents)):
                 self.window.core.selectedComponents[i].updateResolution()
+        self.window.previewWorker.newBackground()
         self.window.drawPreview()
 
     def redo(self):

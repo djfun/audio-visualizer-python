@@ -1,5 +1,5 @@
 from PyQt6.QtGui import QUndoStack
-from ..toolkit.common import disableWhenEncoding
+from ..toolkit import disableWhenEncoding
 
 
 class UndoStack(QUndoStack):

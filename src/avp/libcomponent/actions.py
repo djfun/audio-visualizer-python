@@ -1,7 +1,5 @@
 """
-QUndoCommand class for generic undoable user actions performed to a BaseComponent
-
-See `../life.py` for an example of a component that uses a custom QUndoCommand
+QUndoCommand classes for undoable user actions performed to a component
 """
 
 from PyQt6 import QtCore
