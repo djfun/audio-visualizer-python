@@ -6,7 +6,6 @@ projects and exporting the video at a later time.
 """
 
 from PyQt6 import QtCore, QtWidgets, uic
-import PyQt6.QtWidgets as QtWidgets
 from PyQt6.QtGui import QShortcut
 from PIL import Image
 import sys
@@ -52,7 +51,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, project, dpi):
         super().__init__()
-        # log.debug("Main thread id: {}".format(int(QtCore.QThread.currentThreadId())))
         uic.loadUi(os.path.join(Core.wd, "gui", "mainwindow.ui"), self)
         log.info("Pillow version %s", Image.__version__)
         log.info(
@@ -67,6 +65,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QShortcut("Ctrl+A", self, self.openSaveProjectDialog)
             QShortcut("Ctrl+O", self, self.openOpenProjectDialog)
             QShortcut("Ctrl+N", self, self.createNewProject)
+            QShortcut("F2", self, lambda: self.pushButton_projects.click())
 
             # Hotkeys for undo/redo
             QShortcut("Ctrl+Z", self, self.undoStack.undo)
@@ -89,6 +88,7 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             QShortcut("Ctrl+Shift+S", self, self.presetManager.openSavePresetDialog)
             QShortcut("Ctrl+Shift+C", self, self.presetManager.clearPreset)
+            QShortcut("F3", self, lambda: self.openPresetManager)
 
             QShortcut(
                 "Ctrl+Up",
@@ -112,12 +112,10 @@ class MainWindow(QtWidgets.QMainWindow):
             )
 
             QShortcut("F1", self, self.showHelpWindow)
-            QShortcut("Ctrl+Shift+F", self, self.showFfmpegCommand)
+            QShortcut("F4", self, self.showUndoStack)
+            QShortcut("F5", self, self.drawPreview)
+            QShortcut("Ctrl+Shift+F", self, self.showHelpWindow)
             QShortcut("Ctrl+Shift+U", self, self.showUndoStack)
-
-            if log.isEnabledFor(logging.INFO):
-                QShortcut("F2", self, lambda: log.info(repr(self)))
-                QShortcut("F5", self, self.drawPreview)
 
         def setupMainWindowWidgets():
             def setupUndoDialog():
@@ -825,18 +823,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.undoDialog.show()
 
     def showHelpWindow(self):
-        self.showMessage(msg=f"{appName} v{__version__}")
-
-    def showFfmpegCommand(self):
         command = createFfmpegCommand(
             self.lineEdit_audioFile.text(),
             self.lineEdit_outputFile.text(),
             self.core.selectedComponents,
         )
         command = " ".join(command)
-        log.info(f"FFmpeg command: {command}")
         lines = wrap(command, 49)
-        self.showMessage(msg=f"Current FFmpeg command:\n\n{' '.join(lines)}")
+        log.info(f"FFmpeg command: {command}")
+        log.info(f"MainWindow state: {repr(self)}")
+        self.showMessage(
+            msg=f"{appName} v{__version__}\n\nCurrent FFmpeg command:\n\n{' '.join(lines)}"
+        )
 
     def addComponent(self, compPos, moduleIndex):
         """Creates an undoable action that adds a new component."""
