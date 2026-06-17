@@ -9,7 +9,6 @@ from PyQt6 import QtCore, QtWidgets, uic
 import PyQt6.QtWidgets as QtWidgets
 from PyQt6.QtGui import QShortcut
 from PIL import Image
-from queue import Queue
 import sys
 import os
 import signal
@@ -147,6 +146,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.processTask.connect(self.previewWorker.process)
                 self.previewWorker.error.connect(self.previewWindow.threadError)
                 self.previewWorker.imageCreated.connect(self.showPreviewImage)
+                self.previewWorker.imageCreated.connect(lambda: self.updateResolution())
                 self.previewThread.start()
                 self.previewThread.finished.connect(
                     lambda: log.info("Preview thread finished.")
@@ -272,7 +272,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         currentRes = i
                         self.comboBox_resolution.setCurrentIndex(currentRes)
                         self.comboBox_resolution.currentIndexChanged.connect(
-                            self.updateResolution
+                            self.drawPreview
                         )
 
             def setupComponentListWidgets():
@@ -793,12 +793,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 print(f"\r{value}", end="")
 
     def updateResolution(self, resIndex=None):
-        if resIndex == -1:
-            log.error("Resolution combobox is broken.")
-            return
-        elif resIndex is None:
+        if resIndex is None:
             resIndex = int(self.comboBox_resolution.currentIndex())
-        action = ChangeResolution(self, resIndex)
+        elif resIndex not in tuple(range(len(self.core.resolutions))):
+            log.error(f"Resolution {resIndex} unknown")
+            return
+        w = self.settings.value("outputWidth")
+        h = self.settings.value("outputHeight")
+        oldResIndex = Core.resolutions.index("%sx%s" % (w, h))
+        if oldResIndex == resIndex:
+            return
+        action = ChangeResolution(self, oldResIndex, resIndex)
         self.undoStack.push(action)
 
     def drawPreview(self, force=False, **kwargs):

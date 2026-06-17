@@ -20,20 +20,16 @@ log = logging.getLogger("AVP.Gui.Actions")
 
 
 class ChangeResolution(QUndoCommand):
-    def __init__(self, window, newResolutionIndex):
+    def __init__(self, window, oldResolutionIndex, newResolutionIndex):
         super().__init__(
             "change resolution to %s"
             % window.comboBox_resolution.itemText(newResolutionIndex)
         )
         self.window = window
-        self.newResolution = tuple(Core.resolutions[newResolutionIndex].split("x"))
         self.newResolutionIndex = newResolutionIndex
-
-        # store old resolution
-        w = window.settings.value("outputWidth")
-        h = window.settings.value("outputHeight")
-        self.oldResolution = (w, h)
-        self.oldResolutionIndex = Core.resolutions.index("%sx%s" % self.oldResolution)
+        self.newResolution = tuple(Core.resolutions[newResolutionIndex].split("x"))
+        self.oldResolutionIndex = oldResolutionIndex
+        self.oldResolution = tuple(Core.resolutions[oldResolutionIndex].split("x"))
 
     def updateResolution(self, resolution, index):
         log.debug("Updating resolution to %sx%s" % resolution)

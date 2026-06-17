@@ -7,7 +7,7 @@ from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
 from PIL.ImageQt import ImageQt
-from queue import Empty
+from queue import Queue, Empty
 import time
 import logging
 
@@ -23,12 +23,13 @@ class Worker(QtCore.QObject):
     imageCreated = pyqtSignal(QtGui.QImage)
     error = pyqtSignal(str)
 
-    def __init__(self, core, settings, queue):
+    def __init__(self, core, settings):
         super().__init__()
         self.core = core
         self.settings = settings
-        self.queue = queue
+        self.queue = Queue()
         self.newBackground()
+        self.canceled = False
 
     def newBackground(self):
         width = int(self.settings.value("outputWidth"))
@@ -41,13 +42,11 @@ class Worker(QtCore.QObject):
         dic = {
             "components": components,
         }
-        for component in reversed(components):
-            if "composite" not in component.properties():
-                dic[component.compPos] = component.previewRender()
         self.queue.put(dic)
 
     @pyqtSlot()
     def process(self):
+        """Process one preview image from the queue"""
         try:
             nextPreviewInformation = self.queue.get(block=False)
             while self.queue.qsize() >= 2:
@@ -59,20 +58,13 @@ class Worker(QtCore.QObject):
             frame = self.background.copy()
             components = nextPreviewInformation["components"]
             for component in reversed(components):
-                if component.width != frame.width or component.height != frame.height:
-                    self.newBackground()
-                    break
-
                 try:
+                    lockAcquired = component.lockSize(frame.width, frame.height)
+                    if not lockAcquired:
+                        break
                     isCompositeComponent = "composite" in component.properties()
                     if isCompositeComponent:
                         newFrame = component.previewRender(frame)
-                    elif (
-                        component.compPos in nextPreviewInformation
-                        and nextPreviewInformation[component.compPos].width
-                        == frame.width
-                    ):
-                        newFrame = nextPreviewInformation[component.compPos]
                     else:
                         newFrame = component.previewRender()
                     if isCompositeComponent:
@@ -105,6 +97,8 @@ class Worker(QtCore.QObject):
                     break
                 except RuntimeError as e:
                     log.error(str(e))
+                finally:
+                    component.unlockSize()
             else:
                 # We must store a reference to this QImage
                 # or else Qt will garbage-collect it on the C++ side
