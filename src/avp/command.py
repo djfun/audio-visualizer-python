@@ -53,6 +53,13 @@ class Command(QtCore.QObject):
             "--version", "-V", action="version", version=f"%(prog)s {__version__}"
         )
 
+        parser.add_argument(
+            "--size",
+            "-s",
+            help="set output frame size (resolution)",
+            choices=Core.resolutions,
+        )
+
         # input/output automatic-export commands
         parser.add_argument(
             "-i", "--input", metavar="<filename>", help="input audio filename"
@@ -114,6 +121,11 @@ class Command(QtCore.QObject):
         if args.log:
             self.createLogFile()
             quit(0)
+
+        if args.size:
+            w, h = args.size.split("x")
+            self.core.settings.setValue("outputWidth", w)
+            self.core.settings.setValue("outputHeight", h)
 
         if args.projpath:
             projPath = args.projpath
