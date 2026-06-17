@@ -35,7 +35,7 @@ class FramePainter(QtGui.QPainter):
             super().setPen(penStyle)
 
     def finalize(self):
-        log.verbose("Finalizing FramePainter")
+        log.debug("Finalizing FramePainter")
         buffer = QtCore.QBuffer()
         buffer.open(QtCore.QBuffer.OpenModeFlag.ReadWrite)
         self.image.save(buffer, "PNG")

@@ -28,16 +28,11 @@ class blockSignals:
             self.widgets = widgets if hasattr(widgets, "__iter__") else [widgets]
 
     def __enter__(self):
-        log.verbose(
-            "Blocking signals for %s",
-            ", ".join([str(w.__class__.__name__) for w in self.widgets]),
-        )
         self.oldStates = [w.signalsBlocked() for w in self.widgets]
         for w in self.widgets:
             w.blockSignals(True)
 
     def __exit__(self, *args):
-        log.verbose("Resetting blockSignals to %s", str(bool(sum(self.oldStates))))
         for w, state in zip(self.widgets, self.oldStates):
             w.blockSignals(state)
 
@@ -168,12 +163,12 @@ def connectWidget(widget, func, unsupportedWidgets=None):
     elif type(widget) == QtWidgets.QComboBox:
         widget.currentIndexChanged.connect(func)
     elif widgetClassName in unsupportedWidgets:
-        log.info(
-            "Could not connect %s using connectWidget() (known unsupportedWidget)",
+        log.debug(
+            "%s is not supported by connectWidget()",
             widgetClassName,
         )
     else:
-        log.warning("Failed to connect %s ", widgetClassName)
+        log.info("%s is unknown and unsupported by connectWidget()", widgetClassName)
         return False
     return True
 
@@ -189,7 +184,9 @@ def setWidgetValue(widget, val):
     elif type(widget) == QtWidgets.QComboBox:
         widget.setCurrentIndex(val)
     else:
-        log.warning("Failed to set %s ", str(widget.__class__.__name__))
+        log.warning(
+            "%s is not supported by setWidgetValue()", str(widget.__class__.__name__)
+        )
         return False
     return True
 
@@ -203,16 +200,20 @@ def getWidgetValue(widget):
         return widget.isChecked()
     elif type(widget) == QtWidgets.QComboBox:
         return widget.currentIndex()
+    log.warning(
+        "%s is not supported by getWidgetValue()", str(widget.__class__.__name__)
+    )
 
 
-def logWidgetValues(component, attrDict):
+def logWidgetValues(component, attrDict, origin=""):
     log.debug(
-        "Set %s #%s's settings to %s",
+        "Set %s #%s's settings to %s %s",
         component.name,
         str(component.compPos),
         ", ".join(
             ["'%s: %s'" % (key, str(getattr(component, key))) for key in attrDict]
         ),
+        origin,
     )
 
 

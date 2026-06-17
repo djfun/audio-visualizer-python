@@ -179,7 +179,6 @@ class Command(QtCore.QObject):
             and "--verbose" not in sys.argv
             and "-v" not in sys.argv
             and "-vv" not in sys.argv
-            and "-vvv" not in sys.argv
             and "--log" not in sys.argv
         ):
             parser.print_help()
