@@ -30,11 +30,6 @@ class ComponentMetaclass(type(QtCore.QObject)):
     def renderWrapper(func):
         def renderWrapper(self, *args, **kwargs):
             try:
-                log.verbose(
-                    "### %s #%s renders a preview frame ###",
-                    self.__class__.name,
-                    str(self.compPos),
-                )
                 return func(self, *args, **kwargs)
             except Exception as e:
                 try:
@@ -141,14 +136,12 @@ class ComponentMetaclass(type(QtCore.QObject)):
                     or self.comp.openingPreset
                     or not hasUndoStack(self.comp.loader)
                 ):
-                    log.verbose("Automatic update")
                     self.comp._autoUpdate()
                 else:
-                    log.verbose("User update")
                     self.comp._userUpdate()
 
         def updateWrapper(self, **kwargs):
-            auto = kwargs["auto"] if "auto" in kwargs else False
+            auto = kwargs.get("auto", False)
             with wrap(self, auto):
                 try:
                     return func(self)
@@ -171,13 +164,19 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 pass
 
             def __exit__(self, *args):
+                connectedWidgets = 0
                 for widgetList in self.comp._allWidgets.values():
                     for widget in widgetList:
-                        log.verbose("Connecting %s", str(widget.__class__.__name__))
+                        connectedWidgets += 1
                         connectWidget(widget, self.comp.update)
+                log.debug(
+                    "Connected %s widgets from %s #%s",
+                    str(connectedWidgets),
+                    self.comp.name,
+                    str(self.comp.compPos),
+                )
 
         def widgetWrapper(self, *args, **kwargs):
-            auto = kwargs["auto"] if "auto" in kwargs else False
             with wrap(self):
                 try:
                     return func(self, *args, **kwargs)
