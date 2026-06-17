@@ -120,13 +120,18 @@ class Core:
         self.selectedComponents[i].update(auto=True)
 
     def moduleIndexFor(self, compName):
-        try:
+        index = None
+        if compName in self.compNames:
             index = self.compNames.index(compName)
-            return self.moduleIndexes[index]
-        except ValueError:
+        else:
             for altName, modI in self.altCompNames:
                 if altName == compName:
-                    return self.moduleIndexes[modI]
+                    index = modI
+        try:
+            return self.moduleIndexes[index]
+        except TypeError:
+            log.error("Module index not found.")
+            return
 
     def clearPreset(self, compIndex):
         self.selectedComponents[compIndex].currentPreset = None
@@ -166,8 +171,8 @@ class Core:
 
         errcode, data = self.parseAvFile(filepath)
         if errcode == 0:
-            self.openingProject = True
             try:
+                self.openingProject = True
                 if hasattr(loader, "window"):
                     for widget, value in data["WindowFields"]:
                         widget = eval("loader.%s" % widget)
@@ -201,8 +206,10 @@ class Core:
                         )
                         continue
                     if i == -1:
-                        loader.showMessage(msg="Invalid components!")
-                        break
+                        loader.showMessage(
+                            msg=f"Invalid component '{name}' was removed."
+                        )
+                        continue
 
                     try:
                         if "preset" in preset and preset["preset"] is not None:
@@ -220,11 +227,12 @@ class Core:
                         self.clearPreset(i)
                     if hasattr(loader, "updateComponentTitle"):
                         loader.updateComponentTitle(i, modified)
-                self.openingProject = False
                 return True
             except Exception:
                 errcode = 1
                 data = sys.exc_info()
+            finally:
+                self.openingProject = False
 
         if errcode == 1:
             typ, value, tb = data
@@ -462,6 +470,7 @@ class Core:
             "logDir": os.path.join(dataDir, "log"),
             "logEnabled": False,
             "previewEnabled": True,
+            "maxResolution": (1920, 1080),
         }
 
         settings["videoFormats"] = toolkit.appendUppercase(
