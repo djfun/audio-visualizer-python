@@ -66,3 +66,15 @@ def test_undo_title_text_not_merged(window, qtbot):
     comp.page.lineEdit_title.setText("test")
     window.undoStack.undo()
     assert comp.title == "avp"
+
+
+def test_undo_randomColor_is_saved(window, qtbot):
+    window.addComponent(0, window.core.moduleIndexFor("Color"))
+    comp = window.core.selectedComponents[0]
+    randomText = comp.page.lineEdit_color1.text()
+    randomTuple = comp.color1
+    window.undoStack.undo()
+    window.undoStack.redo()
+    comp = window.core.selectedComponents[0]
+    assert comp.page.lineEdit_color1.text() == randomText
+    assert comp.color1 == randomTuple
