@@ -18,7 +18,7 @@ from . import __version__
 from .core import Core
 
 
-log = logging.getLogger("AVP.Commandline")
+log = logging.getLogger(__name__)
 
 
 class Command(QtCore.QObject):
@@ -54,14 +54,16 @@ class Command(QtCore.QObject):
         )
 
         # input/output automatic-export commands
-        parser.add_argument("-i", "--input", metavar="SOUND", help="input audio file")
         parser.add_argument(
-            "-o", "--output", metavar="OUTPUT", help="output video file"
+            "-i", "--input", metavar="<filename>", help="input audio filename"
+        )
+        parser.add_argument(
+            "-o", "--output", metavar="<filename>", help="output video's filename"
         )
         parser.add_argument(
             "--export-project",
             action="store_true",
-            help="use input and output files from project file if -i or -o is missing",
+            help="use input and output filenames from project file if -i or -o is missing",
         )
 
         # mutually exclusive debug options
@@ -76,7 +78,7 @@ class Command(QtCore.QObject):
             "-v",
             action="count",
             default=0,
-            help="send log messages and ffmpeg output to stdout, and create more verbose log files (good to use before --log)",
+            help="send log messages and FFmpeg output to stdout, and create more verbose log files (good to use before --log)",
         )
 
         # project/GUI options
@@ -89,9 +91,11 @@ class Command(QtCore.QObject):
         parser.add_argument(
             "-c",
             "--comp",
-            metavar=("LAYER", "ARG"),
-            help="first arg must be component NAME to insert at LAYER."
-            '"help" for information about possible args for a component.',
+            metavar=("<layer>", "<argument>"),
+            help="Insert component at <layer> (a number from -1 to 50, "
+            "where 0 is rendered below 50 and -1 is always on top). "
+            "First argument must be the name of a component. More arguments configure the component. "
+            "(For example, use '-c 0 classic help' for help with Classic Visualizer component.)",
             nargs="*",
             action="append",
         )

@@ -7,7 +7,7 @@ from ..libcomponent.actions import ComponentPreviewClick, ComponentSettingsUpdat
 from ..toolkit import hasUndoStack
 from ..toolkit.frame import FramePainter, addShadow
 
-log = logging.getLogger("AVP.Components.Text")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):

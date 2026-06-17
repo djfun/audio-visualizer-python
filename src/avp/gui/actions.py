@@ -11,7 +11,7 @@ from ..core import Core
 from ..toolkit import blockSignals
 
 
-log = logging.getLogger("AVP.Gui.Actions")
+log = logging.getLogger(__name__)
 
 
 # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -79,9 +79,6 @@ class AddComponent(QUndoCommand):
             )
 
     def undo(self):
-        if not self.valid:
-            return
-        self.comp = self.parent.core.selectedComponents[self.compI]
         self.parent._removeComponent(self.compI)
 
 
@@ -97,7 +94,6 @@ class RemoveComponent(QUndoCommand):
         self.parent._removeComponent(self.selectedRows[0])
 
     def undo(self):
-        componentList = self.parent.listWidget_componentList
         for index, comp in zip(self.selectedRows, self.components):
             self.parent.core.insertComponent(index, comp, self.parent)
         self.parent.drawPreview()

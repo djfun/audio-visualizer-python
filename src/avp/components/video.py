@@ -9,7 +9,7 @@ from ..toolkit.frame import BlankFrame, scale
 from ..toolkit.ffmpeg import openPipe, closePipe, testAudioStream, FfmpegVideo
 
 
-log = logging.getLogger("AVP.Components.Video")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):

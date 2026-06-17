@@ -5,7 +5,7 @@ from ..libcomponent import BaseComponent
 from ..toolkit.frame import BlankFrame, FloodFrame, FramePainter
 
 
-log = logging.getLogger("AVP.Components.Color")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):

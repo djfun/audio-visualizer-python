@@ -32,7 +32,7 @@ from .toolkit.ffmpeg import (
 )
 
 
-log = logging.getLogger("AVP.VideoThread")
+log = logging.getLogger(__name__)
 
 
 class Worker(QtCore.QObject):

@@ -12,7 +12,7 @@ from copy import copy
 from collections import OrderedDict
 
 
-log = logging.getLogger("AVP.Toolkit.Common")
+log = logging.getLogger(__name__)
 
 
 class blockSignals:
@@ -205,15 +205,15 @@ def getWidgetValue(widget):
     )
 
 
-def logWidgetValues(component, attrDict, origin=""):
+def logWidgetValues(component, attrDict, origin=None):
     log.debug(
-        "Set %s #%s's settings to %s %s",
+        "Set %s #%s's settings to %s by %s",
         component.name,
         str(component.compPos),
         ", ".join(
             ["'%s: %s'" % (key, str(getattr(component, key))) for key in attrDict]
         ),
-        origin,
+        "unknown" if origin is None else str(origin),
     )
 
 

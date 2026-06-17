@@ -7,7 +7,9 @@ from PyQt6.QtGui import QUndoCommand
 from copy import copy
 import logging
 
-log = logging.getLogger("AVP.ComponentHandler")
+from ..toolkit.common import logWidgetValues
+
+log = logging.getLogger(__name__)
 
 
 class ComponentTrackedWidgetUpdate(QUndoCommand):
@@ -50,16 +52,27 @@ class ComponentTrackedWidgetUpdate(QUndoCommand):
         self.modifiedVals.update(other.modifiedVals)
         return True
 
+    def do(self, widgetValues):
+        self.parent.setWidgetValues(widgetValues)
+        self.parent.update(auto=True, origin="tracked widget update")
+
     def redo(self):
         if self.undone:
-            log.info("Redoing component update")
-        self.parent.setWidgetValues(self.modifiedVals)
-        self.parent.update(auto=True)
+            log.info(
+                "Redoing %s #%s tracked widget update",
+                self.parent.name,
+                self.parent.compPos,
+            )
+        self.do(self.modifiedVals)
 
     def undo(self):
-        log.info("Undoing component update")
-        self.parent.setWidgetValues(self.oldWidgetVals)
-        self.parent.update(auto=True)
+        log.info(
+            "Undoing %s #%s tracked widget update",
+            self.parent.name,
+            self.parent.compPos,
+        )
+        self.undone = True
+        self.do(self.oldWidgetVals)
 
 
 class ComponentPreviewClick(QUndoCommand):

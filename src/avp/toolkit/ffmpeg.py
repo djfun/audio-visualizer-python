@@ -15,7 +15,7 @@ from ..core import Core
 from .common import checkOutput, pipeWrapper
 
 
-log = logging.getLogger("AVP.Toolkit.Ffmpeg")
+log = logging.getLogger(__name__)
 
 
 class FfmpegVideo:

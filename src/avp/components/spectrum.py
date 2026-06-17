@@ -15,7 +15,7 @@ from ..toolkit.ffmpeg import (
 )
 
 
-log = logging.getLogger("AVP.Components.Spectrum")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):

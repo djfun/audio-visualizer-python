@@ -10,28 +10,33 @@ class UnsupportedWidget:
 
 
 @fixture
-def gotWarning():
-    """Check if a function called log.warning"""
+def getLogLevel():
+    """Check if a function wrote a log message"""
     import avp.toolkit.common as tk
 
-    warning = False
+    logLevel = None
 
-    def gotWarning():
-        nonlocal warning
-        return warning
+    def gotLogLevel():
+        nonlocal logLevel
+        return logLevel
 
     class log:
         def warning(self, *args):
-            nonlocal warning
-            warning = True
+            nonlocal logLevel
+            logLevel = "warning"
 
         def info(self, *args):
-            pass
+            nonlocal logLevel
+            logLevel = "info"
+
+        def debug(self, *args):
+            nonlocal logLevel
+            logLevel = "debug"
 
     oldLog = tk.log
     tk.log = log()
     try:
-        yield gotWarning
+        yield gotLogLevel
     finally:
         tk.log = oldLog
 
@@ -45,27 +50,27 @@ def test_blockSignals(qtbot, command):
     assert comp.page.spinBox_scale.signalsBlocked() == False
 
 
-def test_rgbFromString(gotWarning):
+def test_rgbFromString(getLogLevel):
     assert rgbFromString("255,255,255") == (255, 255, 255)
-    assert not gotWarning()
+    assert getLogLevel() is None
 
 
-def test_rgbFromString_error(gotWarning):
+def test_rgbFromString_log_warning(getLogLevel):
     assert rgbFromString("255,255,256") == (255, 255, 255)
-    assert gotWarning()
+    assert getLogLevel() == "warning"
 
 
-def test_connectWidget_unsupportedWidgetInfo(gotWarning):
-    """A known unsupported widget causes an info message"""
+def test_connectWidget_unsupportedWidget_log_debug(getLogLevel):
+    """A known unsupported widget causes a debug message"""
 
     connectWidget(
         UnsupportedWidget(), lambda: ..., unsupportedWidgets=["UnsupportedWidget"]
     )
-    assert not gotWarning()
+    assert getLogLevel() == "debug"
 
 
-def test_connectWidget_unsupportedWidgetWarning(gotWarning):
-    """An unknown unsupported widget causes a warning message"""
+def test_connectWidget_unsupportedWidget_log_info(getLogLevel):
+    """An unknown unsupported widget causes an info message"""
 
     connectWidget(UnsupportedWidget(), lambda: ...)
-    assert gotWarning()
+    assert getLogLevel() == "info"

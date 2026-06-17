@@ -13,7 +13,7 @@ from ..core import Core, appName
 from .actions import *
 
 
-log = logging.getLogger("AVP.Gui.PresetManager")
+log = logging.getLogger(__name__)
 
 
 class PresetManager(QtWidgets.QDialog):

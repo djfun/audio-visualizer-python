@@ -13,7 +13,7 @@ from ..toolkit.frame import BlankFrame, scale, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
 
-log = logging.getLogger("AVP.Component.Life")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):

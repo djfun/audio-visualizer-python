@@ -15,7 +15,7 @@ from ..toolkit.frame import Checkerboard
 from ..toolkit import disableWhenOpeningProject
 
 
-log = logging.getLogger("AVP.Gui.PreviewThread")
+log = logging.getLogger(__name__)
 
 
 class Worker(QtCore.QObject):
@@ -29,7 +29,7 @@ class Worker(QtCore.QObject):
         self.settings = settings
         self.queue = Queue()
         self.newBackground()
-        self.canceled = False
+        self.frameNo = 0
 
     def newBackground(self):
         width = int(self.settings.value("outputWidth"))
@@ -104,7 +104,12 @@ class Worker(QtCore.QObject):
                 # or else Qt will garbage-collect it on the C++ side
                 self.frame = ImageQt(frame)
                 timeElapsed = time.time() - timeElapsed
-                log.info("Generated preview frame in {0:.3f}s".format(timeElapsed))
+                self.frameNo += 1
+                log.info(
+                    "Generated preview frame #{0} in {1:.3f}s using {2} components".format(
+                        self.frameNo, timeElapsed, len(components)
+                    )
+                )
                 self.imageCreated.emit(QtGui.QImage(self.frame))
 
         except Empty:

@@ -6,7 +6,7 @@ from .exceptions import ComponentError
 from ..toolkit import connectWidget, hasUndoStack
 from ..toolkit.frame import BlankFrame
 
-log = logging.getLogger("AVP.ComponentHandler")
+log = logging.getLogger(__name__)
 
 
 class ComponentMetaclass(type(QtCore.QObject)):
@@ -123,9 +123,10 @@ class ComponentMetaclass(type(QtCore.QObject)):
         """
 
         class wrap:
-            def __init__(self, comp, auto):
+            def __init__(self, comp, auto, origin):
                 self.comp = comp
                 self.auto = auto
+                self.origin = origin
 
             def __enter__(self):
                 self.comp._preUpdate()
@@ -136,13 +137,15 @@ class ComponentMetaclass(type(QtCore.QObject)):
                     or self.comp.openingPreset
                     or not hasUndoStack(self.comp.loader)
                 ):
-                    self.comp._autoUpdate()
+                    self.comp._autoUpdate(self.origin)
                 else:
                     self.comp._userUpdate()
 
         def updateWrapper(self, **kwargs):
             auto = kwargs.get("auto", False)
-            with wrap(self, auto):
+            origin = kwargs.get("origin", "metaclass")
+
+            with wrap(self, auto, origin):
                 try:
                     return func(self)
                 except Exception:

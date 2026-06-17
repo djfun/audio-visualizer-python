@@ -31,7 +31,7 @@ from ..toolkit import (
 )
 
 
-log = logging.getLogger("AVP.Gui.MainWindow")
+log = logging.getLogger(__name__)
 SYSPLATFORM = sys.platform
 
 
@@ -74,41 +74,35 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Hotkeys for component list
             for inskey in ("Ctrl+T", QtCore.Qt.Key.Key_Insert):
-                QShortcut(
-                    inskey,
-                    self,
-                    activated=lambda: self.pushButton_addComponent.click(),
-                )
+                QShortcut(inskey, self, lambda: self.pushButton_addComponent.click())
             for delkey in ("Ctrl+R", QtCore.Qt.Key.Key_Delete):
                 QShortcut(delkey, self.listWidget_componentList, self.removeComponent)
             QShortcut(
-                "Ctrl+Space",
-                self,
-                activated=lambda: self.listWidget_componentList.setFocus(),
+                "Ctrl+Space", self, lambda: self.listWidget_componentList.setFocus()
             )
             QShortcut("Ctrl+Shift+S", self, self.presetManager.openSavePresetDialog)
             QShortcut("Ctrl+Shift+C", self, self.presetManager.clearPreset)
-            QShortcut("F3", self, lambda: self.openPresetManager)
+            QShortcut("F3", self, self.openPresetManager)
 
             QShortcut(
                 "Ctrl+Up",
                 self.listWidget_componentList,
-                activated=lambda: self.moveComponent(-1),
+                lambda: self.moveComponent(-1),
             )
             QShortcut(
                 "Ctrl+Down",
                 self.listWidget_componentList,
-                activated=lambda: self.moveComponent(1),
+                lambda: self.moveComponent(1),
             )
             QShortcut(
                 "Ctrl+Home",
                 self.listWidget_componentList,
-                activated=lambda: self.moveComponent("top"),
+                lambda: self.moveComponent("top"),
             )
             QShortcut(
                 "Ctrl+End",
                 self.listWidget_componentList,
-                activated=lambda: self.moveComponent("bottom"),
+                lambda: self.moveComponent("bottom"),
             )
 
             QShortcut("F1", self, self.showHelpWindow)
@@ -609,7 +603,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 and filecmp.cmp(self.autosavePath, self.currentProject) == identical
             ):
                 log.debug(
-                    "Autosave found %s to be identical" % "not" if not identical else ""
+                    "Autosave found %s to be identical", "not" if not identical else ""
                 )
                 return True
         except FileNotFoundError:
@@ -837,7 +831,7 @@ class MainWindow(QtWidgets.QMainWindow):
         log.info(f"FFmpeg command: {command}")
         log.info(f"MainWindow state: {repr(self)}")
         self.showMessage(
-            msg=f"{appName} v{__version__}\n\nCurrent FFmpeg command:\n\n{' '.join(lines)}"
+            msg=f"{appName} v{__version__}\n\nCurrent FFmpeg command:\n{' '.join(lines)}"
         )
 
     def addComponent(self, compPos, moduleIndex):
@@ -1046,7 +1040,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # actually load the project using core method
         self.core.openProject(self, filepath)
         self.drawPreview(autosave=False)
-        self.updateWindowTitle()
+        # self.updateWindowTitle()
 
     def showMessage(self, **kwargs):
         parent = kwargs["parent"] if "parent" in kwargs else self

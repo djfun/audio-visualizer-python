@@ -13,7 +13,7 @@ import logging
 from . import toolkit
 
 appName = "Audio Visualizer Python"
-log = logging.getLogger("AVP.Core")
+log = logging.getLogger(__name__)
 
 
 class Core:
@@ -538,8 +538,8 @@ class Core:
     def loadDefaultSettings(cls):
         # settings that get saved into the ini file
         cls.defaultSettings = {
-            "outputWidth": 1280,
-            "outputHeight": 720,
+            "outputWidth": 1920,
+            "outputHeight": 1080,
             "outputFrameRate": 30,
             "outputAudioCodec": "AAC",
             "outputAudioBitrate": "192",
@@ -581,7 +581,7 @@ class Core:
         logStream.setLevel(Core.stdoutLogLvl)
         streamFormatter = logging.Formatter("<%(name)s> %(levelname)s: %(message)s")
         logStream.setFormatter(streamFormatter)
-        log = logging.getLogger("AVP")
+        log = logging.getLogger(__package__)
         log.addHandler(logStream)
 
         if fileLogLvl is not None:

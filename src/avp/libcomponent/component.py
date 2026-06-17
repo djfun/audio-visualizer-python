@@ -26,7 +26,7 @@ from ..toolkit import (
     isVerticalWord,
 )
 
-log = logging.getLogger("AVP.BaseComponent")
+log = logging.getLogger(__name__)
 
 
 class Component(QtCore.QObject, metaclass=ComponentMetaclass):
@@ -44,10 +44,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     modified = QtCore.pyqtSignal(int, dict)
     _error = QtCore.pyqtSignal(str, str)
 
-    def __init__(self, moduleIndex, compPos, core):
+    def __init__(self, moduleIndex, core):
         super().__init__()
         self.moduleIndex = moduleIndex
-        self.compPos = compPos
+        self.compPos = -1
         self.core = core
         self._width = int(core.settings.value("outputWidth"))
         self._height = int(core.settings.value("outputHeight"))
@@ -215,23 +215,29 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         )
         currentResolution = (self.width, self.height)
 
-        # Fix relative widget values if resolution wasn't saved into preset
-        # This happens if loading a file from before v2.3.0
-        if "resolution" not in presetDict:
-            log.warning(
-                "%s #%s's%s resolution was not saved. Using project resolution instead.",
-                self.name,
-                str(self.compPos),
-                "" if self.currentPreset is None else " %s" % self.currentPreset,
-            )
-            presetDict["resolution"] = currentResolution
-            for attr in self._relativeWidgets:
-                if getPresetAttrName(attr) not in presetDict:
-                    continue
-                if type(presetDict[getPresetAttrName(attr)]) == float:
-                    presetDict[getPresetAttrName(attr)] = self.pixelValForAttr(
-                        attr, presetDict[getPresetAttrName(attr)]
-                    )
+        def upgradeFromOldVersion(presetDict):
+            """
+            Fix relative widget values if resolution wasn't saved into preset
+            This happens if loading a file from before v2.3.0
+            """
+            if "resolution" not in presetDict:
+                log.warning(
+                    "%s #%s's%s resolution was not saved. Using project resolution instead.",
+                    self.name,
+                    str(self.compPos),
+                    "" if self.currentPreset is None else " %s" % self.currentPreset,
+                )
+                presetDict["resolution"] = currentResolution
+                for attr in self._relativeWidgets:
+                    if getPresetAttrName(attr) not in presetDict:
+                        continue
+                    if type(presetDict[getPresetAttrName(attr)]) == float:
+                        presetDict[getPresetAttrName(attr)] = self.pixelValForAttr(
+                            attr, presetDict[getPresetAttrName(attr)]
+                        )
+            return presetDict
+
+        presetDict = upgradeFromOldVersion(presetDict)
 
         self._width, self._height = presetDict["resolution"]
         for attr, widget in self._trackedWidgets.items():
@@ -253,7 +259,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 val = getattr(self, key)
 
             if attr in self._colorWidgets:
-                widget.setText("%s,%s,%s" % val)
+                with blockSignals(widget):
+                    widget.setText("%s,%s,%s" % val)
                 btnStyle = (
                     "QPushButton { background-color : %s; outline: none; }"
                     % QColor(*val).name()
@@ -262,11 +269,13 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             else:
                 if attr in self._relativeWidgets:
                     self.updateRelativeWidgetFloat(attr, val)
-                setWidgetValue(widget, val)
-
-        logWidgetValues(self, self._trackedWidgets)
+                with blockSignals(widget):
+                    setWidgetValue(widget, val)
+        logWidgetValues(self, self._trackedWidgets, "loadPreset")
         if presetDict["resolution"] != currentResolution:
             self.updateResolution()
+        else:
+            self.update(auto=True)
 
     def savePreset(self):
         saveValueStore = {}
@@ -330,7 +339,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             action = ComponentTrackedWidgetUpdate(self, oldWidgetVals, modifiedWidgets)
             self.loader.undoStack.push(action)
 
-    def _autoUpdate(self):
+    def _autoUpdate(self, origin=None):
         """Happens after subclass update() for an internal component update."""
         newWidgetVals = {
             attr: getWidgetValue(widget)
@@ -338,6 +347,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         }
         self.setAttrs(newWidgetVals)
         self._sendUpdateSignal()
+        logWidgetValues(
+            self,
+            newWidgetVals,
+            f"{'unknown' if origin is None else origin} through autoupdate",
+        )
 
     def updateResolution(self):
         newWidth = int(self.core.settings.value("outputWidth"))
@@ -355,8 +369,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             self.updateRelativeWidgetResolution(attr, (newWidth, newHeight))
         self._width = newWidth
         self._height = newHeight
-        self._preUpdate()
-        self._autoUpdate()
+        self.update(auto=True, origin="updateResolution")
 
     def setAttrs(self, attrDict):
         """
@@ -380,7 +393,6 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             else:
                 # Normal tracked widget
                 setattr(self, attr, val)
-        logWidgetValues(self, attrDict)
 
     def setWidgetValues(self, attrDict):
         """
@@ -396,7 +408,6 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 if attr in self._relativeWidgets:
                     self.updateRelativeWidgetFloat(attr, val)
                 setWidgetValue(widget, val)
-        logWidgetValues(self, attrDict)
 
     def _sendUpdateSignal(self):
         if self.core.openingProject:
@@ -482,8 +493,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                             )
                         )
 
-        self._preUpdate()
-        self._autoUpdate()
+        # self.update(auto=True, origin="trackWidgets")
 
     def pickColor(self, textWidget, button):
         """Use color picker to get color input from the user."""
@@ -533,7 +543,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def loadUi(self, filename):
         """Load a Qt Designer ui file to use for this component's widget"""
-        return uic.loadUi(os.path.join(self.core.componentsPath, filename))
+        with blockSignals(self):
+            return uic.loadUi(os.path.join(self.core.componentsPath, filename))
 
     @property
     def width(self):

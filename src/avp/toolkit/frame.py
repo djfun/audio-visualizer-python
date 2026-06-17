@@ -3,17 +3,16 @@ Common tools for drawing compatible frames in a Component's frameRender()
 """
 
 from PyQt6 import QtGui
-from PIL import Image, ImageEnhance, ImageChops, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter
 from PIL.ImageQt import ImageQt
 from PyQt6 import QtCore
-import sys
 import os
 import math
 import logging
 from .. import core
 
 
-log = logging.getLogger("AVP.Toolkit.Frame")
+log = logging.getLogger(__name__)
 
 
 class FramePainter(QtGui.QPainter):

@@ -16,7 +16,7 @@ from ..toolkit.ffmpeg import (
 )
 
 
-log = logging.getLogger("AVP.Components.Waveform")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):
