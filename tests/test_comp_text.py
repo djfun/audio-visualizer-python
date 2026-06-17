@@ -92,10 +92,10 @@ def test_comp_text_fontSize_relative_to_resolution(windowWithTextComp):
     comp.page.spinBox_fontSize.setValue(200)
     # set resolution to 1280x720
     windowWithTextComp.updateResolution(1)
-    assert comp.fontSize == 134
+    assert comp.fontSize == 133
     # set resolution to 854x480
     windowWithTextComp.updateResolution(2)
-    assert comp.fontSize == 90
+    assert comp.fontSize == 88
 
 
 def test_comp_text_fontSize_rounding_errors(windowWithTextComp):

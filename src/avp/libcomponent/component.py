@@ -23,6 +23,7 @@ from ..toolkit import (
     rgbFromString,
     randomColor,
     blockSignals,
+    isVerticalWord,
 )
 
 log = logging.getLogger("AVP.BaseComponent")
@@ -61,7 +62,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._colorFuncs = {}
         self._relativeWidgets = {}
         # Maximum values of relativeWidget spinBoxes at 1080p (Core.resolutions[0])
-        self._relativeMaximums = {}
+        self._relativeWidgetMaximums = {}
+        self._relativeWidgetFloats = {}
 
         # LOCKING VARIABLES
         self.openingPreset = False
@@ -258,6 +260,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 )
                 self._colorWidgets[attr].setStyleSheet(btnStyle)
             else:
+                if attr in self._relativeWidgets:
+                    self.updateRelativeWidgetFloat(attr, val)
                 setWidgetValue(widget, val)
 
         logWidgetValues(self, self._trackedWidgets)
@@ -317,6 +321,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             for attr, val in newWidgetVals.items()
             if val != oldWidgetVals[attr]
         }
+        for attr in copy(modifiedWidgets):
+            if attr in self._relativeWidgets:
+                changed = self.updateRelativeWidgetFloat(attr, modifiedWidgets[attr])
+                if not changed:
+                    del modifiedWidgets[attr]
         if modifiedWidgets:
             action = ComponentTrackedWidgetUpdate(self, oldWidgetVals, modifiedWidgets)
             self.loader.undoStack.push(action)
@@ -343,9 +352,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             newHeight,
         )
         for attr in self._relativeWidgets:
-            self.updateRelativeWidgetResolution(
-                attr, (self.width, self.height), (newWidth, newHeight)
-            )
+            self.updateRelativeWidgetResolution(attr, (newWidth, newHeight))
         self._width = newWidth
         self._height = newHeight
         self._preUpdate()
@@ -386,6 +393,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 widget = self._trackedWidgets[attr]
                 if attr in self._colorWidgets:
                     val = "%s,%s,%s" % val
+                if attr in self._relativeWidgets:
+                    self.updateRelativeWidgetFloat(attr, val)
                 setWidgetValue(widget, val)
         logWidgetValues(self, attrDict)
 
@@ -457,9 +466,21 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             elif kwarg == "relativeWidgets":
                 # store maximum values of spinBoxes to be scaled appropriately
                 for attr in kwargs[kwarg]:
-                    self._relativeMaximums[attr] = self._trackedWidgets[attr].maximum()
+                    self._relativeWidgetMaximums[attr] = self._trackedWidgets[
+                        attr
+                    ].maximum()
                     self.updateRelativeWidgetMaximum(attr, (self.width, self.height))
-                    setattr(self, attr, self._trackedWidgets[attr].value())
+                    self._relativeWidgetFloats[attr] = self.floatValForAttr(
+                        attr,
+                        self._trackedWidgets[attr].value(),
+                        (self.width, self.height),
+                    )
+                    if log.isEnabledFor(logging.INFO):
+                        self._trackedWidgets[attr].setToolTip(
+                            "relative value: {0:.3f}".format(
+                                self._relativeWidgetFloats[attr]
+                            )
+                        )
 
         self._preUpdate()
         self._autoUpdate()
@@ -491,7 +512,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._lockedError = msg
 
     def lockSize(self, w, h):
+        if self._lockedSize is not None:
+            log.warning("%s #%s is already locked.", self.name, str(self.compPos))
+            return False
         self._lockedSize = (w, h)
+        return True
 
     def unlockProperties(self):
         self._lockedProperties = None
@@ -500,7 +525,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._lockedError = None
 
     def unlockSize(self):
+        if self._lockedSize is None:
+            log.warning("%s #%s is already unlocked.", self.name, str(self.compPos))
+            return False
         self._lockedSize = None
+        return True
 
     def loadUi(self, filename):
         """Load a Qt Designer ui file to use for this component's widget"""
@@ -529,56 +558,74 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.unlockProperties()
         self.unlockError()
 
-    def relativeWidgetAxis(func):
-        def relativeWidgetAxis(self, attr, *args, **kwargs):
-            hasVerticalWords = (
-                lambda attr: "height" in attr.lower()
-                or "ypos" in attr.lower()
-                or attr == "y"
-                or attr.endswith("Y")
-            )
-            if "axis" not in kwargs:
-                axis = self.width
-                if hasVerticalWords(attr):
-                    axis = self.height
-                kwargs["axis"] = axis
-            if "axis" in kwargs and type(kwargs["axis"]) is tuple:
-                axis = kwargs["axis"][0]
-                if hasVerticalWords(attr):
-                    axis = kwargs["axis"][1]
-                kwargs["axis"] = axis
-            return func(self, attr, *args, **kwargs)
-
-        return relativeWidgetAxis
-
-    @relativeWidgetAxis
-    def pixelValForAttr(self, attr, val=None, **kwargs):
+    def pixelValForAttr(self, attr, val=None, axis=None):
+        """
+        Get pixel value from a relativeWidget float.
+        `attr`: string name of relativeWidget
+        `val`: optional float; uses _relativeWidgets[attr] if None
+        `axis`: optional tuple of (width, height); height used if attr "seems vertical"
+        """
+        if axis is None:
+            axis = self.core.maxResolution
+        if isVerticalWord(attr):
+            try:
+                axis = axis[1]
+            except IndexError:
+                if type(axis) != int:
+                    raise
+        else:
+            axis = axis[0]
         if val is None:
-            val = self.floatValForAttr(
-                attr, self._trackedWidgets[attr].value(), axis=kwargs["axis"]
-            )
-        result = math.ceil(kwargs["axis"] * val)
+            val = self._relativeWidgetFloats[attr]
+        result = math.floor(float(axis) * val)
         return result
 
-    @relativeWidgetAxis
-    def floatValForAttr(self, attr, val=None, **kwargs):
+    def floatValForAttr(self, attr, val=None, axis=None):
+        """If axis != core.maxResolution, mutates `val`"""
+        if axis is None:
+            axis = self.core.maxResolution
         if val is None:
             val = self._trackedWidgets[attr].value()
-        return val / kwargs["axis"]
+        # Convert pixel value to 1080 if needed
+        convert = False
+        if axis != self.core.maxResolution:
+            convert = True
+        if isVerticalWord(attr):
+            try:
+                axis = axis[1]
+            except IndexError:
+                if type(axis) != int:
+                    raise
+        else:
+            axis = axis[0]
+        if convert:
+            val = self.pixelValForAttr(attr, val / axis)
+        return (
+            val / self.core.maxResolution[1]
+            if isVerticalWord(attr)
+            else val / self.core.maxResolution[0]
+        )
 
-    def setRelativeWidget(self, attr, floatVal):
+    def setRelativeWidget(self, attr, floatVal, axis=None):
         """Set a relative widget using a float"""
-        pixelVal = self.pixelValForAttr(attr, floatVal)
+        if axis is None:
+            axis = (self.width, self.height)
+        self._relativeWidgetFloats[attr] = floatVal
+        pixelVal = self.pixelValForAttr(attr, floatVal, axis)
         with blockSignals(self._trackedWidgets[attr]):
             self._trackedWidgets[attr].setValue(pixelVal)
+        if log.isEnabledFor(logging.INFO):
+            self._trackedWidgets[attr].setToolTip(
+                "relative value: {0:.3f}".format(self._relativeWidgetFloats[attr])
+            )
         self.update(auto=True)
 
-    def updateRelativeWidgetResolution(self, attr, oldResolution, newResolution):
+    def updateRelativeWidgetResolution(self, attr, newResolution):
         """Called for each relativeWidget when resolution changes"""
-        val = self._trackedWidgets[attr].value()
+        # val = self._trackedWidgets[attr].value()
         newVal = self.pixelValForAttr(
             attr,
-            self.floatValForAttr(attr, val, axis=oldResolution),
+            self._relativeWidgetFloats[attr],
             axis=newResolution,
         )
         with blockSignals(self._trackedWidgets[attr]):
@@ -588,6 +635,20 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def updateRelativeWidgetMaximum(self, attr, newResolution):
         newMaximumValue = newResolution[0] * (
-            self._relativeMaximums[attr] / int(self.core.resolutions[0].split("x")[0])
+            self._relativeWidgetMaximums[attr]
+            / int(self.core.resolutions[0].split("x")[0])
         )
         self._trackedWidgets[attr].setMaximum(int(newMaximumValue))
+
+    def updateRelativeWidgetFloat(self, attr, newPixelVal):
+        newFloatVal = self.floatValForAttr(attr, newPixelVal, (self.width, self.height))
+        if self._relativeWidgetFloats[attr] != newFloatVal:
+            self._relativeWidgetFloats[attr] = self.floatValForAttr(
+                attr, newPixelVal, (self.width, self.height)
+            )
+            if log.isEnabledFor(logging.INFO):
+                self._trackedWidgets[attr].setToolTip(
+                    "relative value: {0:.3f}".format(self._relativeWidgetFloats[attr])
+                )
+            return True
+        return False

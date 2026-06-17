@@ -223,3 +223,9 @@ def randomColor():
 def hasUndoStack(loader):
     """Receives a Command or MainWindow object"""
     return hasattr(loader, "undoStack")
+
+
+def isVerticalWord(word):
+    word = word.lower()
+    vertWords = ["height", "ypos"]
+    return any([vertWord in word for vertWord in vertWords]) or word.endswith("y")

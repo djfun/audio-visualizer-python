@@ -100,11 +100,17 @@ class Component(BaseComponent):
     def centerXY(self):
         self.setRelativeWidget(
             "xPosition",
-            0.5 - (self.floatValForAttr("xPosition", self.imageSize[0]) / 2),
+            0.5
+            - self.floatValForAttr(
+                "xPosition", self.imageSize[0] / 2, (self.width, self.height)
+            ),
         )
         self.setRelativeWidget(
             "yPosition",
-            0.5 - (self.floatValForAttr("yPosition", self.imageSize[1] / 2)),
+            0.5
+            - self.floatValForAttr(
+                "yPosition", self.imageSize[1] / 2, (self.width, self.height)
+            ),
         )
 
     def previewRender(self):
