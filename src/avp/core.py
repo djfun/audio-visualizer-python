@@ -69,6 +69,17 @@ class Core:
         for i, component in enumerate(self.selectedComponents):
             component.compPos = i
 
+    def createComponent(self, component, loader):
+        """
+        Creates and returns a Component object
+        `component`: string component name or int componentModuleIndex
+        """
+        if type(component) == str:
+            component = self.moduleIndexFor(component)
+        component = self.modules[component].Component(component, self)
+        component.widget(loader)
+        return component
+
     def insertComponent(self, compPos, component, loader):
         """
         Creates a new component using these args:
@@ -85,12 +96,12 @@ class Core:
             # create component using module index in self.modules
             moduleIndex = int(component)
             log.debug("Creating new component from module #%s", str(moduleIndex))
-            component = self.modules[moduleIndex].Component(moduleIndex, compPos, self)
-            component.widget(loader)
+            component = self.createComponent(moduleIndex, loader)
         else:
             moduleIndex = -1
             log.debug("Inserting previously-created %s component", component.name)
 
+        component.compPos = compPos
         component._error.connect(loader.videoThreadError)
         self.selectedComponents.insert(compPos, component)
         if hasattr(loader, "insertComponent"):

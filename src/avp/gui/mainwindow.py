@@ -150,14 +150,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     lambda: log.info("Preview thread finished.")
                 )
 
-                timeout = 500
-                log.debug(
-                    "Preview timer set to trigger when idle for %sms" % str(timeout)
-                )
-                self.timer = QtCore.QTimer(self)
-                self.timer.timeout.connect(self.processTask.emit)
-                self.timer.start(timeout)
-
             def setupUndoFeature():
                 def toggleUndoButtonEnabled(*_):
                     """Enable/disable undo button depending on whether UndoStack contains Actions"""
@@ -384,9 +376,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 int(self.width() * (dpi / 144)),
                 int(self.height() * (dpi / 144)),
             )
-        self.updateWindowTitle()
-        log.debug("Showing main window")
-        self.show()
 
         # Load project and prompt user to restore unsaved changes
         if project and project != self.autosavePath:
@@ -419,7 +408,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     os.remove(self.autosavePath)
 
         self.openProject(self.currentProject, prompt=False)
-        self.drawPreview(True)
 
         # Verify FFmpeg version
         if not self.core.FFMPEG_BIN:
@@ -444,16 +432,32 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Add initial components if none are in the list
         if not self.core.selectedComponents:
-            self.core.insertComponent(
-                0, self.core.moduleIndexFor("Classic Visualizer"), self
+            log.info("Inserting default components")
+            classicVisComponent = self.core.createComponent(
+                self.core.moduleIndexFor("Classic Visualizer"), self
             )
-            self.core.insertComponent(1, self.core.moduleIndexFor("Color"), self)
+            colorComponent = self.core.createComponent(
+                self.core.moduleIndexFor("Color"), self
+            )
+            with blockSignals([classicVisComponent, colorComponent]):
+                self.core.insertComponent(0, classicVisComponent, self)
+                self.core.insertComponent(1, colorComponent, self)
             # set colors to white and black to match classic appearance of program
-            self.core.selectedComponents[0].page.lineEdit_visColor.setText(
-                "255,255,255"
-            )
-            self.core.selectedComponents[1].page.lineEdit_color1.setText("0,0,0")
+            with blockSignals(self.core.selectedComponents):
+                self.core.selectedComponents[0].page.lineEdit_visColor.setText(
+                    "255,255,255"
+                )
+                self.core.selectedComponents[1].page.lineEdit_color1.setText("0,0,0")
             self.undoStack.clear()
+            self.drawPreview()
+
+        # Start timer to process preview images every 500ms
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self.processTask.emit)
+        self.timer.start(500)
+
+        # Show the window!
+        self.show()
 
     def __repr__(self):
         return (

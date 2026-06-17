@@ -69,16 +69,14 @@ class AddComponent(QUndoCommand):
 
     def redo(self):
         if self.comp is None:
-            i = self.parent.core.insertComponent(self.compI, self.moduleI, self.parent)
-            if i != self.compI:
-                self.valid = False
-                if i is not None:
-                    log.error(
-                        f"Expected new component index to be {self.compI} but received {i}"
-                    )
-        else:
-            # inserting previously-created component
-            self.parent.core.insertComponent(self.compI, self.comp, self.parent)
+            self.comp = self.parent.core.createComponent(self.moduleI, self.parent)
+        i = self.parent.core.insertComponent(self.compI, self.comp, self.parent)
+        if i != self.compI:
+            log.error(
+                "Component could not insert at layer %s (inserted at %s instead)",
+                self.compI,
+                i,
+            )
 
     def undo(self):
         if not self.valid:
