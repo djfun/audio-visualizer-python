@@ -116,9 +116,9 @@ class MainWindow(QtWidgets.QMainWindow):
             QShortcut("Ctrl+Shift+F", self, self.showFfmpegCommand)
             QShortcut("Ctrl+Shift+U", self, self.showUndoStack)
 
-            if log.isEnabledFor(logging.DEBUG):
-                QShortcut("Ctrl+Alt+Shift+R", self, self.drawPreview)
-                QShortcut("Ctrl+Alt+Shift+A", self, lambda: log.debug(repr(self)))
+            if log.isEnabledFor(logging.INFO):
+                QShortcut("F2", self, lambda: log.info(repr(self)))
+                QShortcut("F5", self, self.drawPreview)
 
         def setupMainWindowWidgets():
             def setupUndoDialog():
@@ -140,11 +140,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.verticalLayout_previewWrapper.addWidget(self.previewWindow)
 
                 log.debug("Starting preview thread")
-                self.previewQueue = Queue()
                 self.previewThread = QtCore.QThread(self)
-                self.previewWorker = preview_thread.Worker(
-                    self.core, self.settings, self.previewQueue
-                )
+                self.previewWorker = preview_thread.Worker(self.core, self.settings)
                 self.previewWorker.moveToThread(self.previewThread)
                 self.newTask.connect(self.previewWorker.createPreviewImage)
                 self.processTask.connect(self.previewWorker.process)
@@ -463,15 +460,15 @@ class MainWindow(QtWidgets.QMainWindow):
     def __repr__(self):
         return (
             "%s\n"
-            "\n%s\n"
             "#####\n"
             "Preview thread is %s\n"
             % (
-                super().__repr__(),
                 (
                     "core not initialized"
                     if not hasattr(self, "core")
-                    else repr(self.core)
+                    else "#####\n".join(
+                        [repr(comp) for comp in self.core.selectedComponents]
+                    )
                 ),
                 (
                     "live"
