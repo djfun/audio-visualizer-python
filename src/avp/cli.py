@@ -56,7 +56,7 @@ def main() -> int:
     # Both branches here may occur in one execution:
     # Commandline parsing could change mode back to GUI
     if mode == "GUI":
-        from avp.gui.mainwindow import MainWindow
+        from .gui.mainwindow import MainWindow
 
         main = MainWindow(proj, dpi)
         log.debug("Finished creating MainWindow")
