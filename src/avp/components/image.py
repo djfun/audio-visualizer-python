@@ -1,9 +1,10 @@
 from PIL import Image, ImageOps, ImageEnhance
 from PyQt6 import QtWidgets, QtCore
 import os
+import math
 
 from ..libcomponent import BaseComponent
-from ..libcomponent.actions import ComponentPreviewClick, ComponentSettingsUpdate
+from ..libcomponent.actions import ComponentCenterXYAction, ComponentPreviewXYClick
 from ..toolkit import hasUndoStack, blockSignals
 from ..toolkit.frame import BlankFrame, addShadow
 from ..toolkit.visualizer import createSpectrumArray
@@ -87,14 +88,23 @@ class Component(BaseComponent):
             or button != QtCore.Qt.MouseButton.LeftButton
         ):
             return
-        action = ClickPreviewAction(self, pos, size, button)
+        xSize = math.floor(
+            self.pixelValForAttr(None, self.imageSize[0] / self.width, axis=size[0]) / 2
+        )
+        ySize = math.floor(
+            self.pixelValForAttr(None, self.imageSize[1] / self.height, axis=size[1])
+            / 2
+        )
+        action = ComponentPreviewXYClick(
+            self, (pos[0] - xSize, pos[1] - ySize), size, button
+        )
         self.loader.undoStack.push(action)
 
     def addCenterAction(self):
         """Triggered when user clicks "center image" button."""
         if not hasUndoStack(self.loader) or self.imageSize == (0, 0):
             return
-        action = CenterImageAction(self)
+        action = ComponentCenterXYAction(self)
         self.loader.undoStack.push(action)
 
     def centerXY(self):
@@ -184,6 +194,8 @@ class Component(BaseComponent):
                         (newWidth, newHeight), Image.Resampling.LANCZOS
                     )
                 self.existingImage = image
+                if self.rotate != 0:
+                    image = image.rotate(self.rotate)
                 self.imageSize = (image.width, image.height)
 
             # Shadow-related variables (modified below if "respond to audio")
@@ -216,8 +228,6 @@ class Component(BaseComponent):
                     self.yPosition - (0 if not self.respondToAudio else int(scale / 2)),
                 ),
             )
-            if self.rotate != 0:
-                frame = frame.rotate(self.rotate)
             if self.shadow:
                 frame = addShadow(frame, shadBlur, shadX, shadY)
         else:
@@ -262,57 +272,3 @@ class Component(BaseComponent):
 
     def commandHelp(self):
         print("Load an image:\n    path=/filepath/to/image.png")
-
-
-class ClickPreviewAction(ComponentPreviewClick):
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.res = (self.comp.width, self.comp.height)
-        self.oldXY = (
-            self.comp.floatValForAttr("xPosition", axis=self.res),
-            self.comp.floatValForAttr("yPosition", axis=self.res),
-        )
-
-    def add(self):
-        for pos in self.pos[:]:
-            with blockSignals(self.comp):
-                self.comp.setRelativeWidget("xPosition", pos[0] / self.size[0])
-            self.comp.setRelativeWidget("yPosition", pos[1] / self.size[1])
-
-    def remove(self):
-        self.comp.setWidgetValues(
-            {
-                "xPosition": self.comp.pixelValForAttr(
-                    "xPosition", self.oldXY[0], self.res
-                ),
-                "yPosition": self.comp.pixelValForAttr(
-                    "yPosition", self.oldXY[1], self.res
-                ),
-            }
-        )
-        self.comp.update(auto=True, origin="ClickPreviewAction")
-
-
-class CenterImageAction(ComponentSettingsUpdate):
-    def __init__(self, comp):
-        super().__init__(comp)
-        self.oldXY = (
-            self.comp.floatValForAttr("xPosition", axis=self.res),
-            self.comp.floatValForAttr("yPosition", axis=self.res),
-        )
-
-    def redo(self):
-        self.comp.centerXY()
-
-    def undo(self):
-        self.comp.setWidgetValues(
-            {
-                "xPosition": self.comp.pixelValForAttr(
-                    "xPosition", self.oldXY[0], self.res
-                ),
-                "yPosition": self.comp.pixelValForAttr(
-                    "yPosition", self.oldXY[1], self.res
-                ),
-            }
-        )
-        self.comp.update(auto=True, origin="CenterImageAction")

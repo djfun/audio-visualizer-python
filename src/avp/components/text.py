@@ -3,7 +3,7 @@ from PyQt6 import QtGui, QtCore
 import logging
 
 from ..libcomponent import BaseComponent
-from ..libcomponent.actions import ComponentPreviewClick, ComponentSettingsUpdate
+from ..libcomponent.actions import ComponentCenterXYAction, ComponentPreviewXYClick
 from ..toolkit import hasUndoStack, blockSignals
 from ..toolkit.frame import FramePainter, addShadow
 
@@ -88,14 +88,14 @@ class Component(BaseComponent):
             return
         if button != QtCore.Qt.MouseButton.LeftButton:
             return
-        action = ClickPreviewAction(self, pos, size, button)
+        action = ComponentPreviewXYClick(self, pos, size, button)
         self.loader.undoStack.push(action)
 
     def addCenterAction(self):
         """Triggered when user clicks "center text" button."""
         if not hasUndoStack(self.loader):
             return
-        action = CenterTextAction(self)
+        action = ComponentCenterXYAction(self)
         self.loader.undoStack.push(action)
 
     def centerXY(self):
@@ -226,57 +226,3 @@ class Component(BaseComponent):
                 self.page.lineEdit_title.setText(arg)
                 return
         super().command(arg)
-
-
-class ClickPreviewAction(ComponentPreviewClick):
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.res = (self.comp.width, self.comp.height)
-        self.oldXY = (
-            self.comp.floatValForAttr("xPosition", axis=self.res),
-            self.comp.floatValForAttr("yPosition", axis=self.res),
-        )
-
-    def add(self):
-        for pos in self.pos[:]:
-            with blockSignals(self.comp):
-                self.comp.setRelativeWidget("xPosition", pos[0] / self.size[0])
-            self.comp.setRelativeWidget("yPosition", pos[1] / self.size[1])
-
-    def remove(self):
-        self.comp.setWidgetValues(
-            {
-                "xPosition": self.comp.pixelValForAttr(
-                    "xPosition", self.oldXY[0], self.res
-                ),
-                "yPosition": self.comp.pixelValForAttr(
-                    "yPosition", self.oldXY[1], self.res
-                ),
-            }
-        )
-        self.comp.update(auto=True, origin="ClickPreviewAction")
-
-
-class CenterTextAction(ComponentSettingsUpdate):
-    def __init__(self, comp):
-        super().__init__(comp)
-        self.oldXY = (
-            self.comp.floatValForAttr("xPosition", axis=self.res),
-            self.comp.floatValForAttr("yPosition", axis=self.res),
-        )
-
-    def redo(self):
-        self.comp.centerXY()
-
-    def undo(self):
-        self.comp.setWidgetValues(
-            {
-                "xPosition": self.comp.pixelValForAttr(
-                    "xPosition", self.oldXY[0], self.res
-                ),
-                "yPosition": self.comp.pixelValForAttr(
-                    "yPosition", self.oldXY[1], self.res
-                ),
-            }
-        )
-        self.comp.update(auto=True, origin="CenterTextAction")

@@ -7,7 +7,7 @@ from PyQt6.QtGui import QUndoCommand
 from copy import copy
 import logging
 
-from ..toolkit.common import logWidgetValues
+from ..toolkit.common import blockSignals
 
 log = logging.getLogger(__name__)
 
@@ -140,3 +140,58 @@ class ComponentSettingsUpdate(QUndoCommand):
     def redo(self): ...
 
     def undo(self): ...
+
+
+class ComponentPreviewXYClick(ComponentPreviewClick):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.res = (self.comp.width, self.comp.height)
+        self.oldXY = (
+            self.comp.floatValForAttr("xPosition", axis=self.res),
+            self.comp.floatValForAttr("yPosition", axis=self.res),
+        )
+
+    def add(self):
+        for pos in self.pos[:]:
+            with blockSignals(self.comp):
+                self.comp.setRelativeWidget("xPosition", pos[0] / self.size[0])
+                self.comp.setRelativeWidget("yPosition", pos[1] / self.size[1])
+        self.comp.update(auto=True, origin="ClickPreviewAction")
+
+    def remove(self):
+        self.comp.setWidgetValues(
+            {
+                "xPosition": self.comp.pixelValForAttr(
+                    "xPosition", self.oldXY[0], self.res
+                ),
+                "yPosition": self.comp.pixelValForAttr(
+                    "yPosition", self.oldXY[1], self.res
+                ),
+            }
+        )
+        self.comp.update(auto=True, origin="ClickPreviewXYAction")
+
+
+class ComponentCenterXYAction(ComponentSettingsUpdate):
+    def __init__(self, comp):
+        super().__init__(comp)
+        self.oldXY = (
+            self.comp.floatValForAttr("xPosition", axis=self.res),
+            self.comp.floatValForAttr("yPosition", axis=self.res),
+        )
+
+    def redo(self):
+        self.comp.centerXY()
+
+    def undo(self):
+        self.comp.setWidgetValues(
+            {
+                "xPosition": self.comp.pixelValForAttr(
+                    "xPosition", self.oldXY[0], self.res
+                ),
+                "yPosition": self.comp.pixelValForAttr(
+                    "yPosition", self.oldXY[1], self.res
+                ),
+            }
+        )
+        self.comp.update(auto=True, origin="ComponentCenterXYAction")

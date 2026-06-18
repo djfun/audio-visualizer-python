@@ -2,7 +2,9 @@
 Tests of MainWindow undoing certain ComponentTrackedWidgetUpdates
 """
 
-from pytest import fixture
+from PyQt6 import QtCore
+from avp.toolkit.common import isVerticalWord
+from pytest import fixture, mark
 from pytestqt import qtbot
 from avp.gui.mainwindow import MainWindow
 from . import getTestDataPath, window
@@ -89,3 +91,65 @@ def test_undo_randomColor_is_saved(window, qtbot):
     comp = window.core.selectedComponents[0]
     assert comp.page.lineEdit_color1.text() == randomText
     assert comp.color1 == randomTuple
+
+
+@mark.parametrize("compName", ("Title Text", "Image"))
+def test_comp_undo_centerXYAction_through_resolution_change(window, qtbot, compName):
+    """Test if CenterTextAction works properly with changes to resolution"""
+    window.core.insertComponent(0, window.core.moduleIndexFor(compName), window)
+    comp = window.core.selectedComponents[0]
+    if compName == "Image":
+        comp.imageSize = (1, 1)
+    widget = comp._trackedWidgets["xPosition"]
+    widget.setValue(450)
+    window.updateResolution(1)
+    resizedX = comp.xPosition
+    comp.addCenterAction()
+    centeredX = comp.xPosition
+    widget.setValue(333)
+    window.undoStack.undo()
+    assert comp.xPosition == centeredX
+    # undo centering
+    window.undoStack.undo()
+    assert comp.xPosition == resizedX
+    # undo change of resolution
+    window.undoStack.undo()
+    assert comp.xPosition == 450
+
+
+@mark.parametrize("compName", ("Title Text", "Image"))
+@mark.parametrize("attr", ("xPosition", "yPosition"))
+def test_comp_undo_previewXYClick_through_resolution_change(
+    window, qtbot, compName, attr
+):
+    """Test if PreviewClickAction works properly with changes to resolution"""
+    window.core.insertComponent(0, window.core.moduleIndexFor(compName), window)
+    comp = window.core.selectedComponents[0]
+    widget = comp._trackedWidgets[attr]
+    valueAt1080 = 450
+
+    # value from which x, y would be offset (for components not anchored at x, y)
+    offset = (100, 100)
+    if compName == "Image":
+        comp.imageSize = offset
+    useOffset = compName in ("Image")
+
+    # Set widget value at 1920x1080
+    widget.setValue(valueAt1080)
+    # Change resolution to 1280x720
+    window.updateResolution(1)
+    # Remember resized widget value
+    valueAt720 = getattr(comp, attr)
+    # Send previewClickEvent at 1/10th of resolution
+    comp.previewClickEvent((128, 72), (1280, 720), QtCore.Qt.MouseButton.LeftButton)
+    assert getattr(comp, attr) == (72 if isVerticalWord(attr) else 128) - (
+        (int(offset[1 if isVerticalWord(attr) else 0] / 2) if useOffset else 0)
+    )
+
+    # Undo previewClickEvent
+    window.undoStack.undo()
+    assert getattr(comp, attr) == valueAt720
+
+    # Undo resolution change, returning to 1920x1080
+    window.undoStack.undo()
+    assert getattr(comp, attr) == valueAt1080
