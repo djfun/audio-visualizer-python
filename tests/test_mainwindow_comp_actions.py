@@ -8,6 +8,17 @@ from avp.gui.mainwindow import MainWindow
 from . import getTestDataPath, window
 
 
+def test_undo_stack_size_after_3_trackedWidgetUpdates(window, qtbot):
+    window.core.insertComponent(
+        0, window.core.moduleIndexFor("Classic Visualizer"), window
+    )
+    comp = window.core.selectedComponents[0]
+    comp.page.spinBox_scale.setValue(99)
+    comp.page.spinBox_y.setValue(100)
+    comp.page.spinBox_scale.setValue(50)
+    assert window.undoStack.count() == 3
+
+
 def test_undo_classic_visualizer_sensitivity(window, qtbot):
     """Undo Classic Visualizer component sensitivity setting
     should undo multiple merged actions."""

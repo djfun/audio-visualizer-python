@@ -79,11 +79,12 @@ def test_comp_text_previewClickEvent_undo_redo(windowWithTextComp):
 def test_comp_text_centerText_undo_redo(windowWithTextComp):
     comp = windowWithTextComp.core.selectedComponents[0]
     comp.page.spinBox_xTextAlign.setValue(0)
-    comp.page.pushButton_center.click()
+    comp.addCenterAction()
+    centeredX = comp.page.spinBox_xTextAlign.value()
     windowWithTextComp.undoStack.undo()
     assert comp.xPosition == 0
     windowWithTextComp.undoStack.redo()
-    assert comp.xPosition == comp.pixelValForAttr("xPosition", 0.5)
+    assert comp.xPosition == centeredX
 
 
 def test_comp_text_fontSize_relative_to_resolution(windowWithTextComp):
@@ -116,3 +117,41 @@ def test_comp_text_fontSize_maximum(windowWithTextComp):
     # set resolution to 854x480
     windowWithTextComp.updateResolution(2)
     assert comp.page.spinBox_fontSize.maximum() == 222
+
+
+def test_comp_text_undo_center_through_resolution_change_mutates_positions(
+    window, qtbot
+):
+    """Test if CenterTextAction works properly with changes to resolution"""
+    window.core.insertComponent(0, window.core.moduleIndexFor("Title Text"), window)
+    comp = window.core.selectedComponents[0]
+    comp.page.spinBox_xTextAlign.setValue(450)
+    window.updateResolution(1)
+    firstNumber = comp.xPosition
+    comp.addCenterAction()
+    centeredX = comp.xPosition
+    comp.page.spinBox_xTextAlign.setValue(333)
+    window.undoStack.undo()
+    assert comp.xPosition == centeredX
+    # undo centering
+    window.undoStack.undo()
+    assert comp.xPosition == firstNumber
+    # undo change of resolution
+    window.undoStack.undo()
+    assert comp.xPosition == 450
+
+
+def test_comp_text_undo_previewClick_through_resolution_change_mutates_positions(
+    window, qtbot
+):
+    """Test if PreviewClickAction works properly with changes to resolution"""
+    window.core.insertComponent(0, window.core.moduleIndexFor("Title Text"), window)
+    comp = window.core.selectedComponents[0]
+    comp.page.spinBox_xTextAlign.setValue(450)
+    window.updateResolution(1)
+    comp.previewClickEvent((192, 108), (1920, 1080), QtCore.Qt.MouseButton.LeftButton)
+    comp.page.spinBox_xTextAlign.setValue(333)
+    window.undoStack.undo()
+    window.undoStack.undo()
+    window.undoStack.undo()
+    assert comp.xPosition == 450
