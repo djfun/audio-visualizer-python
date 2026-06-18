@@ -99,7 +99,11 @@ class Core:
             component = self.createComponent(moduleIndex, loader)
         else:
             moduleIndex = -1
-            log.debug("Inserting previously-created %s component", component.name)
+            log.debug(
+                "Inserting previously-created %s component at %s",
+                component.name,
+                compPos,
+            )
 
         component.compPos = compPos
         component._error.connect(loader.videoThreadError)
@@ -128,7 +132,7 @@ class Core:
 
     def updateComponent(self, i):
         log.debug("Auto-updating %s #%s", self.selectedComponents[i], str(i))
-        self.selectedComponents[i].update(auto=True)
+        self.selectedComponents[i].update(auto=True, origin="core")
 
     def moduleIndexFor(self, compName):
         index = None
