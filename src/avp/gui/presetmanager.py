@@ -200,9 +200,7 @@ class PresetManager(QtWidgets.QDialog):
         dirname = os.path.join(self.presetDir, componentName, str(version))
         filepath = os.path.join(dirname, presetName)
         self.core.openPreset(filepath, index, presetName)
-
-        self.parent.updateComponentTitle(index)
-        self.parent.drawPreview()
+        self.parent.updateComponentTitle(index, False)
 
     def openDeletePresetDialog(self):
         row = self.getPresetRow()
@@ -298,7 +296,6 @@ class PresetManager(QtWidgets.QDialog):
             if self.core.getPresetDir(comp) == path and comp.currentPreset == oldName:
                 self.core.openPreset(newPath, i, newName)
                 self.parent.updateComponentTitle(i, False)
-                self.parent.drawPreview()
 
     def openImportDialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
