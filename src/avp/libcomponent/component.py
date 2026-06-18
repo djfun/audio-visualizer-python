@@ -176,9 +176,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         """
         self.loader = loader
         log.debug(
-            "Creating UI for %s #%s's widget",
+            "Creating UI for %s's page widget",
             self.__class__.name,
-            self.compPos,
         )
         self.page = self.loadUi(self.__class__.ui)
 
@@ -271,11 +270,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                     self.updateRelativeWidgetFloat(attr, val)
                 with blockSignals(widget):
                     setWidgetValue(widget, val)
-        logWidgetValues(self, self._trackedWidgets, "loadPreset")
         if presetDict["resolution"] != currentResolution:
             self.updateResolution()
         else:
-            self.update(auto=True)
+            self.update(auto=True, origin="loadPreset")
 
     def savePreset(self):
         saveValueStore = {}
@@ -543,8 +541,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def loadUi(self, filename):
         """Load a Qt Designer ui file to use for this component's widget"""
-        with blockSignals(self):
-            return uic.loadUi(os.path.join(self.core.componentsPath, filename))
+        return uic.loadUi(os.path.join(self.core.componentsPath, filename))
 
     @property
     def width(self):
@@ -629,7 +626,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             self._trackedWidgets[attr].setToolTip(
                 "relative value: {0:.3f}".format(self._relativeWidgetFloats[attr])
             )
-        self.update(auto=True)
+        self.update(auto=True, origin="setRelativeWidget")
 
     def updateRelativeWidgetResolution(self, attr, newResolution):
         """Called for each relativeWidget when resolution changes"""
