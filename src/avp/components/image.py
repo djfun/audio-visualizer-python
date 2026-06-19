@@ -193,9 +193,9 @@ class Component(BaseComponent):
                     image = image.resize(
                         (newWidth, newHeight), Image.Resampling.LANCZOS
                     )
-                self.existingImage = image
                 if self.rotate != 0:
                     image = image.rotate(self.rotate)
+                self.existingImage = image
                 self.imageSize = (image.width, image.height)
 
             # Shadow-related variables (modified below if "respond to audio")
