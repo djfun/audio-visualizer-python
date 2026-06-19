@@ -5,6 +5,7 @@ import subprocess
 import logging
 
 from ..libcomponent import BaseComponent
+from ..toolkit import connectWidget
 from ..toolkit.frame import BlankFrame, scale
 from ..toolkit.ffmpeg import openPipe, closePipe, testAudioStream, FfmpegVideo
 
@@ -22,6 +23,9 @@ class Component(BaseComponent):
         self.x = 0
         self.y = 0
         self.loopVideo = False
+        self.chunkSize = 4 * self.width * self.height
+        self.previewFrame = None
+        self.changedOptions = True
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
         self.page.pushButton_video.clicked.connect(self.pickVideo)
@@ -47,6 +51,11 @@ class Component(BaseComponent):
                 "yPosition",
             ],
         )
+        for widget in self._trackedWidgets.values():
+            connectWidget(widget, lambda: self.changed())
+
+    def changed(self):
+        self.changedOptions = True
 
     def update(self):
         if self.page.checkBox_useAudio.isChecked():
@@ -57,12 +66,21 @@ class Component(BaseComponent):
             self.page.spinBox_volume.setEnabled(False)
 
     def previewRender(self):
-        self.updateChunksize()
+        changedSize = self.updateChunksize()
+        if (
+            not changedSize
+            and not self.changedOptions
+            and self.previewFrame is not None
+        ):
+            log.debug("Video #%s is reusing old preview frame" % self.compPos)
+            return self.previewFrame
+
         frame = self.getPreviewFrame(self.width, self.height)
         if not frame:
             return BlankFrame(self.width, self.height)
-        else:
-            return frame
+        self.previewFrame = frame
+        self.changedOptions = False
+        return frame
 
     def properties(self):
         props = []
@@ -118,7 +136,7 @@ class Component(BaseComponent):
         return self.finalizeFrame(self.video.frame(frameNo))
 
     def postFrameRender(self):
-        closePipe(self.video.pipe)
+        self.video.stop()
 
     def pickVideo(self):
         imgDir = self.core.settings.value("componentDir", os.path.expanduser("~"))
@@ -203,7 +221,9 @@ class Component(BaseComponent):
             width, height = scale(self.scale, self.width, self.height, int)
         else:
             width, height = self.width, self.height
+        oldChunkSize = int(self.chunkSize)
         self.chunkSize = 4 * width * height
+        return self.chunkSize != oldChunkSize
 
     def command(self, arg):
         if "=" in arg:
