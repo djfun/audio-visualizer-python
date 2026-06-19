@@ -20,6 +20,8 @@ log = logging.getLogger(__name__)
 
 
 class ChangeResolution(QUndoCommand):
+    id_ = sum([ord(letter) for letter in "updateResolution"])
+
     def __init__(self, window, oldResolutionIndex, newResolutionIndex):
         super().__init__(
             "change resolution to %s"
@@ -35,14 +37,28 @@ class ChangeResolution(QUndoCommand):
         log.debug("Updating resolution to %sx%s" % resolution)
         self.window.settings.setValue("outputWidth", resolution[0])
         self.window.settings.setValue("outputHeight", resolution[1])
+        self.window.previewWorker.newBackground()
         with blockSignals(
             [self.window.comboBox_resolution, *self.window.core.selectedComponents]
         ):
             self.window.comboBox_resolution.setCurrentIndex(index)
             for i in range(len(self.window.core.selectedComponents)):
                 self.window.core.selectedComponents[i].updateResolution()
-        self.window.previewWorker.newBackground()
         self.window.drawPreview()
+
+    def id(self):
+        return self.id_
+
+    def mergeWith(self, other):
+        if self.oldResolutionIndex == other.newResolutionIndex:
+            self.setObsolete(True)
+        self.newResolution = other.newResolution
+        self.newResolutionIndex = other.newResolutionIndex
+        self.setText(
+            "change resolution to %s"
+            % self.window.comboBox_resolution.itemText(self.newResolutionIndex)
+        )
+        return True
 
     def redo(self):
         self.updateResolution(self.newResolution, self.newResolutionIndex)

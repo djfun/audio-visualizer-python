@@ -49,8 +49,9 @@ class MainWindow(QtWidgets.QMainWindow):
     newTask = QtCore.pyqtSignal(list)  # for the preview window
     processTask = QtCore.pyqtSignal()
 
-    def __init__(self, project, dpi):
+    def __init__(self, project, dpi, testMode=False):
         super().__init__()
+        self.testMode = testMode
         uic.loadUi(os.path.join(Core.wd, "gui", "mainwindow.ui"), self)
         log.info("Pillow version %s", Image.__version__)
         log.info(
@@ -256,7 +257,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         currentRes = i
                         self.comboBox_resolution.setCurrentIndex(currentRes)
                         self.comboBox_resolution.currentIndexChanged.connect(
-                            self.drawPreview
+                            self.updateResolution
                         )
 
             def setupComponentListWidgets():
@@ -346,6 +347,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autosaveTimes = []
         self.autosaveCooldown = 0.2
         self.encoding = False
+        self.updatingResolution = False
 
         # Find settings created by Core object
         self.dataDir = Core.dataDir
@@ -370,6 +372,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 int(self.width() * (dpi / 144)),
                 int(self.height() * (dpi / 144)),
             )
+        self.show()
 
         # Load project and prompt user to restore unsaved changes
         if project and project != self.autosavePath:
@@ -449,9 +452,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.processTask.emit)
         self.timer.start(500)
-
-        # Show the window!
-        self.show()
 
     def __repr__(self):
         return (
@@ -789,6 +789,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 print(f"\r{value}", end="")
 
     def updateResolution(self, resIndex=None):
+        if self.updatingResolution:
+            return
         if resIndex is None:
             resIndex = int(self.comboBox_resolution.currentIndex())
         elif resIndex not in tuple(range(len(self.core.resolutions))):
@@ -799,8 +801,11 @@ class MainWindow(QtWidgets.QMainWindow):
         oldResIndex = Core.resolutions.index("%sx%s" % (w, h))
         if oldResIndex == resIndex:
             return
+        self.updatingResolution = True
         action = ChangeResolution(self, oldResIndex, resIndex)
         self.undoStack.push(action)
+        if self.testMode:
+            self.updatingResolution = False
 
     def drawPreview(self, force=False, **kwargs):
         """Use autosave keyword arg to force saving or not saving if needed"""
@@ -815,6 +820,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot("QImage")
     def showPreviewImage(self, image):
         self.previewWindow.changePixmap(image)
+        self.updatingResolution = False
 
     @disableWhenEncoding
     def showUndoStack(self):
