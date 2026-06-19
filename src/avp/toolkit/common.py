@@ -227,6 +227,8 @@ def hasUndoStack(loader):
 
 
 def isVerticalWord(word):
+    if not hasattr(word, "lower"):
+        return False
     word = word.lower()
     vertWords = ["height", "ypos"]
     return any([vertWord in word for vertWord in vertWords]) or word.endswith("y")

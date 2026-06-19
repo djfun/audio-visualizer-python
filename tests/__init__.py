@@ -40,7 +40,7 @@ def window(qtbot):
     initCore()
     # patch out any modal dialog that might happen
     MainWindow.showMessage = lambda self, msg, **kwargs: print(msg)
-    window = MainWindow(None, None)
+    window = MainWindow(None, None, True)
     window.clear()
     qtbot.addWidget(window)
     window.settings.setValue("outputWidth", 1920)

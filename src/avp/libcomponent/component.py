@@ -29,15 +29,17 @@ from ..toolkit import (
 log = logging.getLogger(__name__)
 
 
-class Component(QtCore.QObject, metaclass=ComponentMetaclass):
+class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
     """
     The base class for components to inherit.
     """
 
-    name = "Component"
-    # ui = 'name_Of_Non_Default_Ui_File'
+    name = "BaseComponent"
 
-    version = "1.0.0"
+    # if `ui` is undefined, AVP assumes it shares a basename with this .py file
+    ui = "__template__.ui"
+
+    version = "2.0.0"
     # The major version (before the first dot) is used to determine
     # preset compatibility; the rest is ignored so it can be non-numeric.
 
@@ -126,7 +128,10 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         return image
 
     def postFrameRender(self):
-        """Occurs once when export completes, after final call to frameRender"""
+        """
+        Occurs once after the final call to frameRender,
+        for cleaning up when export completes or is cancelled.
+        """
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # Properties
@@ -174,12 +179,16 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         to self.update(). Then in a subclass connect special actions
         (e.g., pushButtons to select a file) and initialize
         """
+        if loader.__class__.__name__ not in ("MainWindow", "Command"):
+            raise ValueError("`loader` must be a MainWindow or Command object")
         self.loader = loader
-        log.debug(
-            "Creating UI for %s's page widget",
-            self.__class__.name,
-        )
-        self.page = self.loadUi(self.__class__.ui)
+
+        if not hasattr(self, "page"):
+            log.debug(
+                "Creating UI for %s's page widget",
+                self.__class__.name,
+            )
+            self.page = self.loadUi(self.__class__.ui)
 
         # Find all normal widgets which will be connected after subclass method
         self._allWidgets = {
@@ -343,6 +352,8 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             attr: getWidgetValue(widget)
             for attr, widget in self._trackedWidgets.items()
         }
+        for attr in self._relativeWidgets:
+            self.updateRelativeWidgetFloat(attr, newWidgetVals[attr])
         self.setAttrs(newWidgetVals)
         self._sendUpdateSignal()
         logWidgetValues(
@@ -354,7 +365,7 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def updateResolution(self):
         newWidth = int(self.core.settings.value("outputWidth"))
         newHeight = int(self.core.settings.value("outputHeight"))
-        log.info(
+        log.debug(
             "Updating relative widget values for %s #%s from %sx%s to %sx%s.",
             self.name,
             str(self.compPos),
@@ -575,16 +586,19 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         """
         if axis is None:
             axis = self.core.maxResolution
-        if isVerticalWord(attr):
-            try:
-                axis = axis[1]
-            except IndexError:
-                if type(axis) != int:
-                    raise
-        else:
-            axis = axis[0]
         if val is None:
+            if attr is None:
+                raise ValueError("`attr` must be a string if `val` is None.")
             val = self._relativeWidgetFloats[attr]
+        if type(axis) == tuple:
+            if isVerticalWord(attr):
+                try:
+                    axis = axis[1]
+                except IndexError:
+                    if type(axis) != int:
+                        raise
+            else:
+                axis = axis[0]
         result = math.floor(float(axis) * val)
         return result
 
@@ -593,19 +607,22 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         if axis is None:
             axis = self.core.maxResolution
         if val is None:
+            if attr is None:
+                raise ValueError("`attr` must be a string if `val` is None.")
             val = self._trackedWidgets[attr].value()
         # Convert pixel value to 1080 if needed
         convert = False
         if axis != self.core.maxResolution:
             convert = True
-        if isVerticalWord(attr):
-            try:
-                axis = axis[1]
-            except IndexError:
-                if type(axis) != int:
-                    raise
-        else:
-            axis = axis[0]
+        if type(axis) == tuple:
+            if isVerticalWord(attr):
+                try:
+                    axis = axis[1]
+                except IndexError:
+                    if type(axis) != int:
+                        raise
+            else:
+                axis = axis[0]
         if convert:
             val = self.pixelValForAttr(attr, val / axis)
         return (
