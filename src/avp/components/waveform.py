@@ -148,7 +148,7 @@ class Component(BaseComponent):
         return Image.alpha_composite(self._currImage, baseImage)
 
     def postFrameRender(self):
-        closePipe(self.video.pipe)
+        self.video.stop()
 
     def getPreviewFrame(self, width, height):
         genericPreview = self.core.settings.value("pref_genericPreview")

@@ -8,7 +8,7 @@ import os
 import subprocess
 import threading
 import signal
-from queue import PriorityQueue
+from queue import PriorityQueue, Empty
 import logging
 
 from ..core import Core
@@ -88,14 +88,16 @@ class FfmpegVideo:
         self.thread.start()
 
     def frame(self, num):
-        while True:
+        while not self.parent.canceled:
             if num in self.finishedFrames:
                 image = self.finishedFrames.pop(num)
                 return image
-
-            i, image = self.frameBuffer.get()
-            self.finishedFrames[i] = image
-            self.frameBuffer.task_done()
+            try:
+                i, image = self.frameBuffer.get(block=False)
+                self.finishedFrames[i] = image
+                self.frameBuffer.task_done()
+            except Empty:
+                continue
 
     def fillBuffer(self):
         from ..libcomponent import ComponentError
@@ -124,9 +126,7 @@ class FfmpegVideo:
                 bufsize=10**8,
             )
 
-        while True:
-            if self.parent.canceled:
-                break
+        while not self.parent.canceled:
             self.frameNo += 1
 
             # If we run out of frames, use the last good frame and loop.
@@ -156,6 +156,9 @@ class FfmpegVideo:
             if len(self.currentFrame) != 0:
                 self.frameBuffer.put((self.frameNo, self.currentFrame))
                 self.lastFrame = self.currentFrame
+
+    def stop(self):
+        closePipe(self.pipe)
 
 
 @pipeWrapper

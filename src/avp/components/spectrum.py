@@ -122,7 +122,7 @@ class Component(BaseComponent):
         return self.finalizeFrame(self.video.frame(frameNo))
 
     def postFrameRender(self):
-        closePipe(self.video.pipe)
+        self.video.stop()
 
     def getPreviewFrame(self):
         genericPreview = self.core.settings.value("pref_genericPreview")
