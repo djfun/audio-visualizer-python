@@ -3,7 +3,7 @@ import shutil
 from pytest import fixture
 from pytestqt import qtbot
 from avp.gui.presetmanager import PresetManager
-from avp.gui.actions import RenamePreset
+from avp.gui.actions import RenamePreset, DeletePreset
 from . import getTestDataPath, window
 
 
@@ -22,6 +22,10 @@ def presetmanager(window, qtbot):
     window.presetManager.findPresets()
     qtbot.addWidget(window.presetManager)
     yield window.presetManager
+
+
+def test_presetmanager_createPresetFile(presetmanager, qtbot):
+    assert "Classic Visualizer" in presetmanager.presets
 
 
 def test_presetmanager_list(presetmanager, qtbot):
@@ -59,3 +63,22 @@ def test_presetmanager_undo_redo_rename_preset(presetmanager, qtbot):
     presetmanager.parent.undoStack.redo()
     assert presetmanager.presets["Classic Visualizer"][0][1] == "testPresetNew"
     presetmanager.parent.undoStack.undo()
+
+
+def test_presetmanager_delete_preset(presetmanager, qtbot):
+    comp = presetmanager.core.selectedComponents[0].name
+    vers = presetmanager.presets["Classic Visualizer"][0][0]
+    presetmanager.deletePreset(comp, vers, "testPreset")
+    assert "Classic Visualizer" not in presetmanager.presets
+
+
+def test_presetmanager_undo_redo_delete_preset(presetmanager, qtbot):
+    comp = presetmanager.core.selectedComponents[0].name
+    vers = presetmanager.presets["Classic Visualizer"][0][0]
+    action = DeletePreset(presetmanager, comp, vers, "testPreset")
+    presetmanager.parent.undoStack.push(action)
+    assert "Classic Visualizer" not in presetmanager.presets
+    presetmanager.parent.undoStack.undo()
+    assert "Classic Visualizer" in presetmanager.presets
+    presetmanager.parent.undoStack.redo()
+    assert "Classic Visualizer" not in presetmanager.presets
