@@ -57,4 +57,28 @@ def test_libcomponent_relativeWidgetFloats(coreWithBaseComp):
         relativeWidgets=["testValue"],
     )
     widget.setValue(50)
-    assert comp._relativeWidgetFloats["testValue"] == comp.floatValForAttr("testValue")
+    assert comp._relativeWidgetFloats["testValue"] == comp.floatValForAttr(
+        "testValue", 50
+    )
+
+
+def test_libcomponent_relativeWidget_pixelVal_after_repeated_resizes(coreWithBaseComp):
+    comp = coreWithBaseComp.selectedComponents[0]
+    name = "spinBox_testValue"
+    widget = addSpinBox(comp, name)
+    comp.trackWidgets(
+        {"testValue": widget},
+        relativeWidgets=["testValue"],
+    )
+    widget.setValue(50)
+    assert comp.testValue == 50
+    coreWithBaseComp.settings.setValue("outputWidth", 1280)
+    coreWithBaseComp.settings.setValue("outputHeight", 720)
+    comp.updateResolution()
+    assert comp.testValue == 33
+    assert widget.value() == 33
+    coreWithBaseComp.settings.setValue("outputWidth", 1920)
+    coreWithBaseComp.settings.setValue("outputHeight", 1080)
+    comp.updateResolution()
+    assert comp.testValue == 50
+    assert widget.value() == 50

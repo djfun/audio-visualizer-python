@@ -153,3 +153,24 @@ def test_comp_undo_previewXYClick_through_resolution_change(
     # Undo resolution change, returning to 1920x1080
     window.undoStack.undo()
     assert getattr(comp, attr) == valueAt1080
+
+
+def test_undo_merges_resolution_change(window, qtbot):
+    """Test if ChangeResolution QUndoCommand objects merge and obsolete themselves cleanly"""
+    window.core.insertComponent(0, window.core.moduleIndexFor("Image"), window)
+    comp = window.core.selectedComponents[0]
+    comp.page.spinBox_scale.setValue(50)
+    comp.page.spinBox_x.setValue(200)
+    window.updateResolution(1)
+    assert window.undoStack.count() == 3
+    window.updateResolution(2)
+    assert window.undoStack.count() == 3
+    window.updateResolution(0)
+    assert window.undoStack.count() == 2
+    window.updateResolution(1)
+    comp.page.spinBox_y.setValue(100)
+    assert window.undoStack.count() == 4
+    window.undoStack.undo()
+    assert window.undoStack.count() == 4
+    window.undoStack.redo()
+    assert window.undoStack.count() == 4
