@@ -122,11 +122,6 @@ class Command(QtCore.QObject):
             self.createLogFile()
             quit(0)
 
-        if args.size:
-            w, h = args.size.split("x")
-            self.core.settings.setValue("outputWidth", w)
-            self.core.settings.setValue("outputHeight", h)
-
         if args.projpath:
             projPath = args.projpath
             if not os.path.dirname(projPath):
@@ -158,6 +153,14 @@ class Command(QtCore.QObject):
                     quit(1)
                 for arg in compargs:
                     self.core.selectedComponents[i].command(arg)
+
+        if args.size:
+            print("Setting output size to %s" % args.size)
+            w, h = args.size.split("x")
+            self.core.settings.setValue("outputWidth", w)
+            self.core.settings.setValue("outputHeight", h)
+            for i in range(len(self.core.selectedComponents)):
+                self.core.selectedComponents[i].updateResolution()
 
         if args.export_project and args.projpath:
             errcode, data = self.core.parseAvFile(projPath)
