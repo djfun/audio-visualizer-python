@@ -1,8 +1,9 @@
-from PIL import Image
+from PIL import Image, ImageOps
 import os
 import subprocess
 import logging
 
+from ..core import Core
 from ..libcomponent import BaseComponent
 from ..toolkit import connectWidget
 from ..toolkit.frame import BlankFrame, scale
@@ -27,6 +28,7 @@ class Component(BaseComponent):
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
         self.chunkSize = 4 * self.width * self.height
+        self.previewFrame = {resolution: None for resolution in Core.resolutions}
         self.changedOptions = True
         self.previewSize = (214, 120)
         self.previewPipe = None
@@ -66,6 +68,8 @@ class Component(BaseComponent):
 
     def changed(self):
         self.changedOptions = True
+        for key in self.previewFrame:
+            self.previewFrame[key] = None
 
     def update(self):
         filterType = self.page.comboBox_filterType.currentIndex()
@@ -80,24 +84,46 @@ class Component(BaseComponent):
             self.page.checkBox_mono.setEnabled(True)
 
     def previewRender(self):
+        def reusePreviewFrame():
+            log.debug("Spectrum #%s is reusing old preview frame", self.compPos)
+            return self.previewFrame[res]
+
+        self.changedOptions = False
+        res = f"{self.width}x{self.height}"
         changedSize = self.updateChunksize()
+        if changedSize and not self.changedOptions:
+            if self.previewFrame[res] is not None:
+                return reusePreviewFrame()
+
         if (
             not changedSize
             and not self.changedOptions
-            and self.previewFrame is not None
+            and self.previewFrame[res] is not None
         ):
-            log.debug("Spectrum #%s is reusing old preview frame" % self.compPos)
-            return self.previewFrame
+            return reusePreviewFrame()
+
+        if self.previewFrame[res] is None:
+            for frame_ in self.previewFrame.values():
+                if frame_ is not None:
+                    self.previewFrame[res] = ImageOps.fit(
+                        frame_,
+                        (
+                            self.width,
+                            self.height,
+                        ),
+                        Image.Resampling.LANCZOS,
+                    )
+                    log.debug(
+                        "Spectrum #%s resized an existing preview frame instead of using FFmpeg.",
+                        self.compPos,
+                    )
+                    return self.previewFrame[res]
 
         frame = self.getPreviewFrame()
-        self.changedOptions = False
-        if not frame:
-            log.warning("Spectrum #%s failed to create a preview frame" % self.compPos)
-            self.previewFrame = None
+        if frame is None:
             return BlankFrame(self.width, self.height)
-        else:
-            self.previewFrame = frame
-            return frame
+        self.previewFrame[res] = frame
+        return frame
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)

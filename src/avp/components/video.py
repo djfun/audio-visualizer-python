@@ -1,9 +1,10 @@
-from PIL import Image
+from PIL import Image, ImageOps
 from PyQt6 import QtWidgets
 import os
 import subprocess
 import logging
 
+from ..core import Core
 from ..libcomponent import BaseComponent
 from ..toolkit import connectWidget
 from ..toolkit.frame import BlankFrame, scale
@@ -24,7 +25,7 @@ class Component(BaseComponent):
         self.y = 0
         self.loopVideo = False
         self.chunkSize = 4 * self.width * self.height
-        self.previewFrame = None
+        self.previewFrame = {resolution: None for resolution in Core.resolutions}
         self.changedOptions = True
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
@@ -56,6 +57,8 @@ class Component(BaseComponent):
 
     def changed(self):
         self.changedOptions = True
+        for key in self.previewFrame:
+            self.previewFrame[key] = None
 
     def update(self):
         if self.page.checkBox_useAudio.isChecked():
@@ -66,20 +69,44 @@ class Component(BaseComponent):
             self.page.spinBox_volume.setEnabled(False)
 
     def previewRender(self):
+        def reusePreviewFrame():
+            log.debug("Video #%s is reusing old preview frame", self.compPos)
+            return self.previewFrame[res]
+
+        self.changedOptions = False
+        res = f"{self.width}x{self.height}"
         changedSize = self.updateChunksize()
+        if changedSize and not self.changedOptions:
+            if self.previewFrame[res] is not None:
+                return reusePreviewFrame()
+
         if (
             not changedSize
             and not self.changedOptions
-            and self.previewFrame is not None
+            and self.previewFrame[res] is not None
         ):
-            log.debug("Video #%s is reusing old preview frame" % self.compPos)
-            return self.previewFrame
+            return reusePreviewFrame()
+
+        if self.previewFrame[res] is None:
+            for frame_ in self.previewFrame.values():
+                if frame_ is not None:
+                    self.previewFrame[res] = ImageOps.fit(
+                        frame_,
+                        (
+                            self.width,
+                            self.height,
+                        ),
+                        Image.Resampling.LANCZOS,
+                    )
+                    log.debug(
+                        "Video #%s resized an existing preview frame instead of using FFmpeg."
+                    )
+                    return self.previewFrame[res]
 
         frame = self.getPreviewFrame(self.width, self.height)
-        if not frame:
+        if frame is None:
             return BlankFrame(self.width, self.height)
-        self.previewFrame = frame
-        self.changedOptions = False
+        self.previewFrame[res] = frame
         return frame
 
     def properties(self):
@@ -184,7 +211,7 @@ class Component(BaseComponent):
             logFilename = os.path.join(
                 self.core.logDir, "preview_%s.log" % str(self.compPos)
             )
-            log.debug("Creating ffmpeg process (log at %s)" % logFilename)
+            log.debug("Creating ffmpeg process (log at %s)", logFilename)
             with open(logFilename, "w") as logf:
                 logf.write(" ".join(command) + "\n\n")
             with open(logFilename, "a") as logf:
