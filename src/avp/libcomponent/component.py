@@ -6,7 +6,6 @@ on making a valid component.
 from PyQt6 import uic, QtCore, QtWidgets
 from PyQt6.QtGui import QColor
 import os
-import math
 import logging
 from copy import copy
 
@@ -53,26 +52,29 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
         self.core = core
         self._width = int(core.settings.value("outputWidth"))
         self._height = int(core.settings.value("outputHeight"))
-
-        # STATUS VARIABLES
         self.currentPreset = None
         self._allWidgets = {}
         self._trackedWidgets = {}
         self._presetNames = {}
         self._commandArgs = {}
+
+        # Color widgets link a pushbutton and lineedit together
+        # for components to get a color choice from the user
         self._colorWidgets = {}
         self._colorFuncs = {}
+
+        # Relative widgets are relative to the output size (resolution)
         self._relativeWidgets = {}
-        # Maximum values of relativeWidget spinBoxes at 1080p (Core.resolutions[0])
         self._relativeWidgetMaximums = {}
         self._relativeWidgetFloats = {}
 
-        # LOCKING VARIABLES
+        # "Locks"
         self.openingPreset = False
         self.mergeUndo = True
         self._lockedProperties = None
         self._lockedError = None
         self._lockedSize = None
+
         # Stop lengthy processes in response to this variable
         self.canceled = False
 
@@ -276,7 +278,7 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
                 self._colorWidgets[attr].setStyleSheet(btnStyle)
             else:
                 if attr in self._relativeWidgets:
-                    self.updateRelativeWidgetFloat(attr, val)
+                    self._updateRelativeWidgetFloat(attr, val)
                 with blockSignals(widget):
                     setWidgetValue(widget, val)
         if presetDict["resolution"] != currentResolution:
@@ -286,7 +288,7 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def savePreset(self):
         saveValueStore = {}
-        for attr, widget in self._trackedWidgets.items():
+        for attr in self._trackedWidgets:
             presetAttrName = (
                 attr if attr not in self._presetNames else self._presetNames[attr]
             )
@@ -337,11 +339,6 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
             for attr, val in newWidgetVals.items()
             if val != oldWidgetVals[attr]
         }
-        for attr in copy(modifiedWidgets):
-            if attr in self._relativeWidgets:
-                changed = self.updateRelativeWidgetFloat(attr, modifiedWidgets[attr])
-                if not changed:
-                    del modifiedWidgets[attr]
         if modifiedWidgets:
             action = ComponentTrackedWidgetUpdate(self, oldWidgetVals, modifiedWidgets)
             self.loader.undoStack.push(action)
@@ -353,7 +350,7 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
             for attr, widget in self._trackedWidgets.items()
         }
         for attr in self._relativeWidgets:
-            self.updateRelativeWidgetFloat(attr, newWidgetVals[attr])
+            self._updateRelativeWidgetFloat(attr, newWidgetVals[attr])
         self.setAttrs(newWidgetVals)
         self._sendUpdateSignal()
         logWidgetValues(
@@ -365,17 +362,25 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
     def updateResolution(self):
         newWidth = int(self.core.settings.value("outputWidth"))
         newHeight = int(self.core.settings.value("outputHeight"))
+        newResolution = (newWidth, newHeight)
         log.debug(
             "Updating relative widget values for %s #%s from %sx%s to %sx%s.",
             self.name,
             str(self.compPos),
             self.width,
             self.height,
-            newWidth,
-            newHeight,
+            *newResolution,
         )
         for attr in self._relativeWidgets:
-            self.updateRelativeWidgetResolution(attr, (newWidth, newHeight))
+            newVal = self.pixelValForAttr(
+                attr,
+                self._relativeWidgetFloats[attr],
+                axis=newResolution,
+            )
+            self._updateRelativeWidgetMaximum(attr, newResolution)
+            self._updateRelativeWidgetFloat(attr, newVal)
+            with blockSignals(self._trackedWidgets[attr]):
+                self._trackedWidgets[attr].setValue(newVal)
         self._width = newWidth
         self._height = newHeight
         self.update(auto=True, origin="updateResolution")
@@ -415,7 +420,7 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
                 if attr in self._colorWidgets:
                     val = "%s,%s,%s" % val
                 if attr in self._relativeWidgets:
-                    self.updateRelativeWidgetFloat(attr, val)
+                    self._updateRelativeWidgetFloat(attr, val)
                 setWidgetValue(widget, val)
 
     def _sendUpdateSignal(self):
@@ -489,19 +494,10 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
                     self._relativeWidgetMaximums[attr] = self._trackedWidgets[
                         attr
                     ].maximum()
-                    self.updateRelativeWidgetMaximum(attr, (self.width, self.height))
-                    self._relativeWidgetFloats[attr] = self.floatValForAttr(
-                        attr,
-                        self._trackedWidgets[attr].value(),
-                        (self.width, self.height),
+                    self._updateRelativeWidgetMaximum(attr, (self.width, self.height))
+                    self._updateRelativeWidgetFloat(
+                        attr, getWidgetValue(self._trackedWidgets[attr])
                     )
-                    if log.isEnabledFor(logging.INFO):
-                        self._trackedWidgets[attr].setToolTip(
-                            "relative value: {0:.3f}".format(
-                                self._relativeWidgetFloats[attr]
-                            )
-                        )
-
         # self.update(auto=True, origin="trackWidgets")
 
     def pickColor(self, textWidget, button):
@@ -577,7 +573,7 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
         self.unlockProperties()
         self.unlockError()
 
-    def pixelValForAttr(self, attr, val=None, axis=None):
+    def pixelValForAttr(self, attr=None, val=None, axis=None):
         """
         Get pixel value from a relativeWidget float.
         `attr`: string name of relativeWidget
@@ -585,95 +581,65 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
         `axis`: optional tuple of (width, height); height used if attr "seems vertical"
         """
         if axis is None:
-            axis = self.core.maxResolution
+            axis = (self.width, self.height)
+        if type(axis) not in (float, int):
+            axis = axis[1] if isVerticalWord(attr) else axis[0]
         if val is None:
             if attr is None:
                 raise ValueError("`attr` must be a string if `val` is None.")
-            val = self._relativeWidgetFloats[attr]
-        if type(axis) == tuple:
-            if isVerticalWord(attr):
-                try:
-                    axis = axis[1]
-                except IndexError:
-                    if type(axis) != int:
-                        raise
-            else:
-                axis = axis[0]
-        result = math.floor(float(axis) * val)
-        return result
+            val = self._trackedWidgets[attr].value() / axis
+        return round(val * axis)
 
-    def floatValForAttr(self, attr, val=None, axis=None):
-        """If axis != core.maxResolution, mutates `val`"""
+    def floatValForAttr(self, attr=None, val=None, axis=None):
+        """Return a value from 0.0 to 1.0 using the absolute value divided by maxResolution.
+        If `axis` is not maxResolution, value will be scaled up (mutated) appropriately.
+        If `axis` is a tuple, we guess whether to divide by width or height based on attr.
+        """
         if axis is None:
-            axis = self.core.maxResolution
+            axis = (self.width, self.height)
         if val is None:
             if attr is None:
                 raise ValueError("`attr` must be a string if `val` is None.")
             val = self._trackedWidgets[attr].value()
+
         # Convert pixel value to 1080 if needed
         convert = False
         if axis != self.core.maxResolution:
             convert = True
-        if type(axis) == tuple:
-            if isVerticalWord(attr):
-                try:
-                    axis = axis[1]
-                except IndexError:
-                    if type(axis) != int:
-                        raise
-            else:
-                axis = axis[0]
-        if convert:
-            val = self.pixelValForAttr(attr, val / axis)
-        return (
-            val / self.core.maxResolution[1]
+        if type(axis) not in (int, float):
+            axis = axis[1] if isVerticalWord(attr) else axis[0]
+
+        maxis = (
+            self.core.maxResolution[1]
             if isVerticalWord(attr)
-            else val / self.core.maxResolution[0]
+            else self.core.maxResolution[0]
         )
+        if convert:
+            val = (val / axis) * maxis
+        return val / maxis
 
     def setRelativeWidget(self, attr, floatVal, axis=None):
         """Set a relative widget using a float"""
         if axis is None:
             axis = (self.width, self.height)
-        self._relativeWidgetFloats[attr] = floatVal
+        self._updateRelativeWidgetFloat(attr, floatVal)
         pixelVal = self.pixelValForAttr(attr, floatVal, axis)
         with blockSignals(self._trackedWidgets[attr]):
             self._trackedWidgets[attr].setValue(pixelVal)
-        if log.isEnabledFor(logging.INFO):
-            self._trackedWidgets[attr].setToolTip(
-                "relative value: {0:.3f}".format(self._relativeWidgetFloats[attr])
-            )
         self.update(auto=True, origin="setRelativeWidget")
 
-    def updateRelativeWidgetResolution(self, attr, newResolution):
-        """Called for each relativeWidget when resolution changes"""
-        # val = self._trackedWidgets[attr].value()
-        newVal = self.pixelValForAttr(
-            attr,
-            self._relativeWidgetFloats[attr],
-            axis=newResolution,
-        )
-        with blockSignals(self._trackedWidgets[attr]):
-            self.updateRelativeWidgetMaximum(attr, newResolution)
-            self._trackedWidgets[attr].setValue(newVal)
-        return newVal
-
-    def updateRelativeWidgetMaximum(self, attr, newResolution):
+    def _updateRelativeWidgetMaximum(self, attr, newResolution):
         newMaximumValue = newResolution[0] * (
             self._relativeWidgetMaximums[attr]
             / int(self.core.resolutions[0].split("x")[0])
         )
         self._trackedWidgets[attr].setMaximum(int(newMaximumValue))
 
-    def updateRelativeWidgetFloat(self, attr, newPixelVal):
-        newFloatVal = self.floatValForAttr(attr, newPixelVal, (self.width, self.height))
-        if self._relativeWidgetFloats[attr] != newFloatVal:
-            self._relativeWidgetFloats[attr] = self.floatValForAttr(
-                attr, newPixelVal, (self.width, self.height)
+    def _updateRelativeWidgetFloat(self, attr, newVal):
+        if type(newVal) != float:
+            newVal = self.floatValForAttr(attr, newVal)
+        self._relativeWidgetFloats[attr] = newVal
+        if log.isEnabledFor(logging.INFO):
+            self._trackedWidgets[attr].setToolTip(
+                "relative value: {0:.3f}".format(newVal)
             )
-            if log.isEnabledFor(logging.INFO):
-                self._trackedWidgets[attr].setToolTip(
-                    "relative value: {0:.3f}".format(self._relativeWidgetFloats[attr])
-                )
-            return True
-        return False
