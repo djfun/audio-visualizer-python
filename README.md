@@ -113,19 +113,20 @@ python3 -m avp
 | Ctrl+A                   | Save Project As...                            |
 | Ctrl+O                   | Open Project                                  |
 | Ctrl+N                   | New Project (prompts to save current project) |
+| F2                       | Open Projects Menu                            |
+| F3                       | Open Preset Manager                           |
+| F4                       | Open Undo History                             |
 | Ctrl+Z                   | Undo                                          |
 | Ctrl+Shift+Z _or_ Ctrl+Y | Redo                                          |
 | Ctrl+T _or_ Insert       | Add Component                                 |
-| Ctrl+R _or_ Delete       | Remove Component                              |
+| Ctrl+W _or_ Delete       | Remove Component                              |
 | Ctrl+Space               | Focus Component List                          |
-| Ctrl+Shift+S             | Save Component Preset                         |
-| Ctrl+Shift+C             | Remove Preset from Component                  |
+| Ctrl+Shift+S             | Save Preset for Selected Component            |
+| Ctrl+Shift+C             | Remove Preset from Selected Component         |
 | Ctrl+Up                  | Move Selected Component Up                    |
 | Ctrl+Down                | Move Selected Component Down                  |
 | Ctrl+Home                | Move Selected Component to Top                |
 | Ctrl+End                 | Move Selected Component to Bottom             |
-| Ctrl+Shift+U             | Open Undo History                             |
-| Ctrl+Shift+F             | Show FFmpeg Command                           |
 
 ## Using Commandline Interface
 
@@ -147,23 +148,21 @@ Projects can be created with the GUI then loaded from the commandline for easy a
 - Pillow 12.1.0
 - NumPy 2.4.1
 
-### Running Automatic Tests
-Run unit and integration tests with `pytest`.
-  * First you will need to install with `pip install pytest pytest-qt`
-  * You may omit the slowest test with `pytest -k "not commandline_export"`
-
-### Installing from TestPyPI
-Because some dependencies (namely numpy) are not always on TestPyPI, you must specify when installing that these dependencies should come from the real PyPI.
-* `pip install -i https://test.pypi.org/simple/ audio-visualizer-python==x.x.x --extra-index-url https://pypi.org/simple numpy`
-
-### Getting Faster Export Times
-
-- [Pillow-SIMD](https://github.com/uploadcare/pillow-simd) may be used as a drop-in replacement for Pillow if you desire faster video export times, but it must be compiled from source. For help installing dependencies to compile Pillow-SIMD, see the [Pillow installation guide](https://pillow.readthedocs.io/en/stable/installation/building-from-source.html).
-
 ### Developing a New Component
 
 - Information for developing a component is in our wiki: [How a Component Works](https://github.com/djfun/audio-visualizer-python/wiki/How-a-Component-Works)
 - File an issue on GitHub if you need help fitting your visualizer into our component system; we would be happy to collaborate
+
+### Running Automatic Tests
+
+Run unit and integration tests with `pytest`.
+  * You may omit the slowest test with `pytest -k "not commandline_export"`
+  * You may use [pytest-xdist](https://pypi.org/project/pytest-xdist/) for speedier test execution
+
+### Installing from TestPyPI
+
+Because some dependencies (namely numpy) are not always on TestPyPI, you must specify when installing that these dependencies should come from the real PyPI.
+* `pip install -i https://test.pypi.org/simple/ audio-visualizer-python==x.x.x --extra-index-url https://pypi.org/simple numpy`
 
 ## License
 

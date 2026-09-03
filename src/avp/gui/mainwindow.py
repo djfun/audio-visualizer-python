@@ -70,21 +70,21 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Hotkeys for undo/redo
             QShortcut("Ctrl+Z", self, self.undoStack.undo)
-            QShortcut("Ctrl+Y", self, self.undoStack.redo)
-            QShortcut("Ctrl+Shift+Z", self, self.undoStack.redo)
+            for redoKey in ("Ctrl+Y", "Ctrl+Shift+Z"):
+                QShortcut(redoKey, self, self.undoStack.redo)
+            for showUndoStackKey in ("Ctrl+Shift+U", "F4"):
+                QShortcut(showUndoStackKey, self, self.showUndoStack)
 
             # Hotkeys for component list
-            for inskey in ("Ctrl+T", QtCore.Qt.Key.Key_Insert):
-                QShortcut(inskey, self, lambda: self.pushButton_addComponent.click())
-            for delkey in ("Ctrl+R", QtCore.Qt.Key.Key_Delete):
-                QShortcut(delkey, self.listWidget_componentList, self.removeComponent)
+            for insertKey in ("Ctrl+T", QtCore.Qt.Key.Key_Insert):
+                QShortcut(insertKey, self, lambda: self.pushButton_addComponent.click())
+            for deleteKey in ("Ctrl+W", QtCore.Qt.Key.Key_Delete):
+                QShortcut(
+                    deleteKey, self.listWidget_componentList, self.removeComponent
+                )
             QShortcut(
                 "Ctrl+Space", self, lambda: self.listWidget_componentList.setFocus()
             )
-            QShortcut("Ctrl+Shift+S", self, self.presetManager.openSavePresetDialog)
-            QShortcut("Ctrl+Shift+C", self, self.presetManager.clearPreset)
-            QShortcut("F3", self, self.openPresetManager)
-
             QShortcut(
                 "Ctrl+Up",
                 self.listWidget_componentList,
@@ -106,11 +106,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 lambda: self.moveComponent("bottom"),
             )
 
+            # Hotkeys for preset management in component list
+            QShortcut("Ctrl+Shift+S", self, self.presetManager.openSavePresetDialog)
+            for clearPresetKey in ("Ctrl+Shift+C", "Ctrl+Shift+Del"):
+                QShortcut(clearPresetKey, self, self.presetManager.clearPreset)
+            QShortcut("F3", self, self.openPresetManager)
+
+            # Debug assistance hotkeys
             QShortcut("F1", self, self.showHelpWindow)
-            QShortcut("F4", self, self.showUndoStack)
             QShortcut("F5", self, self.drawPreview)
-            QShortcut("Ctrl+Shift+F", self, self.showHelpWindow)
-            QShortcut("Ctrl+Shift+U", self, self.showUndoStack)
 
         def setupMainWindowWidgets():
             def setupUndoDialog():
@@ -372,6 +376,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 int(self.width() * (dpi / 144)),
                 int(self.height() * (dpi / 144)),
             )
+        self.setWindowTitle(appName)
         self.show()
 
         # Load project and prompt user to restore unsaved changes
@@ -419,7 +424,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 ffmpegGoodVersion, ffmpegVersionNum = checkFfmpegVersion()
                 if not ffmpegGoodVersion:
                     self.showMessage(
-                        msg="The version of FFmpeg ({ffmpegVersionNum}) is "
+                        msg=f"The version of FFmpeg ({ffmpegVersionNum}) is "
                         "not recognized. Some features may not work as expected."
                     )
                 self.settings.setValue("ffmpegMsgShown", True)
@@ -653,6 +658,7 @@ class MainWindow(QtWidgets.QMainWindow):
         log.info("Export cancelled")
         self.videoWorker.cancel()
         self.canceled = True
+        self.core.stopVideoThread()
 
     def createAudioVisualization(self):
         # create output video if mandatory settings are filled in
@@ -696,12 +702,12 @@ class MainWindow(QtWidgets.QMainWindow):
         except AttributeError as e:
             if "videoWorker" not in str(e):
                 raise
+        log.info("MainWindow state: %s", repr(self))
         self.showMessage(
             msg=msg,
             detail=detail,
             icon="Critical",
         )
-        log.info("%s", repr(self))
 
     def changeEncodingStatus(self, status):
         self.encoding = status
