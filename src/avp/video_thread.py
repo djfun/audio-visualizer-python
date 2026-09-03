@@ -146,11 +146,13 @@ class Worker(QtCore.QObject):
                     compNo,
                     comp,
                 )
+                self.cancel()
+                canceledByComponent = True
+                break
 
             compProps = comp.properties()
             if "error" in compProps or comp._lockedError is not None:
                 self.cancel()
-                self.canceled = True
                 canceledByComponent = True
                 compError = (
                     comp.error() if type(comp.error()) is tuple else (comp.error(), "")

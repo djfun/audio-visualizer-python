@@ -53,7 +53,7 @@ class Worker(QtCore.QObject):
                 try:
                     self.queue.get(block=False)
                 except Empty:
-                    continue
+                    break
             timeElapsed = time.time()
             frame = self.background.copy()
             components = nextPreviewInformation["components"]
@@ -96,9 +96,15 @@ class Worker(QtCore.QObject):
                     self.error.emit(errMsg)
                     break
                 except RuntimeError as e:
-                    log.error(str(e))
+                    log.critical(str(e))
+                    self.error.emit(str(e))
+                    break
                 finally:
-                    component.unlockSize()
+                    try:
+                        component.unlockSize()
+                    except RuntimeError:
+                        log.critical(str(e))
+                        break
             else:
                 # We must store a reference to this QImage
                 # or else Qt will garbage-collect it on the C++ side
@@ -113,4 +119,4 @@ class Worker(QtCore.QObject):
                 self.imageCreated.emit(QtGui.QImage(self.frame))
 
         except Empty:
-            True
+            pass
