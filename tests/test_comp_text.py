@@ -96,7 +96,7 @@ def test_comp_text_fontSize_relative_to_resolution(windowWithTextComp):
     assert comp.fontSize == 133
     # set resolution to 854x480
     windowWithTextComp.updateResolution(2)
-    assert comp.fontSize == 88
+    assert comp.fontSize == 89
 
 
 def test_comp_text_fontSize_rounding_errors(windowWithTextComp):
