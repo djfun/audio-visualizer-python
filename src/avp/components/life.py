@@ -583,7 +583,11 @@ class ClickGrid(ComponentPreviewClick):
 
 class ShiftGrid(QUndoCommand):
     def __init__(self, comp, direction):
-        super().__init__("change %s component #%s" % (comp.name, comp.compPos))
+        dirName = {0: "up", 1: "down", 2: "left", 3: "right"}
+        super().__init__(
+            "shift %s component #%s grid %s"
+            % (comp.name, comp.compPos, dirName[direction])
+        )
         self.comp = comp
         self.direction = direction
         self.distance = 1

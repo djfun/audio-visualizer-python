@@ -19,7 +19,14 @@ class ComponentTrackedWidgetUpdate(QUndoCommand):
     """
 
     def __init__(self, parent, oldWidgetVals, modifiedVals):
-        super().__init__("change %s component #%s" % (parent.name, parent.compPos))
+        super().__init__(
+            "change %s component #%s %s"
+            % (
+                parent.name,
+                parent.compPos,
+                list(modifiedVals.keys())[0],
+            )
+        )
         self.undone = False
         self.res = (int(parent.width), int(parent.height))
         self.parent = parent
@@ -122,8 +129,8 @@ class ComponentSettingsUpdate(QUndoCommand):
     manually create instances, and add them to the undoStack when needed.
     """
 
-    def __init__(self, comp):
-        super().__init__("change %s component #%s" % (comp.name, comp.compPos))
+    def __init__(self, comp, title=""):
+        super().__init__("bring %s component #%s %s" % (comp.name, comp.compPos, title))
         self.comp = comp
         self.res = (int(comp.width), int(comp.height))
 
@@ -170,7 +177,7 @@ class ComponentPreviewXYClick(ComponentPreviewClick):
 
 class ComponentCenterXYAction(ComponentSettingsUpdate):
     def __init__(self, comp):
-        super().__init__(comp)
+        super().__init__(comp, "to center")
         self.oldXY = (
             self.comp.floatValForAttr("xPosition", axis=self.res),
             self.comp.floatValForAttr("yPosition", axis=self.res),
