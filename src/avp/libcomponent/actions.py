@@ -33,16 +33,9 @@ class ComponentTrackedWidgetUpdate(QUndoCommand):
         # Determine if this update is mergeable
         self.id_ = -1
         if self.parent.mergeUndo:
-            if len(self.modifiedVals) == 1:
-                attr, val = self.modifiedVals.popitem()
-                self.id_ = sum([ord(letter) for letter in attr[-14:]])
-                self.modifiedVals[attr] = val
-                return
-            log.warning(
-                "%s component settings changed at once. (%s)",
-                len(self.modifiedVals),
-                repr(self.modifiedVals),
-            )
+            attr, val = self.modifiedVals.popitem()
+            self.id_ = sum([ord(letter) for letter in attr[-14:]])
+            self.modifiedVals[attr] = val
 
     def id(self):
         """If 2 consecutive updates have same id, Qt will call mergeWith()"""
@@ -50,6 +43,9 @@ class ComponentTrackedWidgetUpdate(QUndoCommand):
 
     def mergeWith(self, other):
         self.modifiedVals.update(other.modifiedVals)
+        for attr, val in self.modifiedVals.items():
+            if self.oldWidgetVals[attr] == val:
+                self.setObsolete(True)
         return True
 
     def do(self, widgetValues):

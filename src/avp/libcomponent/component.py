@@ -340,6 +340,18 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
             if val != oldWidgetVals[attr]
         }
         if modifiedWidgets:
+            if len(modifiedWidgets) > 1:
+                for attr in self._relativeWidgets:
+                    if attr in modifiedWidgets:
+                        del modifiedWidgets[attr]
+            if len(modifiedWidgets) > 1:
+                log.warning(
+                    "%s component settings changed at once. (%s)",
+                    len(modifiedWidgets),
+                    repr(modifiedWidgets),
+                )
+                return
+        if modifiedWidgets:
             action = ComponentTrackedWidgetUpdate(self, oldWidgetVals, modifiedWidgets)
             self.loader.undoStack.push(action)
 
@@ -378,7 +390,6 @@ class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
                 axis=newResolution,
             )
             self._updateRelativeWidgetMaximum(attr, newResolution)
-            self._updateRelativeWidgetFloat(attr, newVal)
             with blockSignals(self._trackedWidgets[attr]):
                 self._trackedWidgets[attr].setValue(newVal)
         self._width = newWidth

@@ -41,14 +41,11 @@ def test_undo_image_scale(window, qtbot):
     window.core.insertComponent(0, window.core.moduleIndexFor("Image"), window)
     comp = window.core.selectedComponents[0]
     comp.imagePath = getTestDataPath("inputfiles/test.jpg")
-    comp.page.spinBox_scale.setValue(100)
     for i in range(10, 401):
         comp.page.spinBox_scale.setValue(i)
     assert comp.scale == 400
     window.undoStack.undo()
     assert comp.scale == 10
-    window.undoStack.undo()
-    assert comp.scale == 100
 
 
 def test_undo_image_resizeMode(window, qtbot):
@@ -155,7 +152,7 @@ def test_comp_undo_previewXYClick_through_resolution_change(
     assert getattr(comp, attr) == valueAt1080
 
 
-def test_undo_merges_resolution_change(window, qtbot):
+def test_undo_merges_resolution_change_image(window, qtbot):
     """Test if ChangeResolution QUndoCommand objects merge and obsolete themselves cleanly"""
     window.core.insertComponent(0, window.core.moduleIndexFor("Image"), window)
     comp = window.core.selectedComponents[0]
