@@ -119,7 +119,9 @@ class Component(BaseComponent):
         if frameDiff == 0 or isValidPeak:
             self._lastUpdatedFrame = frameNo
             self._fadingImage = self._prevImage
-            self._prevImage = self._image
+            self._prevImage = (
+                BlankFrame() if self._currImage is None else self._currImage.copy()
+            )
             self._currImage = newFrame
         usualAlpha = 0.0 + (1 / self.updateInterval) * frameDiff
         alpha = max(

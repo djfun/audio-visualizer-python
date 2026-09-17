@@ -37,4 +37,4 @@ def test_comp_waveform_renderFrame(coreWithWaveformComp, audioData):
     preFrameRender(audioData, comp)
     image = comp.frameRender(0)
     comp.postFrameRender()
-    assert imageDataSum(image) == 8331360
+    assert imageDataSum(image) == 8288016
