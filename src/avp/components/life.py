@@ -557,6 +557,7 @@ class Component(BaseComponent):
             for widget in self.shiftButtons:
                 widget.setEnabled(True)
         super().loadPreset(pr, *args)
+        self.updateGridSize()
 
     def nearbyCoords(self, x, y):
         yield x + 1, y + 1
