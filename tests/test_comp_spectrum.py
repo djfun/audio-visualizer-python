@@ -22,8 +22,8 @@ def test_comp_spectrum_previewRender(coreWithSpectrumComp):
     comp = coreWithSpectrumComp.selectedComponents[0]
     image = comp.previewRender()
 
-    accept_range = 719 #  Accept images with ±0.001% difference
-    expected = 71992628 #  This value was extracted on amd64
+    accept_range = 719  #  Accept images with ±0.001% difference
+    expected = 71992628  #  This value was extracted on amd64
     assert imageDataSum(image) == approx(expected, abs=accept_range)
 
 
@@ -33,3 +33,13 @@ def test_comp_spectrum_renderFrame(coreWithSpectrumComp, audioData):
     image = comp.frameRender(0)
     comp.postFrameRender()
     assert imageDataSum(image) == 117
+
+
+def test_comp_spectrum_reuses_preview_frame(coreWithSpectrumComp):
+    comp = coreWithSpectrumComp.selectedComponents[0]
+    comp.previewRender()
+    assert comp.previewFrame is not None
+    assert not comp.changedOptions
+    oldChunkSize = int(comp.chunkSize)
+    assert not comp.updateChunksize()
+    assert oldChunkSize == comp.chunkSize

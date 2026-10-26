@@ -3,14 +3,16 @@ from PyQt6 import QtGui, QtCore
 import logging
 
 from ..libcomponent import BaseComponent
+from ..libcomponent.actions import ComponentCenterXYAction, ComponentPreviewXYClick
+from ..toolkit import hasUndoStack, blockSignals
 from ..toolkit.frame import FramePainter, addShadow
 
-log = logging.getLogger("AVP.Components.Text")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):
     name = "Title Text"
-    version = "1.0.1"
+    version = "1.1.0"
 
     def widget(self, *args):
         super().widget(*args)
@@ -24,7 +26,7 @@ class Component(BaseComponent):
         self.page.comboBox_textAlign.addItem("Right")
         self.page.comboBox_textAlign.setCurrentIndex(int(self.alignment))
         self.page.spinBox_fontSize.setValue(int(self.fontSize))
-        self.page.pushButton_center.clicked.connect(self.centerXY)
+        self.page.pushButton_center.clicked.connect(self.addCenterAction)
 
         self.page.fontComboBox_titleFont.currentFontChanged.connect(
             self._sendUpdateSignal
@@ -32,7 +34,7 @@ class Component(BaseComponent):
         # The QFontComboBox must be connected directly to the Qt Signal
         # which triggers the preview to update.
         # This unfortunately makes changing the font into a non-undoable action.
-        # Fix requires updating ComponentAction to handle fonts
+        # Fix requires updating ComponentTrackedWidgetUpdate to handle fonts
 
         self.trackWidgets(
             {
@@ -69,34 +71,49 @@ class Component(BaseComponent):
     def update(self):
         self.titleFont = self.page.fontComboBox_titleFont.currentFont()
         if self.page.checkBox_shadow.isChecked():
-            self.page.label_shadX.setHidden(False)
+            self.page.label_shadOffset.setHidden(False)
             self.page.spinBox_shadX.setHidden(False)
             self.page.spinBox_shadY.setHidden(False)
             self.page.label_shadBlur.setHidden(False)
             self.page.spinBox_shadBlur.setHidden(False)
         else:
-            self.page.label_shadX.setHidden(True)
+            self.page.label_shadOffset.setHidden(True)
             self.page.spinBox_shadX.setHidden(True)
             self.page.spinBox_shadY.setHidden(True)
             self.page.label_shadBlur.setHidden(True)
             self.page.spinBox_shadBlur.setHidden(True)
 
+    def previewClickEvent(self, pos, size, button):
+        if not hasUndoStack(self.loader):
+            return
+        if button != QtCore.Qt.MouseButton.LeftButton:
+            return
+        action = ComponentPreviewXYClick(self, pos, size, button)
+        self.loader.undoStack.push(action)
+
+    def addCenterAction(self):
+        """Triggered when user clicks "center text" button."""
+        if not hasUndoStack(self.loader):
+            return
+        action = ComponentCenterXYAction(self)
+        self.loader.undoStack.push(action)
+
     def centerXY(self):
-        self.setRelativeWidget("xPosition", 0.5)
+        with blockSignals(self):
+            self.setRelativeWidget("xPosition", 0.5)
         self.setRelativeWidget("yPosition", 0.521)
 
     def getXY(self):
         """Returns true x, y after considering alignment settings"""
         fm = QtGui.QFontMetrics(self.titleFont)
         text_width = fm.boundingRect(self.title).width()
-        x = self.pixelValForAttr("xPosition")
+        x = self.xPosition
 
+        offset = 0
         if self.alignment == 1:  # Middle
             offset = int(text_width / 2)
         elif self.alignment == 2:  # Right
             offset = text_width
-        else:
-            raise ValueError(f"Alignment value {self.alignment} unknown")
 
         x -= offset
 

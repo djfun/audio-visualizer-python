@@ -12,7 +12,7 @@ from copy import copy
 from collections import OrderedDict
 
 
-log = logging.getLogger("AVP.Toolkit.Common")
+log = logging.getLogger(__name__)
 
 
 class blockSignals:
@@ -28,16 +28,11 @@ class blockSignals:
             self.widgets = widgets if hasattr(widgets, "__iter__") else [widgets]
 
     def __enter__(self):
-        log.verbose(
-            "Blocking signals for %s",
-            ", ".join([str(w.__class__.__name__) for w in self.widgets]),
-        )
         self.oldStates = [w.signalsBlocked() for w in self.widgets]
         for w in self.widgets:
             w.blockSignals(True)
 
     def __exit__(self, *args):
-        log.verbose("Resetting blockSignals to %s", str(bool(sum(self.oldStates))))
         for w, state in zip(self.widgets, self.oldStates):
             w.blockSignals(state)
 
@@ -154,8 +149,11 @@ def formatTraceback(tb=None):
     return "Traceback:\n%s" % "\n".join(traceback.format_tb(tb))
 
 
-def connectWidget(widget, func):
-    unsupportedWidgets = ["QtWidgets.QFontComboBox"]
+def connectWidget(widget, func, unsupportedWidgets=None):
+    if unsupportedWidgets is None:
+        unsupportedWidgets = ["QFontComboBox"]
+    widgetClassName = widget.__class__.__name__
+
     if type(widget) == QtWidgets.QLineEdit:
         widget.textChanged.connect(func)
     elif type(widget) == QtWidgets.QSpinBox or type(widget) == QtWidgets.QDoubleSpinBox:
@@ -164,19 +162,19 @@ def connectWidget(widget, func):
         widget.stateChanged.connect(func)
     elif type(widget) == QtWidgets.QComboBox:
         widget.currentIndexChanged.connect(func)
-    elif type(widget) in unsupportedWidgets:
-        log.info(
-            "Could not connect %s using connectWidget()", str(widget.__class__.__name__)
+    elif widgetClassName in unsupportedWidgets:
+        log.debug(
+            "%s is not supported by connectWidget()",
+            widgetClassName,
         )
     else:
-        log.warning("Failed to connect %s ", str(widget.__class__.__name__))
+        log.info("%s is unknown and unsupported by connectWidget()", widgetClassName)
         return False
     return True
 
 
 def setWidgetValue(widget, val):
     """Generic setValue method for use with any typical QtWidget"""
-    log.verbose("Setting %s to %s" % (str(widget.__class__.__name__), val))
     if type(widget) == QtWidgets.QLineEdit:
         widget.setText(val)
     elif type(widget) == QtWidgets.QSpinBox or type(widget) == QtWidgets.QDoubleSpinBox:
@@ -186,7 +184,9 @@ def setWidgetValue(widget, val):
     elif type(widget) == QtWidgets.QComboBox:
         widget.setCurrentIndex(val)
     else:
-        log.warning("Failed to set %s ", str(widget.__class__.__name__))
+        log.warning(
+            "%s is not supported by setWidgetValue()", str(widget.__class__.__name__)
+        )
         return False
     return True
 
@@ -200,7 +200,35 @@ def getWidgetValue(widget):
         return widget.isChecked()
     elif type(widget) == QtWidgets.QComboBox:
         return widget.currentIndex()
+    log.warning(
+        "%s is not supported by getWidgetValue()", str(widget.__class__.__name__)
+    )
+
+
+def logWidgetValues(component, attrDict, origin=None):
+    log.debug(
+        "Set %s #%s's settings to %s by %s",
+        component.name,
+        str(component.compPos),
+        ", ".join(
+            ["'%s: %s'" % (key, str(getattr(component, key))) for key in attrDict]
+        ),
+        "unknown" if origin is None else str(origin),
+    )
 
 
 def randomColor():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+
+def hasUndoStack(loader):
+    """Receives a Command or MainWindow object"""
+    return hasattr(loader, "undoStack")
+
+
+def isVerticalWord(word):
+    if not hasattr(word, "lower"):
+        return False
+    word = word.lower()
+    vertWords = ["height", "ypos"]
+    return any([vertWord in word for vertWord in vertWords]) or word.endswith("y")

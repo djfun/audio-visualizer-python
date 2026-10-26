@@ -13,7 +13,7 @@ import logging
 from . import toolkit
 
 appName = "Audio Visualizer Python"
-log = logging.getLogger("AVP.Core")
+log = logging.getLogger(__name__)
 
 
 class Core:
@@ -69,6 +69,17 @@ class Core:
         for i, component in enumerate(self.selectedComponents):
             component.compPos = i
 
+    def createComponent(self, component, loader):
+        """
+        Creates and returns a Component object
+        `component`: string component name or int componentModuleIndex
+        """
+        if type(component) == str:
+            component = self.moduleIndexFor(component)
+        component = self.modules[component].Component(component, self)
+        component.widget(loader)
+        return component
+
     def insertComponent(self, compPos, component, loader):
         """
         Creates a new component using these args:
@@ -85,12 +96,16 @@ class Core:
             # create component using module index in self.modules
             moduleIndex = int(component)
             log.debug("Creating new component from module #%s", str(moduleIndex))
-            component = self.modules[moduleIndex].Component(moduleIndex, compPos, self)
-            component.widget(loader)
+            component = self.createComponent(moduleIndex, loader)
         else:
             moduleIndex = -1
-            log.debug("Inserting previously-created %s component", component.name)
+            log.debug(
+                "Inserting previously-created %s component at %s",
+                component.name,
+                compPos,
+            )
 
+        component.compPos = compPos
         component._error.connect(loader.videoThreadError)
         self.selectedComponents.insert(compPos, component)
         if hasattr(loader, "insertComponent"):
@@ -117,16 +132,21 @@ class Core:
 
     def updateComponent(self, i):
         log.debug("Auto-updating %s #%s", self.selectedComponents[i], str(i))
-        self.selectedComponents[i].update(auto=True)
+        self.selectedComponents[i].update(auto=True, origin="core")
 
     def moduleIndexFor(self, compName):
-        try:
+        index = None
+        if compName in self.compNames:
             index = self.compNames.index(compName)
-            return self.moduleIndexes[index]
-        except ValueError:
+        else:
             for altName, modI in self.altCompNames:
                 if altName == compName:
-                    return self.moduleIndexes[modI]
+                    index = modI
+        try:
+            return self.moduleIndexes[index]
+        except TypeError:
+            log.error("Module index not found.")
+            return
 
     def clearPreset(self, compIndex):
         self.selectedComponents[compIndex].currentPreset = None
@@ -166,8 +186,8 @@ class Core:
 
         errcode, data = self.parseAvFile(filepath)
         if errcode == 0:
-            self.openingProject = True
             try:
+                self.openingProject = True
                 if hasattr(loader, "window"):
                     for widget, value in data["WindowFields"]:
                         widget = eval("loader.%s" % widget)
@@ -201,8 +221,10 @@ class Core:
                         )
                         continue
                     if i == -1:
-                        loader.showMessage(msg="Invalid components!")
-                        break
+                        loader.showMessage(
+                            msg=f"Invalid component '{name}' was removed."
+                        )
+                        continue
 
                     try:
                         if "preset" in preset and preset["preset"] is not None:
@@ -220,11 +242,12 @@ class Core:
                         self.clearPreset(i)
                     if hasattr(loader, "updateComponentTitle"):
                         loader.updateComponentTitle(i, modified)
-                self.openingProject = False
                 return True
             except Exception:
                 errcode = 1
                 data = sys.exc_info()
+            finally:
+                self.openingProject = False
 
         if errcode == 1:
             typ, value, tb = data
@@ -462,6 +485,7 @@ class Core:
             "logDir": os.path.join(dataDir, "log"),
             "logEnabled": False,
             "previewEnabled": True,
+            "maxResolution": (1920, 1080),
         }
 
         settings["videoFormats"] = toolkit.appendUppercase(
@@ -518,8 +542,8 @@ class Core:
     def loadDefaultSettings(cls):
         # settings that get saved into the ini file
         cls.defaultSettings = {
-            "outputWidth": 1280,
-            "outputHeight": 720,
+            "outputWidth": 1920,
+            "outputHeight": 1080,
             "outputFrameRate": 30,
             "outputAudioCodec": "AAC",
             "outputAudioBitrate": "192",
@@ -561,7 +585,7 @@ class Core:
         logStream.setLevel(Core.stdoutLogLvl)
         streamFormatter = logging.Formatter("<%(name)s> %(levelname)s: %(message)s")
         logStream.setFormatter(streamFormatter)
-        log = logging.getLogger("AVP")
+        log = logging.getLogger(__package__)
         log.addHandler(logStream)
 
         if fileLogLvl is not None:

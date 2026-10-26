@@ -10,7 +10,7 @@ from .core import Core
 # Core class must store settings as class variables
 # before we can use many things in AVP
 Core.storeSettings()
-log = logging.getLogger("AVP.Main")
+log = logging.getLogger(__name__)
 
 
 def main() -> int:
@@ -56,11 +56,11 @@ def main() -> int:
     # Both branches here may occur in one execution:
     # Commandline parsing could change mode back to GUI
     if mode == "GUI":
-        from avp.gui.mainwindow import MainWindow
+        from .gui.mainwindow import MainWindow
 
-        mainWindow = MainWindow(proj, dpi)
+        main = MainWindow(proj, dpi)
         log.debug("Finished creating MainWindow")
-        mainWindow.raise_()
+        main.raise_()
 
     return app.exec()
 

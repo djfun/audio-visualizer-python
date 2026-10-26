@@ -1,11 +1,12 @@
-from PIL import Image
+from PIL import Image, ImageOps
 import os
 import subprocess
 import logging
 
+from ..core import Core
 from ..libcomponent import BaseComponent
-from ..toolkit.frame import BlankFrame, scale
 from ..toolkit import connectWidget
+from ..toolkit.frame import BlankFrame, scale
 from ..toolkit.ffmpeg import (
     openPipe,
     closePipe,
@@ -15,7 +16,7 @@ from ..toolkit.ffmpeg import (
 )
 
 
-log = logging.getLogger("AVP.Components.Spectrum")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):
@@ -27,13 +28,14 @@ class Component(BaseComponent):
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
         self.chunkSize = 4 * self.width * self.height
+        self.previewFrame = {resolution: None for resolution in Core.resolutions}
         self.changedOptions = True
         self.previewSize = (214, 120)
         self.previewPipe = None
 
-        if hasattr(self.parent, "lineEdit_audioFile"):
+        if hasattr(self.loader, "lineEdit_audioFile"):
             # update preview when audio file changes (if genericPreview is off)
-            self.parent.lineEdit_audioFile.textChanged.connect(self.update)
+            self.loader.lineEdit_audioFile.textChanged.connect(self.update)
 
         self.trackWidgets(
             {
@@ -66,6 +68,8 @@ class Component(BaseComponent):
 
     def changed(self):
         self.changedOptions = True
+        for key in self.previewFrame:
+            self.previewFrame[key] = None
 
     def update(self):
         filterType = self.page.comboBox_filterType.currentIndex()
@@ -80,24 +84,46 @@ class Component(BaseComponent):
             self.page.checkBox_mono.setEnabled(True)
 
     def previewRender(self):
+        def reusePreviewFrame():
+            log.debug("Spectrum #%s is reusing old preview frame", self.compPos)
+            return self.previewFrame[res]
+
+        self.changedOptions = False
+        res = f"{self.width}x{self.height}"
         changedSize = self.updateChunksize()
+        if changedSize and not self.changedOptions:
+            if self.previewFrame[res] is not None:
+                return reusePreviewFrame()
+
         if (
             not changedSize
             and not self.changedOptions
-            and self.previewFrame is not None
+            and self.previewFrame[res] is not None
         ):
-            log.debug("Spectrum #%s is reusing old preview frame" % self.compPos)
-            return self.previewFrame
+            return reusePreviewFrame()
+
+        if self.previewFrame[res] is None:
+            for frame_ in self.previewFrame.values():
+                if frame_ is not None:
+                    self.previewFrame[res] = ImageOps.fit(
+                        frame_,
+                        (
+                            self.width,
+                            self.height,
+                        ),
+                        Image.Resampling.LANCZOS,
+                    )
+                    log.debug(
+                        "Spectrum #%s resized an existing preview frame instead of using FFmpeg.",
+                        self.compPos,
+                    )
+                    return self.previewFrame[res]
 
         frame = self.getPreviewFrame()
-        self.changedOptions = False
-        if not frame:
-            log.warning("Spectrum #%s failed to create a preview frame" % self.compPos)
-            self.previewFrame = None
+        if frame is None:
             return BlankFrame(self.width, self.height)
-        else:
-            self.previewFrame = frame
-            return frame
+        self.previewFrame[res] = frame
+        return frame
 
     def preFrameRender(self, **kwargs):
         super().preFrameRender(**kwargs)
@@ -111,8 +137,8 @@ class Component(BaseComponent):
             width=w,
             height=h,
             chunkSize=self.chunkSize,
-            frameRate=int(self.settings.value("outputFrameRate")),
-            parent=self.parent,
+            frameRate=int(self.core.settings.value("outputFrameRate")),
+            parent=self.loader,
             component=self,
         )
 
@@ -122,13 +148,13 @@ class Component(BaseComponent):
         return self.finalizeFrame(self.video.frame(frameNo))
 
     def postFrameRender(self):
-        closePipe(self.video.pipe)
+        self.video.stop()
 
     def getPreviewFrame(self):
-        genericPreview = self.settings.value("pref_genericPreview")
+        genericPreview = self.core.settings.value("pref_genericPreview")
         startPt = 0
         if not genericPreview:
-            inputFile = self.parent.lineEdit_audioFile.text()
+            inputFile = self.loader.lineEdit_audioFile.text()
             if not inputFile or not os.path.exists(inputFile):
                 return
             duration = getAudioDuration(inputFile)
@@ -141,7 +167,7 @@ class Component(BaseComponent):
             "-thread_queue_size",
             "512",
             "-r",
-            str(self.settings.value("outputFrameRate")),
+            str(self.core.settings.value("outputFrameRate")),
             "-ss",
             "{0:.3f}".format(startPt),
             "-i",
@@ -200,7 +226,7 @@ class Component(BaseComponent):
         def getFilterComplexCommand():
             """Inner function that creates the final, complex part of the filter command"""
             nonlocal self
-            genericPreview = self.settings.value("pref_genericPreview")
+            genericPreview = self.core.settings.value("pref_genericPreview")
 
             def getFilterComplexCommandForType():
                 """Determine portion of filter command that changes depending on selected type"""
@@ -249,7 +275,7 @@ class Component(BaseComponent):
                     elif self.display == 4:
                         display = "rlog"
                     filter_ = (
-                        f'ahistogram=r={str(self.settings.value("outputFrameRate"))}:'
+                        f'ahistogram=r={str(self.core.settings.value("outputFrameRate"))}:'
                         f"s={w}x{h}:"
                         "dmode=separate:"
                         f"ascale={amplitude}:"
@@ -274,7 +300,7 @@ class Component(BaseComponent):
                     )
                 elif self.filterType == 3:  # Musical Scale
                     filter_ = (
-                        f'showcqt=r={str(self.settings.value("outputFrameRate"))}:'
+                        f'showcqt=r={str(self.core.settings.value("outputFrameRate"))}:'
                         f"s={w}x{h}:"
                         "count=30:"
                         "text=0:"
@@ -284,7 +310,7 @@ class Component(BaseComponent):
                     )
                 elif self.filterType == 4:  # Phase
                     filter_ = (
-                        f'aphasemeter=r={str(self.settings.value("outputFrameRate"))}:'
+                        f'aphasemeter=r={str(self.core.settings.value("outputFrameRate"))}:'
                         f"s={w}x{h}:"
                         "video=1 [atrash][vtmp1]; "
                         "[atrash] anullsink; "

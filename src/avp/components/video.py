@@ -1,15 +1,17 @@
-from PIL import Image
+from PIL import Image, ImageOps
 from PyQt6 import QtWidgets
 import os
 import subprocess
 import logging
 
+from ..core import Core
 from ..libcomponent import BaseComponent
+from ..toolkit import connectWidget
 from ..toolkit.frame import BlankFrame, scale
 from ..toolkit.ffmpeg import openPipe, closePipe, testAudioStream, FfmpegVideo
 
 
-log = logging.getLogger("AVP.Components.Video")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):
@@ -22,6 +24,9 @@ class Component(BaseComponent):
         self.x = 0
         self.y = 0
         self.loopVideo = False
+        self.chunkSize = 4 * self.width * self.height
+        self.previewFrame = {resolution: None for resolution in Core.resolutions}
+        self.changedOptions = True
         super().widget(*args)
         self._image = BlankFrame(self.width, self.height)
         self.page.pushButton_video.clicked.connect(self.pickVideo)
@@ -47,6 +52,13 @@ class Component(BaseComponent):
                 "yPosition",
             ],
         )
+        for widget in self._trackedWidgets.values():
+            connectWidget(widget, lambda: self.changed())
+
+    def changed(self):
+        self.changedOptions = True
+        for key in self.previewFrame:
+            self.previewFrame[key] = None
 
     def update(self):
         if self.page.checkBox_useAudio.isChecked():
@@ -57,19 +69,52 @@ class Component(BaseComponent):
             self.page.spinBox_volume.setEnabled(False)
 
     def previewRender(self):
-        self.updateChunksize()
+        def reusePreviewFrame():
+            log.debug("Video #%s is reusing old preview frame", self.compPos)
+            return self.previewFrame[res]
+
+        self.changedOptions = False
+        res = f"{self.width}x{self.height}"
+        changedSize = self.updateChunksize()
+        if changedSize and not self.changedOptions:
+            if self.previewFrame[res] is not None:
+                return reusePreviewFrame()
+
+        if (
+            not changedSize
+            and not self.changedOptions
+            and self.previewFrame[res] is not None
+        ):
+            return reusePreviewFrame()
+
+        if self.previewFrame[res] is None:
+            for frame_ in self.previewFrame.values():
+                if frame_ is not None:
+                    self.previewFrame[res] = ImageOps.fit(
+                        frame_,
+                        (
+                            self.width,
+                            self.height,
+                        ),
+                        Image.Resampling.LANCZOS,
+                    )
+                    log.debug(
+                        "Video #%s resized an existing preview frame instead of using FFmpeg."
+                    )
+                    return self.previewFrame[res]
+
         frame = self.getPreviewFrame(self.width, self.height)
-        if not frame:
+        if frame is None:
             return BlankFrame(self.width, self.height)
-        else:
-            return frame
+        self.previewFrame[res] = frame
+        return frame
 
     def properties(self):
         props = []
         outputFile = None
-        if hasattr(self.parent, "lineEdit_outputFile"):
+        if hasattr(self.loader, "lineEdit_outputFile"):
             # check only happens in GUI mode
-            outputFile = self.parent.lineEdit_outputFile.text()
+            outputFile = self.loader.lineEdit_outputFile.text()
 
         if not self.videoPath:
             self.lockError("There is no video selected.")
@@ -103,8 +148,8 @@ class Component(BaseComponent):
                 width=self.width,
                 height=self.height,
                 chunkSize=self.chunkSize,
-                frameRate=int(self.settings.value("outputFrameRate")),
-                parent=self.parent,
+                frameRate=int(self.core.settings.value("outputFrameRate")),
+                parent=self.loader,
                 loopVideo=self.loopVideo,
                 component=self,
             )
@@ -118,10 +163,10 @@ class Component(BaseComponent):
         return self.finalizeFrame(self.video.frame(frameNo))
 
     def postFrameRender(self):
-        closePipe(self.video.pipe)
+        self.video.stop()
 
     def pickVideo(self):
-        imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
+        imgDir = self.core.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page,
             "Choose Video",
@@ -129,7 +174,7 @@ class Component(BaseComponent):
             "Video Files (%s)" % " ".join(self.core.videoFormats),
         )
         if filename:
-            self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.core.settings.setValue("componentDir", os.path.dirname(filename))
             self.mergeUndo = False
             self.page.lineEdit_video.setText(filename)
             self.mergeUndo = True
@@ -166,7 +211,7 @@ class Component(BaseComponent):
             logFilename = os.path.join(
                 self.core.logDir, "preview_%s.log" % str(self.compPos)
             )
-            log.debug("Creating ffmpeg process (log at %s)" % logFilename)
+            log.debug("Creating ffmpeg process (log at %s)", logFilename)
             with open(logFilename, "w") as logf:
                 logf.write(" ".join(command) + "\n\n")
             with open(logFilename, "a") as logf:
@@ -203,7 +248,9 @@ class Component(BaseComponent):
             width, height = scale(self.scale, self.width, self.height, int)
         else:
             width, height = self.width, self.height
+        oldChunkSize = int(self.chunkSize)
         self.chunkSize = 4 * width * height
+        return self.chunkSize != oldChunkSize
 
     def command(self, arg):
         if "=" in arg:

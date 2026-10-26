@@ -3,19 +3,19 @@ Thread that runs to create QImages for MainWindow's preview label.
 Processes a queue of component lists.
 """
 
-from PyQt6 import QtCore, QtGui, uic
+from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import pyqtSignal, pyqtSlot
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from queue import Queue, Empty
-import os
+import time
 import logging
 
 from ..toolkit.frame import Checkerboard
 from ..toolkit import disableWhenOpeningProject
 
 
-log = logging.getLogger("AVP.Gui.PreviewThread")
+log = logging.getLogger(__name__)
 
 
 class Worker(QtCore.QObject):
@@ -23,13 +23,17 @@ class Worker(QtCore.QObject):
     imageCreated = pyqtSignal(QtGui.QImage)
     error = pyqtSignal(str)
 
-    def __init__(self, core, settings, queue):
+    def __init__(self, core, settings):
         super().__init__()
         self.core = core
         self.settings = settings
+        self.queue = Queue()
+        self.newBackground()
+        self.frameNo = 0
+
+    def newBackground(self):
         width = int(self.settings.value("outputWidth"))
         height = int(self.settings.value("outputHeight"))
-        self.queue = queue
         self.background = Checkerboard(width, height)
 
     @disableWhenOpeningProject
@@ -39,34 +43,34 @@ class Worker(QtCore.QObject):
             "components": components,
         }
         self.queue.put(dic)
-        log.debug("Preview thread id: {}".format(int(QtCore.QThread.currentThreadId())))
 
     @pyqtSlot()
     def process(self):
+        """Process one preview image from the queue"""
         try:
             nextPreviewInformation = self.queue.get(block=False)
             while self.queue.qsize() >= 2:
                 try:
                     self.queue.get(block=False)
                 except Empty:
-                    continue
-            width = int(self.settings.value("outputWidth"))
-            height = int(self.settings.value("outputHeight"))
-            if self.background.width != width or self.background.height != height:
-                self.background = Checkerboard(width, height)
-
+                    break
+            timeElapsed = time.time()
             frame = self.background.copy()
-            log.info("Creating new preview frame")
             components = nextPreviewInformation["components"]
             for component in reversed(components):
                 try:
-                    component.lockSize(width, height)
-                    if "composite" in component.properties():
+                    lockAcquired = component.lockSize(frame.width, frame.height)
+                    if not lockAcquired:
+                        break
+                    isCompositeComponent = "composite" in component.properties()
+                    if isCompositeComponent:
                         newFrame = component.previewRender(frame)
                     else:
                         newFrame = component.previewRender()
-                    component.unlockSize()
-                    frame = Image.alpha_composite(frame, newFrame)
+                    if isCompositeComponent:
+                        frame = newFrame
+                    else:
+                        frame = Image.alpha_composite(frame, newFrame)
 
                 except (AttributeError, ValueError) as e:
                     errMsg = (
@@ -79,7 +83,12 @@ class Worker(QtCore.QObject):
                                 "is None"
                                 if newFrame is None
                                 else "size was %s*%s; should be %s*%s"
-                                % (newFrame.width, newFrame.height, width, height)
+                                % (
+                                    newFrame.width,
+                                    newFrame.height,
+                                    frame.width,
+                                    frame.height,
+                                )
                             ),
                         )
                     )
@@ -87,12 +96,27 @@ class Worker(QtCore.QObject):
                     self.error.emit(errMsg)
                     break
                 except RuntimeError as e:
-                    log.error(str(e))
+                    log.critical(str(e))
+                    self.error.emit(str(e))
+                    break
+                finally:
+                    try:
+                        component.unlockSize()
+                    except RuntimeError:
+                        log.critical(str(e))
+                        break
             else:
                 # We must store a reference to this QImage
                 # or else Qt will garbage-collect it on the C++ side
                 self.frame = ImageQt(frame)
+                timeElapsed = time.time() - timeElapsed
+                self.frameNo += 1
+                log.info(
+                    "Generated preview frame #{0} in {1:.3f}s using {2} components".format(
+                        self.frameNo, timeElapsed, len(components)
+                    )
+                )
                 self.imageCreated.emit(QtGui.QImage(self.frame))
 
         except Empty:
-            True
+            pass

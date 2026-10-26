@@ -48,7 +48,7 @@ class Component(BaseComponent):
         return (self.sound, params)
 
     def pickSound(self):
-        sndDir = self.settings.value("componentDir", os.path.expanduser("~"))
+        sndDir = self.core.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page,
             "Choose Sound",
@@ -56,7 +56,7 @@ class Component(BaseComponent):
             "Audio Files (%s)" % " ".join(self.core.audioFormats),
         )
         if filename:
-            self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.core.settings.setValue("componentDir", os.path.dirname(filename))
             self.mergeUndo = False
             self.page.lineEdit_sound.setText(filename)
             self.mergeUndo = True

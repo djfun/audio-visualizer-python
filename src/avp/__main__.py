@@ -1,5 +1,6 @@
 import sys
-from avp.cli import main
+from .cli import main
+
 if __name__ == "__main__":
     if sys.argv[0].endswith("-script.pyw"):
         sys.argv[0] = sys.argv[0][:-11]

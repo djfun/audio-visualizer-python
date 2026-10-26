@@ -7,11 +7,13 @@ import logging
 
 
 from ..libcomponent import BaseComponent
+from ..libcomponent.actions import ComponentPreviewClick
+from ..toolkit import hasUndoStack
 from ..toolkit.frame import BlankFrame, scale, addShadow
 from ..toolkit.visualizer import createSpectrumArray
 
 
-log = logging.getLogger("AVP.Component.Life")
+log = logging.getLogger(__name__)
 
 
 class Component(BaseComponent):
@@ -90,7 +92,7 @@ class Component(BaseComponent):
         self.page.spinBox_scale.valueChanged.connect(self.updateGridSize)
 
     def pickImage(self):
-        imgDir = self.settings.value("componentDir", os.path.expanduser("~"))
+        imgDir = self.core.settings.value("componentDir", os.path.expanduser("~"))
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.page,
             "Choose Image",
@@ -98,14 +100,18 @@ class Component(BaseComponent):
             "Image Files (%s)" % " ".join(self.core.imageFormats),
         )
         if filename:
-            self.settings.setValue("componentDir", os.path.dirname(filename))
+            self.core.settings.setValue("componentDir", os.path.dirname(filename))
             self.mergeUndo = False
             self.page.lineEdit_image.setText(filename)
             self.mergeUndo = True
 
     def shiftGrid(self, d):
         action = ShiftGrid(self, d)
-        self.parent.undoStack.push(action)
+        self.loader.undoStack.push(action)
+
+    def updateResolution(self):
+        super().updateResolution()
+        self.updateGridSize()
 
     def update(self):
         self.updateGridSize()
@@ -145,12 +151,14 @@ class Component(BaseComponent):
             widget.setEnabled(enabled)
 
     def previewClickEvent(self, pos, size, button):
+        if not hasUndoStack(self.loader):
+            return
         pos = (
             math.ceil((pos[0] / size[0]) * self.gridWidth) - 1,
             math.ceil((pos[1] / size[1]) * self.gridHeight) - 1,
         )
-        action = ClickGrid(self, pos, button)
-        self.parent.undoStack.push(action)
+        action = ClickGrid(self, pos, size, button)
+        self.loader.undoStack.push(action)
 
     def updateGridSize(self):
         w, h = self.core.resolutions[-1].split("x")
@@ -549,6 +557,7 @@ class Component(BaseComponent):
             for widget in self.shiftButtons:
                 widget.setEnabled(True)
         super().loadPreset(pr, *args)
+        self.updateGridSize()
 
     def nearbyCoords(self, x, y):
         yield x + 1, y + 1
@@ -561,23 +570,7 @@ class Component(BaseComponent):
         yield x - 1, y
 
 
-class ClickGrid(QUndoCommand):
-    def __init__(self, comp, pos, button):
-        super().__init__("click %s component #%s" % (comp.name, comp.compPos))
-        self.comp = comp
-        self.pos = [pos]
-        if button == QtCore.Qt.MouseButton.RightButton:
-            self.button = 2
-        else:
-            self.button = 1
-
-    def id(self):
-        return self.button
-
-    def mergeWith(self, other):
-        self.pos.extend(other.pos)
-        return True
-
+class ClickGrid(ComponentPreviewClick):
     def add(self):
         for pos in self.pos[:]:
             self.comp.startingGrid.add(pos)
@@ -588,22 +581,14 @@ class ClickGrid(QUndoCommand):
             self.comp.startingGrid.discard(pos)
         self.comp.update(auto=True)
 
-    def redo(self):
-        if self.button == 1:  # Left-click
-            self.add()
-        elif self.button == 2:  # Right-click
-            self.remove()
-
-    def undo(self):
-        if self.button == 1:  # Left-click
-            self.remove()
-        elif self.button == 2:  # Right-click
-            self.add()
-
 
 class ShiftGrid(QUndoCommand):
     def __init__(self, comp, direction):
-        super().__init__("change %s component #%s" % (comp.name, comp.compPos))
+        dirName = {0: "up", 1: "down", 2: "left", 3: "right"}
+        super().__init__(
+            "shift %s component #%s grid %s"
+            % (comp.name, comp.compPos, dirName[direction])
+        )
         self.comp = comp
         self.direction = direction
         self.distance = 1

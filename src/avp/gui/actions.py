@@ -8,9 +8,63 @@ import logging
 from copy import copy
 
 from ..core import Core
+from ..toolkit import blockSignals
 
 
-log = logging.getLogger("AVP.Gui.Actions")
+log = logging.getLogger(__name__)
+
+
+# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+# ENCODER SETTINGS ACTIONS
+# =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+
+class ChangeResolution(QUndoCommand):
+    id_ = sum([ord(letter) for letter in "updateResolution"])
+
+    def __init__(self, window, oldResolutionIndex, newResolutionIndex):
+        super().__init__(
+            "change resolution to %s"
+            % window.comboBox_resolution.itemText(newResolutionIndex)
+        )
+        self.window = window
+        self.newResolutionIndex = newResolutionIndex
+        self.newResolution = tuple(Core.resolutions[newResolutionIndex].split("x"))
+        self.oldResolutionIndex = oldResolutionIndex
+        self.oldResolution = tuple(Core.resolutions[oldResolutionIndex].split("x"))
+
+    def updateResolution(self, resolution, index):
+        log.debug("Updating resolution to %sx%s" % resolution)
+        self.window.settings.setValue("outputWidth", resolution[0])
+        self.window.settings.setValue("outputHeight", resolution[1])
+        self.window.previewWorker.newBackground()
+        with blockSignals(
+            [self.window.comboBox_resolution, *self.window.core.selectedComponents]
+        ):
+            self.window.comboBox_resolution.setCurrentIndex(index)
+            for i in range(len(self.window.core.selectedComponents)):
+                self.window.core.selectedComponents[i].updateResolution()
+        self.window.drawPreview()
+
+    def id(self):
+        return self.id_
+
+    def mergeWith(self, other):
+        if self.oldResolutionIndex == other.newResolutionIndex:
+            self.setObsolete(True)
+        self.newResolution = other.newResolution
+        self.newResolutionIndex = other.newResolutionIndex
+        self.setText(
+            "change resolution to %s"
+            % self.window.comboBox_resolution.itemText(self.newResolutionIndex)
+        )
+        return True
+
+    def redo(self):
+        self.updateResolution(self.newResolution, self.newResolutionIndex)
+
+    def undo(self):
+        self.updateResolution(self.oldResolution, self.oldResolutionIndex)
 
 
 # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -31,21 +85,16 @@ class AddComponent(QUndoCommand):
 
     def redo(self):
         if self.comp is None:
-            i = self.parent.core.insertComponent(self.compI, self.moduleI, self.parent)
-            if i != self.compI:
-                self.valid = False
-                if i is not None:
-                    log.error(
-                        f"Expected new component index to be {self.compI} but received {i}"
-                    )
-        else:
-            # inserting previously-created component
-            self.parent.core.insertComponent(self.compI, self.comp, self.parent)
+            self.comp = self.parent.core.createComponent(self.moduleI, self.parent)
+        i = self.parent.core.insertComponent(self.compI, self.comp, self.parent)
+        if i != self.compI:
+            log.error(
+                "Component could not insert at layer %s (inserted at %s instead)",
+                self.compI,
+                i,
+            )
 
     def undo(self):
-        if not self.valid:
-            return
-        self.comp = self.parent.core.selectedComponents[self.compI]
         self.parent._removeComponent(self.compI)
 
 
@@ -61,7 +110,6 @@ class RemoveComponent(QUndoCommand):
         self.parent._removeComponent(self.selectedRows[0])
 
     def undo(self):
-        componentList = self.parent.listWidget_componentList
         for index, comp in zip(self.selectedRows, self.components):
             self.parent.core.insertComponent(index, comp, self.parent)
         self.parent.drawPreview()

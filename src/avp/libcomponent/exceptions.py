@@ -5,7 +5,7 @@ import logging
 from ..toolkit import formatTraceback
 
 
-log = logging.getLogger("AVP.ComponentHandler")
+log = logging.getLogger(__name__)
 
 
 class ComponentError(RuntimeError):

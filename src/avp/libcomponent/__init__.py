@@ -1,4 +1,4 @@
-from .component import Component as BaseComponent
+from .component import BaseComponent
 from .exceptions import ComponentError
 
 __all__ = [BaseComponent, ComponentError]

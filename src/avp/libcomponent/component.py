@@ -6,13 +6,14 @@ on making a valid component.
 from PyQt6 import uic, QtCore, QtWidgets
 from PyQt6.QtGui import QColor
 import os
-import math
 import logging
 from copy import copy
 
+
 from .metaclass import ComponentMetaclass
-from .actions import ComponentUpdate
+from .actions import ComponentTrackedWidgetUpdate
 from .exceptions import ComponentError
+from ..toolkit import logWidgetValues
 from ..toolkit.frame import BlankFrame
 
 from ..toolkit import (
@@ -21,54 +22,59 @@ from ..toolkit import (
     rgbFromString,
     randomColor,
     blockSignals,
+    isVerticalWord,
 )
 
-log = logging.getLogger("AVP.BaseComponent")
+log = logging.getLogger(__name__)
 
 
-class Component(QtCore.QObject, metaclass=ComponentMetaclass):
+class BaseComponent(QtCore.QObject, metaclass=ComponentMetaclass):
     """
     The base class for components to inherit.
     """
 
-    name = "Component"
-    # ui = 'name_Of_Non_Default_Ui_File'
+    name = "BaseComponent"
 
-    version = "1.0.0"
+    # if `ui` is undefined, AVP assumes it shares a basename with this .py file
+    ui = "__template__.ui"
+
+    version = "2.0.0"
     # The major version (before the first dot) is used to determine
     # preset compatibility; the rest is ignored so it can be non-numeric.
 
     modified = QtCore.pyqtSignal(int, dict)
     _error = QtCore.pyqtSignal(str, str)
 
-    def __init__(self, moduleIndex, compPos, core):
+    def __init__(self, moduleIndex, core):
         super().__init__()
         self.moduleIndex = moduleIndex
-        self.compPos = compPos
+        self.compPos = -1
         self.core = core
-
-        # STATUS VARIABLES
+        self._width = int(core.settings.value("outputWidth"))
+        self._height = int(core.settings.value("outputHeight"))
         self.currentPreset = None
         self._allWidgets = {}
         self._trackedWidgets = {}
         self._presetNames = {}
         self._commandArgs = {}
+
+        # Color widgets link a pushbutton and lineedit together
+        # for components to get a color choice from the user
         self._colorWidgets = {}
         self._colorFuncs = {}
-        self._relativeWidgets = {}
-        # Pixel values stored as floats
-        self._relativeValues = {}
-        # Maximum values of spinBoxes at 1080p (Core.resolutions[0])
-        self._relativeMaximums = {}
 
-        # LOCKING VARIABLES
+        # Relative widgets are relative to the output size (resolution)
+        self._relativeWidgets = {}
+        self._relativeWidgetMaximums = {}
+        self._relativeWidgetFloats = {}
+
+        # "Locks"
         self.openingPreset = False
         self.mergeUndo = True
         self._lockedProperties = None
         self._lockedError = None
         self._lockedSize = None
-        # If set to a dict, values are used as basis to update relative widgets
-        self.oldAttrs = None
+
         # Stop lengthy processes in response to this variable
         self.canceled = False
 
@@ -102,8 +108,9 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
 
     def preFrameRender(self, **kwargs):
         """
+        Occurs once before export begins, before first call to frameRender
         Must call super() when subclassing
-        Triggered only before a video is exported (video_thread.py)
+        Triggered only before a video is exported (in `video_thread.py`)
             self.audioFile = filepath to the main input audio file
             self.completeAudioArray = a list of audio samples
             self.sampleSize = number of audio samples per video frame
@@ -116,12 +123,17 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             setattr(self, key, value)
 
     def frameRender(self, frameNo):
+        """Occurs once per frame exported"""
+        # Example code:
         audioArrayIndex = frameNo * self.sampleSize
         image = BlankFrame(self.width, self.height)
         return image
 
     def postFrameRender(self):
-        pass
+        """
+        Occurs once after the final call to frameRender,
+        for cleaning up when export completes or is cancelled.
+        """
 
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
     # Properties
@@ -162,21 +174,23 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     # Idle Methods
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-    def widget(self, parent):
+    def widget(self, loader):
         """
         Call super().widget(*args) to create the component widget
         which also auto-connects any common widgets (e.g., checkBoxes)
         to self.update(). Then in a subclass connect special actions
         (e.g., pushButtons to select a file) and initialize
         """
-        self.parent = parent
-        self.settings = parent.settings
-        log.verbose(
-            "Creating UI for %s #%s's widget",
-            self.__class__.name,
-            self.compPos,
-        )
-        self.page = self.loadUi(self.__class__.ui)
+        if loader.__class__.__name__ not in ("MainWindow", "Command"):
+            raise ValueError("`loader` must be a MainWindow or Command object")
+        self.loader = loader
+
+        if not hasattr(self, "page"):
+            log.debug(
+                "Creating UI for %s's page widget",
+                self.__class__.name,
+            )
+            self.page = self.loadUi(self.__class__.ui)
 
         # Find all normal widgets which will be connected after subclass method
         self._allWidgets = {
@@ -192,60 +206,96 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     def update(self):
         """
         Starting point for a component update. A subclass should override
-        this method, and the base class will then magically insert a call
+        this method, and the metaclass will then magically insert a call
         to either _autoUpdate() or _userUpdate() at the end.
         """
 
     def loadPreset(self, presetDict, presetName=None):
         """
-        Subclasses should take (presetDict, *args) as args.
-        Must use super().loadPreset(presetDict, *args) first,
+        Normally does not need to be implemented by the subclass.
+        If needed, subclasses should take (presetDict, *args) as args,
+        use super().loadPreset(presetDict, *args) first,
         then update self.page widgets using the preset dict.
         """
+        getPresetAttrName = lambda attr: (
+            attr if attr not in self._presetNames else self._presetNames[attr]
+        )
         self.currentPreset = (
             presetName if presetName is not None else presetDict["preset"]
         )
+        currentResolution = (self.width, self.height)
+
+        def upgradeFromOldVersion(presetDict):
+            """
+            Fix relative widget values if resolution wasn't saved into preset
+            This happens if loading a file from before v2.3.0
+            """
+            if "resolution" not in presetDict:
+                log.warning(
+                    "%s #%s's%s resolution was not saved. Using project resolution instead.",
+                    self.name,
+                    str(self.compPos),
+                    "" if self.currentPreset is None else " %s" % self.currentPreset,
+                )
+                presetDict["resolution"] = currentResolution
+                for attr in self._relativeWidgets:
+                    if getPresetAttrName(attr) not in presetDict:
+                        continue
+                    if type(presetDict[getPresetAttrName(attr)]) == float:
+                        presetDict[getPresetAttrName(attr)] = self.pixelValForAttr(
+                            attr, presetDict[getPresetAttrName(attr)]
+                        )
+            return presetDict
+
+        presetDict = upgradeFromOldVersion(presetDict)
+
+        self._width, self._height = presetDict["resolution"]
         for attr, widget in self._trackedWidgets.items():
-            key = attr if attr not in self._presetNames else self._presetNames[attr]
+            key = getPresetAttrName(attr)
             try:
                 val = presetDict[key]
             except KeyError as e:
-                log.info(
-                    "%s missing value %s. Outdated preset?",
-                    self.currentPreset,
+                log.warning(
+                    "%s #%s%s is missing value %s. Outdated preset?",
+                    self.name,
+                    self.compPos,
+                    (
+                        "'s %s" % self.currentPreset
+                        if self.currentPreset is not None
+                        else ""
+                    ),
                     str(e),
                 )
                 val = getattr(self, key)
 
             if attr in self._colorWidgets:
-                widget.setText("%s,%s,%s" % val)
+                with blockSignals(widget):
+                    widget.setText("%s,%s,%s" % val)
                 btnStyle = (
                     "QPushButton { background-color : %s; outline: none; }"
                     % QColor(*val).name()
                 )
                 self._colorWidgets[attr].setStyleSheet(btnStyle)
-            elif attr in self._relativeWidgets:
-                self._relativeValues[attr] = val
-                pixelVal = self.pixelValForAttr(attr, val)
-                setWidgetValue(widget, pixelVal)
             else:
-                setWidgetValue(widget, val)
+                if attr in self._relativeWidgets:
+                    self._updateRelativeWidgetFloat(attr, val)
+                with blockSignals(widget):
+                    setWidgetValue(widget, val)
+        if presetDict["resolution"] != currentResolution:
+            self.updateResolution()
+        else:
+            self.update(auto=True, origin="loadPreset")
 
     def savePreset(self):
         saveValueStore = {}
-        for attr, widget in self._trackedWidgets.items():
+        for attr in self._trackedWidgets:
             presetAttrName = (
                 attr if attr not in self._presetNames else self._presetNames[attr]
             )
-            if attr in self._relativeWidgets:
-                try:
-                    val = self._relativeValues[attr]
-                except AttributeError:
-                    val = self.floatValForAttr(attr)
-            else:
-                val = getattr(self, attr)
+            val = getattr(self, attr)
 
             saveValueStore[presetAttrName] = val
+        saveValueStore["resolution"] = (self.width, self.height)
         return saveValueStore
 
     def commandHelp(self):
@@ -270,8 +320,6 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     # =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
     def _preUpdate(self):
         """Happens before subclass update()"""
-        for attr in self._relativeWidgets:
-            self.updateRelativeWidget(attr)
 
     def _userUpdate(self):
         """Happens after subclass update() for an undoable update by user."""
@@ -292,17 +340,61 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             if val != oldWidgetVals[attr]
         }
         if modifiedWidgets:
-            action = ComponentUpdate(self, oldWidgetVals, modifiedWidgets)
-            self.parent.undoStack.push(action)
+            if len(modifiedWidgets) > 1:
+                for attr in self._relativeWidgets:
+                    if attr in modifiedWidgets:
+                        del modifiedWidgets[attr]
+            if len(modifiedWidgets) > 1:
+                log.warning(
+                    "%s component settings changed at once. (%s)",
+                    len(modifiedWidgets),
+                    repr(modifiedWidgets),
+                )
+                return
+        if modifiedWidgets:
+            action = ComponentTrackedWidgetUpdate(self, oldWidgetVals, modifiedWidgets)
+            self.loader.undoStack.push(action)
 
-    def _autoUpdate(self):
+    def _autoUpdate(self, origin=None):
         """Happens after subclass update() for an internal component update."""
         newWidgetVals = {
             attr: getWidgetValue(widget)
             for attr, widget in self._trackedWidgets.items()
         }
+        for attr in self._relativeWidgets:
+            self._updateRelativeWidgetFloat(attr, newWidgetVals[attr])
         self.setAttrs(newWidgetVals)
         self._sendUpdateSignal()
+        logWidgetValues(
+            self,
+            newWidgetVals,
+            f"{'unknown' if origin is None else origin} through autoupdate",
+        )
+
+    def updateResolution(self):
+        newWidth = int(self.core.settings.value("outputWidth"))
+        newHeight = int(self.core.settings.value("outputHeight"))
+        newResolution = (newWidth, newHeight)
+        log.debug(
+            "Updating relative widget values for %s #%s from %sx%s to %sx%s.",
+            self.name,
+            str(self.compPos),
+            self.width,
+            self.height,
+            *newResolution,
+        )
+        for attr in self._relativeWidgets:
+            newVal = self.pixelValForAttr(
+                attr,
+                self._relativeWidgetFloats[attr],
+                axis=newResolution,
+            )
+            self._updateRelativeWidgetMaximum(attr, newResolution)
+            with blockSignals(self._trackedWidgets[attr]):
+                self._trackedWidgets[attr].setValue(newVal)
+        self._width = newWidth
+        self._height = newHeight
+        self.update(auto=True, origin="updateResolution")
 
     def setAttrs(self, attrDict):
         """
@@ -326,7 +418,6 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
             else:
                 # Normal tracked widget
                 setattr(self, attr, val)
-            log.verbose("Setting %s self.%s to %s" % (self.__class__.name, attr, val))
 
     def setWidgetValues(self, attrDict):
         """
@@ -339,14 +430,18 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                 widget = self._trackedWidgets[attr]
                 if attr in self._colorWidgets:
                     val = "%s,%s,%s" % val
+                if attr in self._relativeWidgets:
+                    self._updateRelativeWidgetFloat(attr, val)
                 setWidgetValue(widget, val)
 
     def _sendUpdateSignal(self):
-        if not self.core.openingProject:
-            self.parent.drawPreview()
-            saveValueStore = self.savePreset()
-            saveValueStore["preset"] = self.currentPreset
-            self.modified.emit(self.compPos, saveValueStore)
+        if self.core.openingProject:
+            # TODO use `disableWhenOpeningProject` decorator
+            return
+        saveValueStore = self.savePreset()
+        saveValueStore["preset"] = self.currentPreset
+        saveValueStore["resolution"] = (self.width, self.height)
+        self.modified.emit(self.compPos, saveValueStore)
 
     def trackWidgets(self, trackDict, **kwargs):
         """
@@ -404,15 +499,17 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
                         ).name()
                     )
 
-            if kwarg == "relativeWidgets":
+            elif kwarg == "relativeWidgets":
                 # store maximum values of spinBoxes to be scaled appropriately
                 for attr in kwargs[kwarg]:
-                    self._relativeMaximums[attr] = self._trackedWidgets[attr].maximum()
-                    self.updateRelativeWidgetMaximum(attr)
-                    setattr(self, attr, getWidgetValue(self._trackedWidgets[attr]))
-
-        self._preUpdate()
-        self._autoUpdate()
+                    self._relativeWidgetMaximums[attr] = self._trackedWidgets[
+                        attr
+                    ].maximum()
+                    self._updateRelativeWidgetMaximum(attr, (self.width, self.height))
+                    self._updateRelativeWidgetFloat(
+                        attr, getWidgetValue(self._trackedWidgets[attr])
+                    )
+        # self.update(auto=True, origin="trackWidgets")
 
     def pickColor(self, textWidget, button):
         """Use color picker to get color input from the user."""
@@ -441,7 +538,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._lockedError = msg
 
     def lockSize(self, w, h):
+        if self._lockedSize is not None:
+            log.warning("%s #%s is already locked.", self.name, str(self.compPos))
+            return False
         self._lockedSize = (w, h)
+        return True
 
     def unlockProperties(self):
         self._lockedProperties = None
@@ -450,7 +551,11 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self._lockedError = None
 
     def unlockSize(self):
+        if self._lockedSize is None:
+            log.warning("%s #%s is already unlocked.", self.name, str(self.compPos))
+            return False
         self._lockedSize = None
+        return True
 
     def loadUi(self, filename):
         """Load a Qt Designer ui file to use for this component's widget"""
@@ -459,14 +564,14 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
     @property
     def width(self):
         if self._lockedSize is None:
-            return int(self.settings.value("outputWidth"))
+            return self._width
         else:
             return self._lockedSize[0]
 
     @property
     def height(self):
         if self._lockedSize is None:
-            return int(self.settings.value("outputHeight"))
+            return self._height
         else:
             return self._lockedSize[1]
 
@@ -479,105 +584,73 @@ class Component(QtCore.QObject, metaclass=ComponentMetaclass):
         self.unlockProperties()
         self.unlockError()
 
-    def relativeWidgetAxis(func):
-        def relativeWidgetAxis(self, attr, *args, **kwargs):
-            hasVerticalWords = (
-                lambda attr: "height" in attr.lower()
-                or "ypos" in attr.lower()
-                or attr == "y"
-            )
-            if "axis" not in kwargs:
-                axis = self.width
-                if hasVerticalWords(attr):
-                    axis = self.height
-                kwargs["axis"] = axis
-            if "axis" in kwargs and type(kwargs["axis"]) is tuple:
-                axis = kwargs["axis"][0]
-                if hasVerticalWords(attr):
-                    axis = kwargs["axis"][1]
-                kwargs["axis"] = axis
-            return func(self, attr, *args, **kwargs)
-
-        return relativeWidgetAxis
-
-    @relativeWidgetAxis
-    def pixelValForAttr(self, attr, val=None, **kwargs):
+    def pixelValForAttr(self, attr=None, val=None, axis=None):
+        """
+        Get pixel value from a relativeWidget float.
+        `attr`: string name of relativeWidget
+        `val`: optional float; uses _relativeWidgets[attr] if None
+        `axis`: optional tuple of (width, height); height used if attr "seems vertical"
+        """
+        if axis is None:
+            axis = (self.width, self.height)
+        if type(axis) not in (float, int):
+            axis = axis[1] if isVerticalWord(attr) else axis[0]
         if val is None:
-            val = self._relativeValues[attr]
-        if val > 50.0:
-            log.warning(
-                "%s #%s attempted to set %s to dangerously high number %s",
-                self.__class__.name,
-                self.compPos,
-                attr,
-                val,
-            )
-            val = 50.0
-        result = math.ceil(kwargs["axis"] * val)
-        log.verbose(
-            "Converting %s: f%s to px%s using axis %s",
-            attr,
-            val,
-            result,
-            kwargs["axis"],
-        )
-        return result
+            if attr is None:
+                raise ValueError("`attr` must be a string if `val` is None.")
+            val = self._trackedWidgets[attr].value() / axis
+        return round(val * axis)
 
-    @relativeWidgetAxis
-    def floatValForAttr(self, attr, val=None, **kwargs):
+    def floatValForAttr(self, attr=None, val=None, axis=None):
+        """Return a value from 0.0 to 1.0 using the absolute value divided by maxResolution.
+        If `axis` is not maxResolution, value will be scaled up (mutated) appropriately.
+        If `axis` is a tuple, we guess whether to divide by width or height based on attr.
+        """
+        if axis is None:
+            axis = (self.width, self.height)
         if val is None:
+            if attr is None:
+                raise ValueError("`attr` must be a string if `val` is None.")
             val = self._trackedWidgets[attr].value()
-        return val / kwargs["axis"]
 
-    def setRelativeWidget(self, attr, floatVal):
+        # Convert pixel value to 1080 if needed
+        convert = False
+        if axis != self.core.maxResolution:
+            convert = True
+        if type(axis) not in (int, float):
+            axis = axis[1] if isVerticalWord(attr) else axis[0]
+
+        maxis = (
+            self.core.maxResolution[1]
+            if isVerticalWord(attr)
+            else self.core.maxResolution[0]
+        )
+        if convert:
+            val = (val / axis) * maxis
+        return val / maxis
+
+    def setRelativeWidget(self, attr, floatVal, axis=None):
         """Set a relative widget using a float"""
-        pixelVal = self.pixelValForAttr(attr, floatVal)
+        if axis is None:
+            axis = (self.width, self.height)
+        self._updateRelativeWidgetFloat(attr, floatVal)
+        pixelVal = self.pixelValForAttr(attr, floatVal, axis)
         with blockSignals(self._trackedWidgets[attr]):
             self._trackedWidgets[attr].setValue(pixelVal)
-        self.update(auto=True)
+        self.update(auto=True, origin="setRelativeWidget")
 
-    def getOldAttr(self, attr):
-        """
-        Returns previous state of this attr. Used to determine whether
-        a relative widget must be updated. Required because undoing/redoing
-        can make determining the 'previous' value tricky.
-        """
-        if self.oldAttrs is not None:
-            return self.oldAttrs[attr]
-        else:
-            try:
-                return getattr(self, attr)
-            except AttributeError:
-                log.error("Using visible values instead of oldAttrs")
-                return self._trackedWidgets[attr].value()
-
-    def updateRelativeWidget(self, attr):
-        """Called by _preUpdate() for each relativeWidget before each update"""
-        oldUserValue = self.getOldAttr(attr)
-        newUserValue = self._trackedWidgets[attr].value()
-        newRelativeVal = self.floatValForAttr(attr, newUserValue)
-
-        if attr in self._relativeValues:
-            oldRelativeVal = self._relativeValues[attr]
-            if oldUserValue == newUserValue and oldRelativeVal != newRelativeVal:
-                # Float changed without pixel value changing, which
-                # means the pixel value needs to be updated
-                # TODO QDoubleSpinBox doesn't work with relativeWidgets because of this
-                log.debug(
-                    "Updating %s #%s's relative widget: %s",
-                    self.__class__.name,
-                    self.compPos,
-                    attr,
-                )
-                with blockSignals(self._trackedWidgets[attr]):
-                    self.updateRelativeWidgetMaximum(attr)
-                    pixelVal = self.pixelValForAttr(attr, oldRelativeVal)
-                    self._trackedWidgets[attr].setValue(pixelVal)
-
-        if attr not in self._relativeValues or oldUserValue != newUserValue:
-            self._relativeValues[attr] = newRelativeVal
-
-    def updateRelativeWidgetMaximum(self, attr):
-        maxRes = int(self.core.resolutions[0].split("x")[0])
-        newMaximumValue = self.width * (self._relativeMaximums[attr] / maxRes)
+    def _updateRelativeWidgetMaximum(self, attr, newResolution):
+        newMaximumValue = newResolution[0] * (
+            self._relativeWidgetMaximums[attr]
+            / int(self.core.resolutions[0].split("x")[0])
+        )
         self._trackedWidgets[attr].setMaximum(int(newMaximumValue))
+
+    def _updateRelativeWidgetFloat(self, attr, newVal):
+        if type(newVal) != float:
+            newVal = self.floatValForAttr(attr, newVal)
+        self._relativeWidgetFloats[attr] = newVal
+        if log.isEnabledFor(logging.INFO):
+            self._trackedWidgets[attr].setToolTip(
+                "relative value: {0:.3f}".format(newVal)
+            )

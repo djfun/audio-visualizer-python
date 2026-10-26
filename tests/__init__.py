@@ -40,7 +40,7 @@ def window(qtbot):
     initCore()
     # patch out any modal dialog that might happen
     MainWindow.showMessage = lambda self, msg, **kwargs: print(msg)
-    window = MainWindow(None, None)
+    window = MainWindow(None, None, True)
     window.clear()
     qtbot.addWidget(window)
     window.settings.setValue("outputWidth", 1920)
@@ -72,11 +72,11 @@ def initCore():
         # use test data path so we can easily see it after
         # a failed test, and help us understand the config
         configDir = getTestDataPath("config")
-    unwanted = ["autosave.avp", "settings.ini"]
-    for file in unwanted:
-        filename = os.path.join(configDir, "autosave.avp")
-        if os.path.exists(filename):
-            os.remove(filename)
+    unwantedFiles = ["autosave.avp", "settings.ini"]
+    for filename in unwantedFiles:
+        filepath = os.path.join(configDir, filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
     Core.storeSettings(configDir)
     return configDir if numWorkers > 0 else None
 

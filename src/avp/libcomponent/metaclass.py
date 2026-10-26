@@ -3,10 +3,10 @@ import logging
 from PyQt6 import QtCore
 
 from .exceptions import ComponentError
-from ..toolkit import connectWidget
+from ..toolkit import connectWidget, hasUndoStack
 from ..toolkit.frame import BlankFrame
 
-log = logging.getLogger("AVP.ComponentHandler")
+log = logging.getLogger(__name__)
 
 
 class ComponentMetaclass(type(QtCore.QObject)):
@@ -30,11 +30,6 @@ class ComponentMetaclass(type(QtCore.QObject)):
     def renderWrapper(func):
         def renderWrapper(self, *args, **kwargs):
             try:
-                log.verbose(
-                    "### %s #%s renders a preview frame ###",
-                    self.__class__.name,
-                    str(self.compPos),
-                )
                 return func(self, *args, **kwargs)
             except Exception as e:
                 try:
@@ -128,9 +123,10 @@ class ComponentMetaclass(type(QtCore.QObject)):
         """
 
         class wrap:
-            def __init__(self, comp, auto):
+            def __init__(self, comp, auto, origin):
                 self.comp = comp
                 self.auto = auto
+                self.origin = origin
 
             def __enter__(self):
                 self.comp._preUpdate()
@@ -139,17 +135,17 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 if (
                     self.auto
                     or self.comp.openingPreset
-                    or not hasattr(self.comp.parent, "undoStack")
+                    or not hasUndoStack(self.comp.loader)
                 ):
-                    log.verbose("Automatic update")
-                    self.comp._autoUpdate()
+                    self.comp._autoUpdate(self.origin)
                 else:
-                    log.verbose("User update")
                     self.comp._userUpdate()
 
         def updateWrapper(self, **kwargs):
-            auto = kwargs["auto"] if "auto" in kwargs else False
-            with wrap(self, auto):
+            auto = kwargs.get("auto", False)
+            origin = kwargs.get("origin", "metaclass")
+
+            with wrap(self, auto, origin):
                 try:
                     return func(self)
                 except Exception:
@@ -171,13 +167,19 @@ class ComponentMetaclass(type(QtCore.QObject)):
                 pass
 
             def __exit__(self, *args):
+                connectedWidgets = 0
                 for widgetList in self.comp._allWidgets.values():
                     for widget in widgetList:
-                        log.verbose("Connecting %s", str(widget.__class__.__name__))
+                        connectedWidgets += 1
                         connectWidget(widget, self.comp.update)
+                log.debug(
+                    "Connected %s widgets from %s #%s",
+                    str(connectedWidgets),
+                    self.comp.name,
+                    str(self.comp.compPos),
+                )
 
         def widgetWrapper(self, *args, **kwargs):
-            auto = kwargs["auto"] if "auto" in kwargs else False
             with wrap(self):
                 try:
                     return func(self, *args, **kwargs)

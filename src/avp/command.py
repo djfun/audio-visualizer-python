@@ -18,7 +18,7 @@ from . import __version__
 from .core import Core
 
 
-log = logging.getLogger("AVP.Commandline")
+log = logging.getLogger(__name__)
 
 
 class Command(QtCore.QObject):
@@ -53,15 +53,24 @@ class Command(QtCore.QObject):
             "--version", "-V", action="version", version=f"%(prog)s {__version__}"
         )
 
-        # input/output automatic-export commands
-        parser.add_argument("-i", "--input", metavar="SOUND", help="input audio file")
         parser.add_argument(
-            "-o", "--output", metavar="OUTPUT", help="output video file"
+            "--size",
+            "-s",
+            help="set output frame size (resolution)",
+            choices=Core.resolutions,
+        )
+
+        # input/output automatic-export commands
+        parser.add_argument(
+            "-i", "--input", metavar="<filename>", help="input audio filename"
+        )
+        parser.add_argument(
+            "-o", "--output", metavar="<filename>", help="output video's filename"
         )
         parser.add_argument(
             "--export-project",
             action="store_true",
-            help="use input and output files from project file if -i or -o is missing",
+            help="use input and output filenames from project file if -i or -o is missing",
         )
 
         # mutually exclusive debug options
@@ -74,8 +83,9 @@ class Command(QtCore.QObject):
         debugCommands.add_argument(
             "--verbose",
             "-v",
-            action="store_true",
-            help="send log messages and ffmpeg output to stdout, and create more verbose log files (good to use before --log)",
+            action="count",
+            default=0,
+            help="send log messages and FFmpeg output to stdout, and create more verbose log files (good to use before --log)",
         )
 
         # project/GUI options
@@ -88,9 +98,11 @@ class Command(QtCore.QObject):
         parser.add_argument(
             "-c",
             "--comp",
-            metavar=("LAYER", "ARG"),
-            help="first arg must be component NAME to insert at LAYER."
-            '"help" for information about possible args for a component.',
+            metavar=("<layer>", "<argument>"),
+            help="Insert component at <layer> (a number from -1 to 50, "
+            "where 0 is rendered below 50 and -1 is always on top). "
+            "First argument must be the name of a component. More arguments configure the component. "
+            "(For example, use '-c 0 classic help' for help with Classic Visualizer component.)",
             nargs="*",
             action="append",
         )
@@ -102,8 +114,8 @@ class Command(QtCore.QObject):
 
         args = parser.parse_args()
 
-        if args.verbose:
-            Core.stdoutLogLvl = logging.DEBUG
+        if args.verbose > 0:
+            Core.stdoutLogLvl -= 10 * args.verbose
             Core.makeLogger(deleteOldLogs=False, fileLogLvl=logging.DEBUG)
 
         if args.log:
@@ -142,6 +154,14 @@ class Command(QtCore.QObject):
                 for arg in compargs:
                     self.core.selectedComponents[i].command(arg)
 
+        if args.size:
+            print("Setting output size to %s" % args.size)
+            w, h = args.size.split("x")
+            self.core.settings.setValue("outputWidth", w)
+            self.core.settings.setValue("outputHeight", h)
+            for i in range(len(self.core.selectedComponents)):
+                self.core.selectedComponents[i].updateResolution()
+
         if args.export_project and args.projpath:
             errcode, data = self.core.parseAvFile(projPath)
             input_ = None
@@ -177,6 +197,7 @@ class Command(QtCore.QObject):
             and "help" not in sys.argv
             and "--verbose" not in sys.argv
             and "-v" not in sys.argv
+            and "-vv" not in sys.argv
             and "--log" not in sys.argv
         ):
             parser.print_help()
@@ -195,13 +216,22 @@ class Command(QtCore.QObject):
         # quit(0) after video is created
         self.worker.videoCreated.connect(self.videoCreated)
         self.lastProgressUpdate = time.time()
+        self.lastEstimatedTimeUpdate = time.time()
         self.worker.progressBarSetText.connect(self.progressBarSetText)
+        self.worker.estimatedTimeUpdate.connect(self.estimatedTimeUpdate)
         self.createVideo.emit()
 
     def stopVideo(self, *args):
         self.worker.error = True
         self.worker.cancelExport()
         self.worker.cancel()
+
+    @QtCore.pyqtSlot(str)
+    def estimatedTimeUpdate(self, value):
+        if time.time() - self.lastEstimatedTimeUpdate < 5.0:
+            return
+        print(value)
+        self.lastEstimatedTimeUpdate = time.time()
 
     @QtCore.pyqtSlot(str)
     def progressBarSetText(self, value):

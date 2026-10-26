@@ -1,7 +1,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 import logging
 
-log = logging.getLogger("AVP.Gui.PreviewWindow")
+log = logging.getLogger(__name__)
 
 
 class PreviewWindow(QtWidgets.QLabel):
@@ -55,4 +55,4 @@ class PreviewWindow(QtWidgets.QLabel):
     @QtCore.pyqtSlot(str)
     def threadError(self, msg):
         self.parent.showMessage(msg=msg, icon="Critical", parent=self)
-        log.info("%", repr(self.parent))
+        log.info("%s", repr(self.parent))
